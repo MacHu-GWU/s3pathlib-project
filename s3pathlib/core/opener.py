@@ -17,7 +17,7 @@ from func_args import NOTHING, resolve_kwargs
 
 from ..metadata import warn_upper_case_in_metadata_key
 from ..aws import context
-from ..compat import smart_open, compat
+from ..compat import smart_open
 from ..type import MetadataType, TagType
 from ..tag import encode_url_query
 
@@ -237,14 +237,8 @@ class OpenerAPIMixin:
             transport_params=transport_params,
         )
 
-        if compat.smart_open_version_major < 6:  # pragma: no cover
-            open_kwargs["ignore_ext"] = ignore_ext
-        if (
-            compat.smart_open_version_major >= 5
-            and compat.smart_open_version_major >= 1
-        ):  # pragma: no cover
-            if compression is not None:
-                open_kwargs["compression"] = compression
+        if compression is not None:
+            open_kwargs["compression"] = compression
 
         existing_client_kwargs: T.Dict[str, T.Dict[str, T.Any]]
         existing_client_kwargs = transport_params.get("client_kwargs", {})
