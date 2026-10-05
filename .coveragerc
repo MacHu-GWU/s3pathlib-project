@@ -4,7 +4,9 @@
 omit =
     s3pathlib/docs/*
     s3pathlib/tests/*
+    s3pathlib/vendor/*
     s3pathlib/_version.py
+    s3pathlib/paths.py
 
 [report]
 # Regexes for lines to exclude from consideration

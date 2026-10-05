@@ -1,66 +1,26 @@
-# Project Guide for AI Assistants
+# s3pathlib
 
-This document guides AI assistants on how to navigate and work with this project.
+An SDK on top of AWS boto3 S3 that gives a human-friendly, `pathlib`-like API.
 
-## Project Overview
+## Tooling
 
-**What this project does:** Read `README.rst` for project description and purpose.
+- `mise` manages Python, uv and Claude Code (`mise.toml`). Run tasks with `mise run <task>`; tests are `mise run cov`.
+- `uv` manages packages (`pyproject.toml`, `uv.lock`).
+- The virtualenv is `.venv`; use `.venv/bin/python`.
 
-**Project type:** Python package
+## Import Style
 
-## Core Configuration Files
+One name per import line:
 
-### Tool & Dependency Management
-- `mise.toml` - Task runner and tool version management (Python 3.12, uv, claude)
-- `pyproject.toml` - Python dependencies and package metadata
-- `.venv/` - Virtual environment directory (created by uv)
-
-Use `mise ls python --current` to see the exact Python version in use.
-
-### CI/CD & Testing
-- `.github/workflows/main.yml` - GitHub Actions CI workflow
-- `codecov.yml` + `.coveragerc` - Code coverage reporting (codecov.io)
-- `.readthedocs.yml` - Documentation hosting (readthedocs.org)
-
-### Documentation
-- `docs/source/` - Sphinx documentation source files
-- `docs/source/conf.py` - Sphinx configuration
-
-## Development Workflow
-
-### Task Management
-List all available tasks:
-```bash
-mise tasks ls
+```python
+from .abc import efg
+from .abc import xyz
 ```
 
-Run a specific task:
-```bash
-mise run ${task_name}
-```
+Order: `import typing as T` first, then standard library, then third-party, then s3pathlib's own relative imports.
 
-**Key tasks:**
-- `inst` - Install all dependencies using uv (fast package manager)
-- `cov` - Run unit tests with coverage report
-- `build-doc` - Build Sphinx documentation
+## Tests
 
-For complete task reference, run `mise run list-tasks` to generate `.claude/mise-tasks.md`.
-
-### Testing Philosophy
-This project uses **pytest** with a special pattern that allows running individual test files as standalone scripts.
-
-**Example:** See `tests/test_api.py` - the `if __name__ == "__main__":` block demonstrates this pattern. It runs pytest as a subprocess with coverage tracking for the specific module, enabling quick isolated testing during development.
-
-## Working with This Project
-
-**Approach:**
-1. Don't load entire files unnecessarily - read specific files only when needed
-2. Use task commands (`mise run`) instead of direct tool invocation
-3. Follow the testing pattern when creating new test files
-4. Reference configuration files for specific settings rather than assuming defaults
-
-**Tools in use:**
-- **mise-en-place** - Development tool management
-- **uv** - Fast Python package management
-- **pytest** - Unit testing framework
-- **sphinx** - Documentation generation
+- Tests live in `tests/`, mirroring the source tree. Directories stay the same; file names get the full path as a prefix, e.g. `s3pathlib/core/copy.py` is tested by `tests/core/test_core_copy.py`.
+- Each test file can also run on its own (`.venv/bin/python tests/core/test_core_copy.py`) to get coverage for just that module.
+- `s3pathlib/tests/mock.py` provides `BaseTest`. A test class sets `use_mock = True` to run against moto, or `use_mock = False` to run against real AWS. Test logic goes in a mixin, and each mode is a one-line subclass, so switching is one flag. By default only the moto classes are enabled.

@@ -2,10 +2,7 @@
 
 from s3pathlib.utils import smart_join_s3_key
 from s3pathlib.tests.mock import BaseTest
-from s3pathlib.tests.paths import (
-    dir_test_list_objects_folder,
-    dir_test_upload_dir_folder,
-)
+from s3pathlib.paths import path_enum
 
 
 class DummyData(BaseTest):
@@ -126,7 +123,7 @@ class DummyData(BaseTest):
             s3_client=cls.bsm.s3_client,
             bucket=cls.get_bucket(),
             prefix=cls.prefix_test_list_objects,
-            local_dir=f"{dir_test_list_objects_folder}",
+            local_dir=f"{path_enum.dir_test_list_objects_folder}",
             pattern="**/*.txt",
             overwrite=True,
         )
@@ -145,7 +142,7 @@ class DummyData(BaseTest):
             s3_client=cls.bsm.s3_client,
             bucket=cls.get_bucket(),
             prefix=cls.prefix_test_upload_dir,
-            local_dir=f"{dir_test_upload_dir_folder}",
+            local_dir=f"{path_enum.dir_test_upload_dir_folder}",
             pattern="**/*.txt",
             overwrite=True,
         )
