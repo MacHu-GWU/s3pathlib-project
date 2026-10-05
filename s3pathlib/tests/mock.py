@@ -7,7 +7,7 @@ from functools import cached_property
 
 import botocore.exceptions
 import moto
-from boto_session_manager import BotoSesManager
+from boto_session_manager.api import BotoSesManager
 from rich import print as rprint
 from s3pathlib import S3Path, context
 

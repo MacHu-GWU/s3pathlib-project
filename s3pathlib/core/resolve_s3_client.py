@@ -9,7 +9,7 @@ import typing as T
 from ..aws import Context
 
 if T.TYPE_CHECKING:  # pragma: no cover
-    from boto_session_manager import BotoSesManager
+    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 

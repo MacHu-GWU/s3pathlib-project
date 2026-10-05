@@ -8,7 +8,7 @@ import typing as T
 
 import subprocess
 
-from boto_session_manager import BotoSesManager
+from boto_session_manager.api import BotoSesManager
 
 from ..aws import context
 from ..type import PathType

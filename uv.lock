@@ -83,14 +83,11 @@ css = [
 
 [[package]]
 name = "boto-session-manager"
-version = "1.8.1"
+version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "boto3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/67/7d/be013c8b6b8edf2afbc063bc393feac64d107f598f3284d99278a4ffb6ff/boto_session_manager-1.8.1.tar.gz", hash = "sha256:68f8cd1f60ab7e245875caacbc58416830f0c6dc5562ed9cbea6a55db100382f", size = 40374, upload-time = "2025-03-14T19:32:52.79Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/09/50805b675e35db69ec036086be704ec4d4886ccbb9ec1bf4d82b0ca909b2/boto_session_manager-2.0.1.tar.gz", hash = "sha256:cd380385dbe9ef232717adcba8bb83041657c2e36dc920d84d95d2a555bd125b", size = 46324, upload-time = "2026-04-24T21:05:30.526Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/fc/b3e3318a8fe99b3b7631ae54faee3294b8e3dcc74daa037010aff305d986/boto_session_manager-1.8.1-py3-none-any.whl", hash = "sha256:ca73b7356cc6af626a9794bc36a44d998312cb4686f5c408d45603cce3e47323", size = 33736, upload-time = "2025-03-14T19:32:51.767Z" },
+    { url = "https://files.pythonhosted.org/packages/62/e0/aea111e374ec793de31f1edef8bf59ae6572e27c8017bacd0c3d075d6bee/boto_session_manager-2.0.1-py3-none-any.whl", hash = "sha256:d42cbf9113c6b31b29bc0766360193a8b52badb16a56455aac69929bd8d325ca", size = 39624, upload-time = "2026-04-24T21:05:31.71Z" },
 ]
 
 [[package]]
@@ -1556,15 +1553,15 @@ wheels = [
 
 [[package]]
 name = "rich"
-version = "13.9.4"
+version = "14.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py" },
     { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ab/3a/0316b28d0761c6734d6bc14e770d85506c986c85ffb239e688eeaab2c2bc/rich-13.9.4.tar.gz", hash = "sha256:439594978a49a09530cff7ebc4b5c7103ef57baf48d5ea3184f21d9a2befa098", size = 223149, upload-time = "2024-11-01T16:43:57.873Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/67/cae617f1351490c25a4b8ac3b8b63a4dda609295d8222bad12242dfdc629/rich-14.3.4.tar.gz", hash = "sha256:817e02727f2b25b40ef56f5aa2217f400c8489f79ca8f46ea2b70dd5e14558a9", size = 230524, upload-time = "2026-04-11T02:57:45.419Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/19/71/39c7c0d87f8d4e6c020a393182060eaefeeae6c01dab6a84ec346f2567df/rich-13.9.4-py3-none-any.whl", hash = "sha256:6049d5e6ec054bf2779ab3358186963bac2ea89175919d699e378b99738c2a90", size = 242424, upload-time = "2024-11-01T16:43:55.817Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/76/6d163cfac87b632216f71879e6b2cf17163f773ff59c00b5ff4900a80fa3/rich-14.3.4-py3-none-any.whl", hash = "sha256:07e7adb4690f68864777b1450859253bed81a99a31ac321ac1817b2313558952", size = 310480, upload-time = "2026-04-11T02:57:47.484Z" },
 ]
 
 [[package]]
@@ -1758,12 +1755,12 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "boto-session-manager", specifier = ">=1.5.1,<2.0.0" },
-    { name = "boto3", specifier = ">=1.33.0,<2.0.0" },
-    { name = "boto3-stubs", extras = ["s3", "sts"], marker = "extra == 'dev'", specifier = ">=1.33.0,<2.0.0" },
+    { name = "boto-session-manager", specifier = ">=2.0.1,<3.0.0" },
+    { name = "boto3", specifier = ">=1.41.0,<2.0.0" },
+    { name = "boto3-stubs", extras = ["s3", "sts"], marker = "extra == 'dev'", specifier = ">=1.41.0,<2.0.0" },
     { name = "decorator", marker = "extra == 'test'", specifier = ">=5.0.5,<6.0.0" },
     { name = "docfly", marker = "extra == 'doc'", specifier = "==3.0.3" },
-    { name = "func-args", specifier = ">=0.1.1,<2.0.0" },
+    { name = "func-args", specifier = ">=1.0.2,<2.0.0" },
     { name = "furo", marker = "extra == 'doc'", specifier = "==2024.8.6" },
     { name = "httpx", marker = "extra == 'mise'", specifier = ">=0.28.0,<1.0.0" },
     { name = "ipython", marker = "extra == 'doc'", specifier = ">=8.18.1,<8.19.0" },
@@ -1775,10 +1772,10 @@ requires-dist = [
     { name = "pygments", marker = "extra == 'doc'", specifier = ">=2.18.0,<3.0.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.2.2,<9.0.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=6.0.0,<7.0.0" },
-    { name = "rich", marker = "extra == 'dev'", specifier = ">=13.8.1,<14.0.0" },
-    { name = "rich", marker = "extra == 'test'", specifier = ">=13.8.1,<14.0.0" },
+    { name = "rich", marker = "extra == 'dev'", specifier = ">=14.0.0,<15.0.0" },
+    { name = "rich", marker = "extra == 'test'", specifier = ">=14.0.0,<15.0.0" },
     { name = "rstobj", marker = "extra == 'doc'", specifier = "==2.0.0" },
-    { name = "smart-open", specifier = ">=5.1.0,<8.0.0" },
+    { name = "smart-open", specifier = ">=7.0.0,<9.0.0" },
     { name = "sphinx", marker = "extra == 'doc'", specifier = ">=7.4.7,<8.0.0" },
     { name = "sphinx-copybutton", marker = "extra == 'doc'", specifier = ">=0.5.2,<1.0.0" },
     { name = "sphinx-design", marker = "extra == 'doc'", specifier = ">=0.6.1,<1.0.0" },

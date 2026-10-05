@@ -13,7 +13,6 @@ sub packages and modules
     better_client <better_client/__init__>
     core <core/__init__>
     aws <aws>
-    compat <compat>
     constants <constants>
     content_type <content_type>
     exc <exc>

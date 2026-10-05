@@ -17,7 +17,7 @@ from ..aws import context
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
     from boto3.s3.transfer import TransferConfig
-    from boto_session_manager import BotoSesManager
+    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
     from mypy_boto3_s3.type_defs import UploadFile
 

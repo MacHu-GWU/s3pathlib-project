@@ -22,7 +22,7 @@ from ..marker import warn_deprecate
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager import BotoSesManager
+    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
