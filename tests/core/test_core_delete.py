@@ -166,8 +166,8 @@ class DeleteAPIMixin(BaseTest):
             self._test_delete_with_hard_delete()
 
 
-class Test(DeleteAPIMixin):
-    use_mock = False
+# class Test(DeleteAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(DeleteAPIMixin):

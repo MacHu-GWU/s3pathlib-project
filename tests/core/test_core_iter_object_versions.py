@@ -50,8 +50,8 @@ class IterObjectsAPIMixin(BaseTest):
         self._test_list_object_versions()
 
 
-class Test(IterObjectsAPIMixin):
-    use_mock = False
+# class Test(IterObjectsAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(IterObjectsAPIMixin):

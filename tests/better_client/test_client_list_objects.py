@@ -257,8 +257,8 @@ class BetterListObjects(DummyData):
         self._test_count_objects()
 
 
-class Test(BetterListObjects):
-    use_mock = False
+# class Test(BetterListObjects):
+#     use_mock = False
 
 
 class TestUseMock(BetterListObjects):

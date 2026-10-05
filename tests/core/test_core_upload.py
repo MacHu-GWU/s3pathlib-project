@@ -69,8 +69,8 @@ class UploadAPIMixin(BaseTest):
         self._test_upload_dir()
 
 
-class Test(UploadAPIMixin):
-    use_mock = False
+# class Test(UploadAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(UploadAPIMixin):

@@ -5,38 +5,30 @@
 # ==============================================================================
 [project]
 name = "s3pathlib"
-# Increment version before each release - follow `semantic versioning <https://semver.org/>`_
-# Currently, poetry 2.1.X doesn't support dynamic versioning
-# (Read https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#version)
-# So this value has to be aligned with the one in ``s3pathlib/_version.py``
-version = "2.3.6"
+version = "3.0.0"
 description = "s3pathlib is the python package provides the Pythonic objective oriented programming (OOP) interface to manipulate AWS S3 object / directory. The api is similar to the pathlib standard library and very intuitive for human."
 # Read https://dev-exp-share.readthedocs.io/en/latest/search.html?q=Pick+An+Open+Source+License+For+Python+Project&check_keywords=yes&area=default
 # To pick a license and update the ``license``, ``classifier`` field in ``pyproject.toml``
 # And also update the ``LICENSE.txt`` file in the git repo.
-license = "Apache License 2.0"
-license-files = ["LICENSE.txt", "AUTHORS.rst"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "AUTHORS.rst"]
 authors = [
-    { name = "Sanhe Hu, Jiazhen Zhu", email = "husanhe@email.com" },
+    { name = "Sanhe Hu", email = "husanhe@email.com" },
 ]
 maintainers = [
-    { name = "Sanhe Hu, Jiazhen Zhu", email = "husanhe@email.com" },
+    { name = "Sanhe Hu", email = "husanhe@email.com" },
 ]
 keywords = []
 readme = "README.rst"
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.11,<4.0"
 # Full list of classifiers: https://pypi.org/classifiers/
-classifier = [
+classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: MacOS",
     "Operating System :: Unix",
-    # Note: classfier like "Programming Language :: Python :: 3 :: Only",
-    # "Programming Language :: Python :: 3.X" is no longer needed,
-    # because we have ``requires-python`` field.
 ]
 
 # ------------------------------------------------------------------------------
@@ -45,10 +37,10 @@ classifier = [
 dependencies = [
     "boto3>=1.33.0,<2.0.0",
     "iterproxy>=0.3.1,<1.0.0",
-    "func_args>=0.1.1,<2.0.0",
-    "pathlib_mate>=1.0.1,<2.0.0",
-    "boto_session_manager>=1.5.1,<2.0.0",
-    "smart_open>=5.1.0,<8.0.0",
+    "func-args>=0.1.1,<2.0.0",
+    "pathlib-mate>=1.0.1,<2.0.0",
+    "boto-session-manager>=1.5.1,<2.0.0",
+    "smart-open>=5.1.0,<8.0.0",
 ]
 
 # ------------------------------------------------------------------------------
@@ -64,9 +56,6 @@ dependencies = [
 # Local Development dependenceies
 # ------------------------------------------------------------------------------
 dev = [
-    "twine>=6.0.0,<7.0.0", # distribute package to PyPI
-    "wheel>=0.45.0,<1.0.0", # build wheel package
-    "build>=1.2.1,<2.0.0", # build source distribution
     "rich>=13.8.1,<14.0.0", # pretty print
     "boto3-stubs[s3,sts]>=1.33.0,<2.0.0", # type stubs for boto3
 ]
@@ -78,7 +67,7 @@ test = [
     "pytest>=8.2.2,<9.0.0", # Testing framework
     "pytest-cov>=6.0.0,<7.0.0", # Coverage reporting
     "decorator>=5.0.5,<6.0.0", # Decorator for testing
-    "moto>=5.0.28,<6.0.0", # mock AWS services
+    "moto>=5.1.22,<6.0.0", # mock AWS services
     "rich>=13.8.1,<14.0.0", # pretty print
 ]
 
@@ -94,14 +83,17 @@ doc = [
     "pygments>=2.18.0,<3.0.0", # syntax highlight
     "ipython>=8.18.1,<8.19.0", # interactive Python
     "nbsphinx>=0.8.12,<1.0.0", # add jupyter notebook in sphinx doc
-    "rstobj==1.2.1", # generate reStructuredText from Python code
-    "docfly==3.0.0", # automaticall generate .. toctree directives and API reference doc
+    "rstobj==2.0.0", # generate reStructuredText from Python code
+    "docfly==3.0.3", # automaticall generate .. toctree directives and API reference doc
 ]
 
 # ------------------------------------------------------------------------------
-# Automation (devops) dependenceies
+# Mise task runner dependencies
 # ------------------------------------------------------------------------------
-auto = [
+mise = [
+    "PyGithub>=2.8.0,<3.0.0", # GitHub API client
+    "httpx>=0.28.0,<1.0.0", # HTTP client for ReadTheDocs API
+    "tomli>=2.0.0,<3.0.0; python_version < '3.11'", # TOML parser for Python 3.10
 ]
 
 # Quick Links
@@ -116,42 +108,18 @@ Download = "https://pypi.org/pypi/s3pathlib#files"
 # For command line interface, read: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#creating-executable-scripts
 [project.scripts]
 
-[tool.poetry.requires-plugins]
-poetry-plugin-export = ">=1.9.0,<2.0.0"
-
-[tool.poetry]
-packages = [
-    { include = "s3pathlib", from = ".", to = "." }
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "s3pathlib*"
 ]
 exclude = [
-    "s3pathlib/tests/*",
-    "s3pathlib/docs/*",
-    "**/*.pyc",
-    "**/*.pyo",
+    "s3pathlib.tests",
+    "s3pathlib.tests.*",
+    "s3pathlib.docs",
+    "s3pathlib.docs.*",
 ]
 
-# python workflow tool config
-[tool.pywf]
-# The specific python version you use for local development
-dev_python = "3.11.8"
-# --- github.com
-github_account = "MacHu-GWU"
-# Create GitHub token in https://github.com/settings/tokens and put the token in
-# ``${HOME}/home_secret.json``
-github_token_field = "providers.github.accounts.sh.users.sh.secrets.dev.value"
-# --- codecov.io (for code coverage test report)
-codecov_account = "MacHu-GWU"
-# Create Codecov token in https://app.codecov.io/account/gh/${codecov_account}/access
-# and put the token in ``${HOME}/home_secret.json``
-codecov_token_field = "providers.codecov_io.accounts.sh.users.sh.secrets.dev.value"
-# --- readthedocs.org (for documentation hosting)
-# Create Readthedocs token in https://app.readthedocs.org/accounts/tokens/
-# and put the token at ``${HOME}/home_secret.json``
-readthedocs_token_field = "providers.readthedocs.accounts.sh.users.sh.secrets.dev.value"
-# Readthedocs project name, usually it is the same as your project name
-readthedocs_project_name = "s3pathlib"
-
-# Read: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#declaring-the-build-backend
 [build-system]
-requires = ["poetry-core>=2.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=77.0", "wheel"]
+build-backend = "setuptools.build_meta"

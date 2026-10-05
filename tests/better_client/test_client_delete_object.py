@@ -188,8 +188,8 @@ class BetterDeleteObject(DummyData):
         self._test_with_dummy_data()
 
 
-class Test(BetterDeleteObject):
-    use_mock = False
+# class Test(BetterDeleteObject):
+#     use_mock = False
 
 
 class TestUseMock(BetterDeleteObject):

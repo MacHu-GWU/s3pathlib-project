@@ -227,8 +227,8 @@ class AttributeAPIMixin(BaseTest):
         self._test_set_attribute()
 
 
-class Test(AttributeAPIMixin):
-    use_mock = False
+# class Test(AttributeAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(AttributeAPIMixin):

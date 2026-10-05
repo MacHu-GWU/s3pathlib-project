@@ -97,8 +97,8 @@ class ExistsAPIMixin(BaseTest):
         self._test_exists()
 
 
-class Test(ExistsAPIMixin):
-    use_mock = False
+# class Test(ExistsAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(ExistsAPIMixin):

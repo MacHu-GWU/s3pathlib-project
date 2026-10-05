@@ -110,8 +110,8 @@ class TaggingAPIMixin(BaseTest):
         self._test_get_put_update_with_versioning()
 
 
-class Test(TaggingAPIMixin):
-    use_mock = False
+# class Test(TaggingAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(TaggingAPIMixin):

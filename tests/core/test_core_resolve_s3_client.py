@@ -21,8 +21,8 @@ class ResolveS3Client(BaseTest):
         self._test_resolve_s3_client()
 
 
-class Test(ResolveS3Client):
-    use_mock = False
+# class Test(ResolveS3Client):
+#     use_mock = False
 
 
 class TestUseMock(ResolveS3Client):

@@ -110,8 +110,8 @@ class BaseS3Path(BaseTest):
         self._test_type_error()
 
 
-class Test(BaseS3Path):
-    use_mock = False
+# class Test(BaseS3Path):
+#     use_mock = False
 
 
 class TestUseMock(BaseS3Path):

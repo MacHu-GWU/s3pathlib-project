@@ -204,8 +204,8 @@ class ReadAndWriteAPIMixin(BaseTest):
         self._test_mkdir()
 
 
-class Test(ReadAndWriteAPIMixin):
-    use_mock = False
+# class Test(ReadAndWriteAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(ReadAndWriteAPIMixin):

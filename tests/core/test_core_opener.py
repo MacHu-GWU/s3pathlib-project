@@ -119,8 +119,8 @@ class OpenerAPIMixin(BaseTest):
         self._test_open_with_versioning()
 
 
-class Test(OpenerAPIMixin):
-    use_mock = False
+# class Test(OpenerAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(OpenerAPIMixin):

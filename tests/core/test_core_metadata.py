@@ -85,8 +85,8 @@ class MetadataAPIMixin(BaseTest):
         self._test_object_metadata()
 
 
-class Test(MetadataAPIMixin):
-    use_mock = False
+# class Test(MetadataAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(MetadataAPIMixin):

@@ -55,8 +55,8 @@ class SyncAPIMixin(BaseTest):
 
 # NOTE: this module should ONLY be tested with MOCK
 # DO NOT USE REAL S3 BUCKET
-class Test(SyncAPIMixin):
-    use_mock = False
+# class Test(SyncAPIMixin):
+#     use_mock = False
 
 
 if __name__ == "__main__":

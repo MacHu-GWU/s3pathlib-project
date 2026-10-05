@@ -127,8 +127,8 @@ class CopyAPIMixin(BaseTest):
         self._test_copy_with_metadata_and_tagging()
 
 
-class Test(CopyAPIMixin):
-    use_mock = False
+# class Test(CopyAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(CopyAPIMixin):

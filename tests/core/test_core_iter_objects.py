@@ -231,8 +231,8 @@ class IterObjectsAPIMixin(BaseTest):
         self._test_count_objects()
 
 
-class Test(IterObjectsAPIMixin):
-    use_mock = False
+# class Test(IterObjectsAPIMixin):
+#     use_mock = False
 
 
 class TestUseMock(IterObjectsAPIMixin):

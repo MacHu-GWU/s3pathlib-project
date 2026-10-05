@@ -1,9 +1,8 @@
 # User Settings
-s3pathlib_venv/
 s3pathlib.egg-info/
-s3pathlib-*/
+docs/source/**/index.md
+.claude/claude-code-message*
 tmp/
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

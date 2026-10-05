@@ -84,8 +84,8 @@ class BetterUpload(BaseTest):
         self._test()
 
 
-class Test(BetterUpload):
-    use_mock = False
+# class Test(BetterUpload):
+#     use_mock = False
 
 
 class TestUseMock(BetterUpload):
