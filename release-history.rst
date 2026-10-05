@@ -19,6 +19,27 @@ Backlog (TODO)
 **Miscellaneous**
 
 
+3.0.0 (2026-10-05)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Breaking Changes**
+
+- Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11.
+- Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
+- Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``, ``boto-session-manager>=2.0.1,<3.0.0``, ``func-args>=1.0.2``.
+
+**Minor Improvements**
+
+- Support ``smart_open`` 8.x.
+- Support ``boto_session_manager`` 2.x, which moved ``BotoSesManager`` to ``boto_session_manager.api``.
+
+**Miscellaneous**
+
+- Fix package metadata: use the SPDX license expression ``Apache-2.0`` and correct the ``classifiers`` field name.
+- Switch the build backend from poetry to setuptools, and manage the development environment with mise and uv.
+- Add ``s3pathlib.paths`` to centralize project paths, and simplify the test helpers in ``s3pathlib.tests``.
+- Disable unit tests that run against real AWS; only the moto-mocked tests run by default.
+
+
 2.3.6 (2025-08-12)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 **Miscellaneous**
