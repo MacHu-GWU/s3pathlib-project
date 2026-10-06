@@ -2,6 +2,7 @@
 
 import pytest
 from s3pathlib.core import S3Path
+from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
 
 
@@ -255,16 +256,11 @@ class TestRelativePathAPIMixin:
         with pytest.raises(Exception):
             p.ensure_not_relpath()
 
-        # relpath edge case
-        assert (
-            S3Path._from_parsed_parts(bucket=None, parts=[], is_dir=True).is_relpath()
-            is False
-        )
-
-        assert (
-            S3Path._from_parsed_parts(bucket=None, parts=[], is_dir=False).is_relpath()
-            is False
-        )
+        # no bucket and no parts with a type is not a valid state, it can not
+        # be built (see s3pathlib.core.base)
+        for is_dir in [True, False]:
+            with pytest.raises(S3ValidationError, match="void path .* has no type"):
+                S3Path._from_parsed_parts(bucket=None, parts=[], is_dir=is_dir)
 
     def test_uri_properties(self):
         p = S3Path("bucket/folder/file.txt").relative_to(S3Path("bucket"))

@@ -20,63 +20,78 @@ class AttributeAPIMixin:
     """
 
     @property
-    def parent(self: S3Path) -> S3Path | None:
+    def parent(self: S3Path) -> S3Path:
         """
         Return the parent s3 directory.
 
         - if current object is on s3 bucket root directory, it returns bucket
             root directory
-        - it is always a directory (``s3path.is_dir() is True``)
-        - if it is already s3 bucket root directory, it returns ``None``
+        - it is always a directory (``s3path.is_dir() is True``), except for
+            the parent of a single part relative path, which is the void path
+            (the same as ``PurePosixPath("a").parent`` is ``"."``)
+        - if it is already s3 bucket root directory or void, it returns itself
 
         Examples::
 
             >>> S3Path("my-bucket", "my-folder", "my-file.json").parent.uri
-            s3://my-bucket/my-folder/
+            's3://my-bucket/my-folder/'
 
             >>> S3Path("my-bucket", "my-folder", "my-subfolder/").parent.uri
-            s3://my-bucket/my-folder/
+            's3://my-bucket/my-folder/'
 
             >>> S3Path("my-bucket", "my-folder").parent.uri
-            s3://my-bucket/
+            's3://my-bucket/'
 
             >>> S3Path("my-bucket", "my-file.json").parent.uri
-            s3://my-bucket/
+            's3://my-bucket/'
+
+            >>> S3Path.make_relpath("a/b").parent
+            S3RelPath('a/')
+
+            >>> S3Path.make_relpath("a").parent
+            S3VoidPath()
         """
         if len(self._parts) == 0:
             return self
+        parts = self._parts[:-1]
+        if (self._bucket is None) and len(parts) == 0:
+            is_dir = None  # void
         else:
-            return self._from_parsed_parts(
-                bucket=self._bucket,
-                parts=self._parts[:-1],
-                is_dir=True,
-            )
+            is_dir = True
+        return self._from_parsed_parts(
+            bucket=self._bucket,
+            parts=parts,
+            is_dir=is_dir,
+        )
 
     @property
     def parents(self: S3Path) -> list[S3Path]:
         """
-        An immutable sequence providing access to the logical ancestors of
-        the path.
+        The logical ancestors of the path, from the nearest to the farthest,
+        the same as ``pathlib.PurePath.parents``.
+
+        - an absolute path ends with its bucket root
+        - a relative path ends with the void path, the same as
+            ``PurePosixPath("a/b").parents`` ends with ``"."``
+        - a bucket root and the void path have no parents
 
         Examples::
 
             >>> S3Path("my-bucket", "my-folder", "my-file.json").parents
-            s3://my-bucket/my-folder/
+            [S3Path('s3://my-bucket/my-folder/'), S3Path('s3://my-bucket/')]
+
+            >>> S3Path.make_relpath("a/b/c").parents
+            [S3RelPath('a/b/'), S3RelPath('a/'), S3VoidPath()]
+
+            >>> S3Path("my-bucket").parents
+            []
         """
-        if self.is_void():
-            raise ValueError(f"void S3path doesn't support .parents method!")
-        if self.is_relpath():
-            raise ValueError(f"relative S3path doesn't support .parents method!")
-        l = list()
-        parent = self
-        while 1:
-            new_parent = parent.parent
-            if parent.uri == new_parent.uri:
-                break
-            else:
-                l.append(new_parent)
-                parent = new_parent
-        return l
+        parents = list()
+        path = self
+        while len(path._parts):
+            path = path.parent
+            parents.append(path)
+        return parents
 
     def is_parent_of(self: S3Path, other: S3Path) -> bool:
         """

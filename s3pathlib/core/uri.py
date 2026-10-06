@@ -3,6 +3,47 @@
 """
 S3 URI (Uniform Resource Identifier), ARN (Amazon Resource Name),
 console URL related API.
+
+**What each attribute returns**
+
+An S3Path is one of six kinds (see :mod:`s3pathlib.core.base`); the relative
+file and the relative dir behave the same here:
+
+=============  ==========  =============  ====================  =========================
+kind           ``bucket``  ``key``        ``uri``               ``arn`` / ``console_url``
+=============  ==========  =============  ====================  =========================
+file           ``"b"``     ``"a/f.txt"``  ``"s3://b/a/f.txt"``  str
+dir            ``"b"``     ``"a/"``       ``"s3://b/a/"``       str
+bucket         ``"b"``     ``""``         ``"s3://b/"``         str
+relative path  ``None``    ``"a/f.txt"``  ``None``              ``None``
+void           ``None``    ``""``         ``None``              ``None``
+=============  ==========  =============  ====================  =========================
+
+**Why**
+
+The attributes are in three layers, and each layer treats "missing" in its
+own way:
+
+1. The anchor, ``bucket``: only an absolute path has one. A relative path or
+   void is not anchored to any bucket, so it returns ``None``, which means
+   "there is none", not "it is empty".
+2. The path inside the bucket, ``key`` (and ``parts``): every path has one, so
+   it is always a ``str``.
+
+   - A relative path has nothing but its key, so its key can not be ``None``.
+   - Void is the identity of joining paths (``p / S3Path() == p``), and the
+     matching identity of string concatenation is ``""``.
+   - It is the same as the S3 API, where ``Prefix=""`` is the bucket root. So
+     the key of a bucket is ``""``, not ``"/"``. A dir key ends with ``/``.
+
+3. The full address, ``uri``, ``arn`` and the console URLs: they need both a
+   bucket and a key, so a path without bucket returns ``None``. It returns
+   ``None`` instead of raising, because these attributes are used as filters
+   (``S3Path.uri == ...``) or for display, on collections that may mix
+   absolute and relative paths.
+
+The key is kept as it is in ``uri`` and ``arn`` (an S3 URI is not URL
+encoded), and URL encoded in the console URLs.
 """
 
 from __future__ import annotations

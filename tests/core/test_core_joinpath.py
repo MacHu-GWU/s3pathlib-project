@@ -104,8 +104,12 @@ class TestJoinPathAPIMixin:
         with pytest.raises(TypeError):  # relpath cannot / non-relpath
             rel1 / root
 
-        with pytest.raises(TypeError):
-            void / "bucket"
+        # void is the identity of join: void / x is x as a relative path
+        assert void / "folder/" == S3Path.make_relpath("folder/")
+        assert void / rel1 == rel1
+        assert void / [rel1, rel2] == rel1 / rel2
+        with pytest.raises(TypeError):  # void is a relpath
+            void / root
 
 
 if __name__ == "__main__":

@@ -7,6 +7,20 @@ Is the S3Path a XYZ testing.
 - :meth:`~IsTestAPIMixin.is_dir`
 - :meth:`~IsTestAPIMixin.is_file`
 - :meth:`~IsTestAPIMixin.is_bucket`
+
+Each test is one condition on the internal fields, because an S3Path is
+always in one of the six valid states (see :mod:`s3pathlib.core.base`):
+
+==============  ========  ===========  ==========  =======  ========
+kind            is_void   is_relpath   is_bucket   is_dir   is_file
+==============  ========  ===========  ==========  =======  ========
+file            False     False        False       False    True
+dir             False     False        False       True     False
+bucket          False     False        True        True     False
+relative file   False     True         False       False    True
+relative dir    False     True         False       True     False
+void            True      True         False       False    False
+==============  ========  ===========  ==========  =======  ========
 """
 
 from __future__ import annotations
@@ -50,10 +64,7 @@ class IsTestAPIMixin:
         A logical S3 directory that never physically exists. An S3
         :meth:`bucket <is_bucket>` is also a special dir, which is the root dir.
         """
-        if self._is_dir is None:
-            return False
-        else:
-            return self._is_dir
+        return self._is_dir is True
 
     def is_file(self: S3Path) -> bool:
         """
@@ -63,10 +74,7 @@ class IsTestAPIMixin:
 
         A S3 object.
         """
-        if self._is_dir is None:
-            return False
-        else:
-            return not self._is_dir
+        return self._is_dir is False
 
     def is_bucket(self: S3Path) -> bool:
         """
@@ -77,11 +85,7 @@ class IsTestAPIMixin:
         A S3 bucket, the root folder S3 path is equivalent to a S3 bucket.
         A S3 bucket are always :meth:`is_dir() is True <is_dir>`
         """
-        return (
-            (self._bucket is not None)
-            and (len(self._parts) == 0)
-            and (self._is_dir is True)
-        )
+        return (self._bucket is not None) and (len(self._parts) == 0)
 
     def is_delete_marker(self: S3Path) -> bool:
         """

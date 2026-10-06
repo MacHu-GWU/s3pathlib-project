@@ -135,18 +135,10 @@ class RelativePathAPIMixin:
         **Definition**
 
         A long full path relating to its parent directory is a relative path.
-        A :meth:`void <is_void>` path also a special relative path.
+        A :meth:`void <is_void>` path also a special relative path. In other
+        words, any path without bucket, see :mod:`s3pathlib.core.base`.
         """
-        if self._bucket is None:
-            if len(self._parts) == 0:
-                if self._is_dir is None:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-        else:
-            return False
+        return self._bucket is None
 
     def __sub__(self: S3Path, other: S3Path) -> S3Path:
         """

@@ -9,7 +9,9 @@ Test order:
    in many equivalent ways;
 2. the S3 URI / ARN input and the boundaries of the later arguments;
 3. immutability;
-4. invalid inputs, one case per ``raise``.
+4. invalid inputs, one case per ``raise``;
+5. the state invariant: only six of the twelve combinations of the internal
+   fields can be built.
 
 The constructor is pure logic, but it follows the moto mixin pattern like the
 other ``core`` tests.
@@ -115,6 +117,8 @@ class BaseS3PathMixin(BaseTest):
             pytest.param((S3Path(),), id="void"),
             pytest.param((S3Path(), S3Path(), S3Path()), id="void-joined"),
             pytest.param((S3Path(), ""), id="void-and-empty-string"),
+            pytest.param((S3Path(), "/"), id="void-and-slash"),
+            pytest.param((S3Path(), "//", S3Path()), id="void-and-slashes"),
         ],
     )
     def test_constructor_void(self, args):
@@ -367,6 +371,85 @@ class BaseS3PathMixin(BaseTest):
         """
         with pytest.raises(TypeError, match="relative S3Path \\(without bucket\\)"):
             S3Path(S3Path("bucket"), S3Path("a", "b", "c"))
+
+
+    # --------------------------------------------------------------------------
+    # 5. the state invariant
+    # --------------------------------------------------------------------------
+    @pytest.mark.parametrize(
+        "bucket, parts, is_dir",
+        [
+            pytest.param("bucket", ["a"], False, id="file"),
+            pytest.param("bucket", ["a"], True, id="dir"),
+            pytest.param("bucket", [], True, id="bucket"),
+            pytest.param(None, ["a"], False, id="relpath-file"),
+            pytest.param(None, ["a"], True, id="relpath-dir"),
+            pytest.param(None, [], None, id="void"),
+        ],
+    )
+    def test_state_valid(self, bucket, parts, is_dir):
+        """
+        The six valid states can be built and keep their fields.
+        """
+        p = S3Path._from_parsed_parts(bucket=bucket, parts=parts, is_dir=is_dir)
+        assert state(p) == (bucket, parts, is_dir)
+
+    @pytest.mark.parametrize(
+        "bucket, parts, is_dir, message",
+        [
+            pytest.param(
+                "bucket", ["a"], None, "must be a file or a dir", id="file-no-type"
+            ),
+            pytest.param(
+                None, ["a"], None, "must be a file or a dir", id="relpath-no-type"
+            ),
+            pytest.param(
+                "bucket", [], False, "a bucket root must be a dir", id="bucket-file"
+            ),
+            pytest.param(
+                "bucket", [], None, "a bucket root must be a dir", id="bucket-no-type"
+            ),
+            pytest.param(None, [], True, "void path .* has no type", id="void-dir"),
+            pytest.param(None, [], False, "void path .* has no type", id="void-file"),
+        ],
+    )
+    def test_state_invalid_combination(self, bucket, parts, is_dir, message):
+        """
+        The other six combinations are rejected, so no path can be in a state
+        where the ``is_*`` tests disagree (e.g. void but not relpath).
+        """
+        with pytest.raises(S3ValidationError, match=message):
+            S3Path._from_parsed_parts(bucket=bucket, parts=parts, is_dir=is_dir)
+
+    @pytest.mark.parametrize(
+        "bucket, parts, is_dir, message",
+        [
+            pytest.param("", ["a"], False, "bucket must not be empty", id="empty-bucket"),
+            pytest.param("a:b", ["a"], False, "must not contain ':'", id="colon-bucket"),
+            pytest.param(1, ["a"], False, "must be a str or None", id="bucket-not-str"),
+            pytest.param("b", ["a", ""], False, "non-empty str", id="empty-part"),
+            pytest.param("b", ["a/b"], False, "without '/'", id="slash-in-part"),
+            pytest.param("b", ["a", 1], False, "non-empty str", id="part-not-str"),
+            pytest.param("b", ["a"], 1, "must be True, False or None", id="is-dir-int"),
+        ],
+    )
+    def test_state_invalid_content(self, bucket, parts, is_dir, message):
+        """
+        The fields themselves are checked too: the bucket is a well formed
+        name and each part is one non-empty key segment.
+        """
+        with pytest.raises(S3ValidationError, match=message):
+            S3Path._from_parsed_parts(bucket=bucket, parts=parts, is_dir=is_dir)
+
+    def test_state_error_message_shows_fields(self):
+        """
+        The error message shows all three fields, to find what built it.
+        """
+        with pytest.raises(
+            S3ValidationError,
+            match=r"invalid S3Path state \(bucket='b', parts=\[\], is_dir=False\)",
+        ):
+            S3Path._from_parsed_parts(bucket="b", parts=[], is_dir=False)
 
 
 # class Test(BaseS3PathMixin):

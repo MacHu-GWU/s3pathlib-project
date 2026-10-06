@@ -2,6 +2,7 @@
 
 import pytest
 from s3pathlib.core import S3Path
+from s3pathlib.exc import S3PathIsNotFileError
 from s3pathlib.tests import run_cov_test
 
 
@@ -96,6 +97,48 @@ class TestMutateAPIMixin:
 
         with pytest.raises(ValueError):
             _ = S3Path().to_file()
+
+    def test_to_file_relpath(self):
+        """
+        A relative dir becomes a relative file.
+        """
+        p = S3Path.make_relpath("a/").to_file()
+        assert p == S3Path.make_relpath("a")
+        assert p.is_file() is True
+
+    def test_to_file_bucket(self):
+        """
+        A bucket root is always a dir; before 3.0 ``to_file()`` returned a
+        "bucket that is a file", which is not a valid state.
+        """
+        with pytest.raises(
+            S3PathIsNotFileError, match="is a bucket root, it can not be converted"
+        ):
+            S3Path("bkt").to_file()
+        with pytest.raises(TypeError):  # S3PathIsNotFileError is a TypeError
+            S3Path("bkt").to_file()
+
+    @pytest.mark.parametrize(
+        "p, expected",
+        [
+            pytest.param(
+                S3Path.make_relpath("a/b.txt"),
+                S3Path.make_relpath("a/c.json"),
+                id="relpath",
+            ),
+            pytest.param(
+                S3Path.make_relpath("b.txt"), S3Path.make_relpath("c.json"), id="one-part"
+            ),
+        ],
+    )
+    def test_change_relpath(self, p, expected):
+        """
+        Changing a relative path keeps it relative: it has no bucket.
+        """
+        p1 = p.change(new_basename="c.json")
+        assert p1 == expected
+        assert p1.is_relpath() is True
+        assert p1.bucket is None
 
 
 if __name__ == "__main__":

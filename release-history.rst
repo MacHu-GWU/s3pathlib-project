@@ -40,6 +40,10 @@ Backlog (TODO)
 - Remove the S3 console URL variants from ``S3Path``: ``get_regional_console_url(region)``, ``us_gov_cloud_console_url`` and ``get_regional_us_gov_cloud_console_url(region)``. Use ``S3Path.get_console_url(region=..., partition=...)`` instead, e.g. ``p.get_console_url(partition="aws-us-gov")``. ``S3Path.console_url`` is kept.
 - Remove the S3 Select console URLs: ``S3Path.s3_select_console_url``, ``S3Path.get_regional_s3_select_console_url``, ``S3Path.s3_select_us_gov_cloud_console_url``, ``S3Path.get_regional_s3_select_us_gov_cloud_console_url`` and ``s3pathlib.utils.make_s3_select_console_url``. AWS closed Amazon S3 Select to new customers on July 25, 2024 and recommends Amazon Athena or client-side filtering instead.
 - Remove the ``is_us_gov_cloud`` argument of ``utils.make_s3_console_url``. Use ``partition="aws-us-gov"`` instead.
+- An ``S3Path`` is now always in one of six valid states (file, dir, bucket, relative file, relative dir, void; see ``s3pathlib.core.base``), checked whenever a path is built. As a result:
+
+    - ``S3Path("bucket").to_file()`` raises ``S3PathIsNotFileError`` (a ``TypeError``). Before, it returned a "bucket that is a file", for which ``is_file()`` was ``True`` and ``is_bucket()`` was ``False``.
+    - ``S3Path.from_dict`` raises ``S3ValidationError`` for data that is not a valid state, e.g. an empty bucket, a part containing ``/``, or a bucket root with ``is_dir=False``. Before, it built a broken path such as ``s3:///a``.
 
 **Features and Improvements**
 
@@ -57,6 +61,8 @@ Backlog (TODO)
 - Add the general purpose bucket naming rules to ``s3pathlib.constants`` (``S3_BUCKET_MIN_LENGTH``, ``S3_BUCKET_MAX_LENGTH``, ``S3_BUCKET_RESERVED_PREFIXES``, ``S3_BUCKET_RESERVED_SUFFIXES``) and ``S3_KEY_MAX_BYTES``.
 - ``utils.make_s3_console_url`` accepts a ``partition`` argument and supports the China (``console.amazonaws.cn``) and European Sovereign Cloud (``console.amazonaws-eusc.eu``) consoles. The console domains are in ``s3pathlib.constants.AWS_CONSOLE_DOMAIN``.
 - Add ``S3Path.get_console_url(region=None, partition="aws")``, the console URL of the path in any region and any supported partition.
+- ``S3Path.parents`` supports relative paths and the void path, the same as ``pathlib.PurePath.parents``: the parents of a relative path end with the void path, and the void path has no parents. Before, both raised ``ValueError``.
+- ``S3Path() / x`` works and gives ``x`` as a relative path, the same as ``S3Path().joinpath(x)``. The void path is the identity of joining paths. Before, it raised ``TypeError``.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 
 **Bugfixes**
@@ -71,6 +77,7 @@ Backlog (TODO)
 - ``validate_s3_key`` measured the 1024 limit in characters; it now measures UTF-8 bytes, as S3 does.
 - ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
 - ``S3Path(...)`` ignores empty arguments (``""`` or a void path) when deciding whether the path is a file or a directory. Before, ``S3Path("bucket", "a", S3Path())`` was neither a file nor a directory, and ``S3Path("bucket", "a/", "")`` became a file.
+- The parent of a single part relative path (e.g. ``S3Path.make_relpath("a").parent``) and ``S3Path(S3Path(), "/")`` are now the void path. Before, they were a "void path that is a dir", for which ``is_void()`` was ``True`` but ``is_relpath()`` was ``False``.
 - ``S3Path.parts`` returned the internal list, so changing it changed the path but not its cached hash, which broke ``==`` and ``hash``. It now returns a copy.
 
 **Minor Improvements**
@@ -81,7 +88,8 @@ Backlog (TODO)
 - Encode spaces in object tags as ``%20`` instead of ``+`` when sending the ``Tagging`` parameter, the same as the official AWS SDKs, so S3 cannot read them as a literal plus sign.
 - ``S3Path(...)`` raises ``TypeError`` with a message naming the wrong argument type, instead of a bare ``TypeError``.
 - ``S3Path.get_arn``, ``S3Path.get_console_url`` and ``utils.make_s3_console_url`` raise ``S3ValidationError`` (still a ``ValueError``) for an unsupported partition, with a message listing the supported ones. An empty region (``""``) also raises ``S3ValidationError`` instead of building a URL whose host starts with ``.``.
-- Fix the ``S3Path.key`` and ``S3Path.uri`` docstring examples.
+- Fix the ``S3Path.key``, ``S3Path.uri`` and ``S3Path.parent`` docstring examples.
+- Document the six states of an ``S3Path`` (``s3pathlib.core.base``), the full truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` / ``is_dir`` / ``is_file`` (``s3pathlib.core.is_test``), and what ``bucket`` / ``key`` / ``uri`` / ``arn`` / ``console_url`` return for each kind of path and why (``s3pathlib.core.uri``).
 
 **Miscellaneous**
 

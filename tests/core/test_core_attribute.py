@@ -99,6 +99,15 @@ class AttributeAPIMixin(BaseTest):
         assert p.parts == []
         assert p._is_dir is None
 
+        # relative path: the parent of a single part relpath is void, not a
+        # "void with a type" (which is not a valid state)
+        assert S3Path.make_relpath("a/b").parent == S3Path.make_relpath("a/")
+        for relpath in [S3Path.make_relpath("a"), S3Path.make_relpath("a/")]:
+            p = relpath.parent
+            assert p.is_void() is True
+            assert p.is_relpath() is True
+            assert p.is_dir() is False
+
     def _test_parents(self):
         p_list = S3Path("bucket", "folder", "file.txt").parents
         assert p_list[0].uri == "s3://bucket/folder/"
@@ -117,40 +126,44 @@ class AttributeAPIMixin(BaseTest):
         p_list = S3Path("bucket").parents
         assert len(p_list) == 0
 
-        with pytest.raises(ValueError):
-            _ = S3Path().parents
+        # void has no parents
+        assert S3Path().parents == []
 
-        with pytest.raises(ValueError):
-            _ = (
-                S3Path(
-                    "bucket",
-                    "folder",
-                    "subfolder",
-                    "file.txt",
-                )
-                .relative_to(S3Path("bucket"))
-                .parents
-            )
+        # a relative path ends with void, like PurePosixPath("a/b/c").parents
+        # ends with "."
+        relpath = S3Path("bucket", "folder", "subfolder", "file.txt").relative_to(
+            S3Path("bucket")
+        )
+        assert relpath.parents == [
+            S3Path.make_relpath("folder/subfolder/"),
+            S3Path.make_relpath("folder/"),
+            S3Path(),
+        ]
+        assert S3Path.make_relpath("a/").parents == [S3Path()]
+
+        # every parent is the parent of the one before it
+        p = S3Path("bucket", "a", "b", "c.txt")
+        parents = p.parents
+        assert [x.uri for x in parents] == [
+            "s3://bucket/a/b/",
+            "s3://bucket/a/",
+            "s3://bucket/",
+        ]
+        assert parents == [p.parent, p.parent.parent, p.parent.parent.parent]
 
     def _test_fname(self):
         assert S3Path("bucket", "file").fname == "file"
 
+        # void has no name
         with pytest.raises(ValueError):
-            _ = S3Path._from_parsed_parts(
-                bucket=None,
-                parts=[],
-                is_dir=False,
-            ).fname
+            _ = S3Path().fname
 
     def _test_ext(self):
         assert S3Path("bucket", "file").ext == ""
 
+        # void has no name
         with pytest.raises(ValueError):
-            _ = S3Path._from_parsed_parts(
-                bucket=None,
-                parts=[],
-                is_dir=False,
-            ).ext
+            _ = S3Path().ext
 
     def _test_is_parent_of(self):
         assert S3Path("bkt").is_parent_of(S3Path("bkt/a")) is True

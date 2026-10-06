@@ -1,7 +1,40 @@
 # -*- coding: utf-8 -*-
 
 """
-The base constructor of S3Path object.
+The base constructor of S3Path object, and the states an S3Path can be in.
+
+**The six states**
+
+An S3Path is fully defined by three internal fields: ``_bucket``
+(``str`` or ``None``), ``_parts`` (a tuple of key parts, empty or not) and
+``_is_dir`` (``True``, ``False`` or ``None``). Of the 2 x 2 x 3 = 12
+combinations, only these six are valid:
+
+===========  ==========  ===========  ==============================
+``_bucket``  ``_parts``  ``_is_dir``  kind
+===========  ==========  ===========  ==============================
+str          non-empty   False        file (an S3 object)
+str          non-empty   True         dir (a logical S3 folder)
+str          empty       True         bucket (the root dir)
+None         non-empty   False        relative path to a file
+None         non-empty   True         relative path to a dir
+None         empty       None         void (the empty relative path)
+===========  ==========  ===========  ==============================
+
+In words: with parts, ``_is_dir`` says file or dir; without parts, a path
+with a bucket is the bucket root, which is a dir, and a path without bucket
+is void, which has no type.
+
+The kinds nest in two levels. A path *with* a bucket is absolute (file, dir
+or bucket; a bucket is a special dir). A path *without* bucket is relative
+(a relative file, a relative dir or void; void is a special relative path).
+Void is the identity of joining paths: ``p / S3Path() == p``, and
+``p.relative_to(p)`` is void, so it has to be a relative path.
+
+Every S3Path is built by :meth:`BaseS3Path._from_parsed_parts`, which rejects
+the other six combinations, an empty bucket or a bucket with ``:``, and empty
+parts or parts with ``/``, with :class:`~s3pathlib.exc.S3ValidationError`. So
+no API can return a path in an undefined state.
 """
 
 from __future__ import annotations
@@ -10,9 +43,50 @@ import typing as T
 
 from .filterable_property import FilterableProperty
 from .. import utils
+from ..exc import S3ValidationError
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
+
+
+def _ensure_valid_state(
+    bucket: T.Any,
+    parts: tuple,
+    is_dir: T.Any,
+) -> None:
+    """
+    Check that the three internal fields are one of the six valid states
+    listed in the module docstring.
+
+    :raises S3ValidationError: if they are not.
+    """
+
+    def error(reason: str) -> S3ValidationError:
+        return S3ValidationError(
+            f"invalid S3Path state (bucket={bucket!r}, parts={list(parts)!r}, "
+            f"is_dir={is_dir!r}): {reason}"
+        )
+
+    if bucket is not None:
+        if not isinstance(bucket, str):
+            raise error("bucket must be a str or None")
+        if not bucket:
+            raise error("bucket must not be empty")
+        if ":" in bucket:
+            raise error("bucket must not contain ':'")
+    for part in parts:
+        if not (isinstance(part, str) and part and "/" not in part):
+            raise error("every part must be a non-empty str without '/'")
+    if not (is_dir is None or isinstance(is_dir, bool)):
+        raise error("is_dir must be True, False or None")
+    if parts:
+        if is_dir is None:
+            raise error("a path with parts must be a file or a dir")
+    elif bucket is not None:
+        if is_dir is not True:
+            raise error("a bucket root must be a dir")
+    elif is_dir is not None:
+        raise error("a void path (no bucket, no parts) has no type")
 
 
 class BaseS3Path:
@@ -185,8 +259,9 @@ class BaseS3Path:
                     f"relative S3Path, got {type(arg).__name__}: {arg!r}"
                 )
 
-        if (_bucket is not None) and len(_parts) == 0:  # bucket root
-            _is_dir = True
+        if len(_parts) == 0:
+            # bucket root is a dir, no bucket and no parts is void
+            _is_dir = True if (_bucket is not None) else None
 
         return cls._from_parsed_parts(
             bucket=_bucket,
@@ -206,10 +281,15 @@ class BaseS3Path:
 
         ``parts`` is copied into a tuple, so the path never shares a mutable
         list with the caller and can not be changed after it is built.
+
+        :raises S3ValidationError: if the fields are not one of the six valid
+            states, see the module docstring.
         """
+        parts = tuple(parts)
+        _ensure_valid_state(bucket, parts, is_dir)
         self = object.__new__(cls)
         self._bucket = bucket
-        self._parts = tuple(parts)
+        self._parts = parts
         self._is_dir = is_dir
         self._meta = None
         return self

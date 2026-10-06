@@ -114,28 +114,12 @@ class MutateAPIMixin:
                     "'new_basename' / 'new_fname', "
                     "or 'new_basename' / 'new_ext'!"
                 )
+        # a relative path (no bucket) starts from void instead of a bucket
         if new_bucket is None:
-            p = self._from_parts(
-                [
-                    "dummy-bucket",
-                ]
-                + dir_parts
-                + [
-                    new_basename,
-                ]
-            )
-            p._bucket = None
+            first = self._from_parsed_parts(bucket=None, parts=(), is_dir=None)
         else:
-            p = self._from_parts(
-                [
-                    new_bucket,
-                ]
-                + dir_parts
-                + [
-                    new_basename,
-                ]
-            )
-        return p
+            first = new_bucket
+        return self._from_parts([first] + dir_parts + [new_basename])
 
     def to_dir(self: S3Path) -> S3Path:
         """
@@ -159,6 +143,9 @@ class MutateAPIMixin:
         Convert the S3Path to a file. If the S3Path is a directory, then strip
         out the last "/". If the S3Path is already a file, then do nothing.
 
+        A bucket root can not be a file, it raises
+        :class:`~s3pathlib.exc.S3PathIsNotFileError`.
+
         Example:
 
             >>> S3Path.from_s3_uri("s3://bucket/file/").to_dir()
@@ -166,9 +153,15 @@ class MutateAPIMixin:
         """
         if self.is_file():
             return self.copy()
+        elif self.is_bucket():
+            raise exc.S3PathIsNotFileError(
+                f"{self.uri!r} is a bucket root, it can not be converted to a file!"
+            )
         elif self.is_dir():
-            p = self.copy()
-            p._is_dir = False
-            return p
+            return self._from_parsed_parts(
+                bucket=self._bucket,
+                parts=self._parts,
+                is_dir=False,
+            )
         else:
             raise ValueError("only concrete file or folder S3Path can do .to_file()")
