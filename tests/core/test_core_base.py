@@ -436,6 +436,9 @@ class BaseS3PathMixin(BaseTest):
             pytest.param("b", ["a/b"], False, "without '/'", id="slash-in-part"),
             pytest.param("b", ["a", 1], False, "non-empty str", id="part-not-str"),
             pytest.param("b", ["a"], 1, "must be True, False or None", id="is-dir-int"),
+            pytest.param("b", "abc", False, "parts must be a list or a tuple of str, got str", id="parts-str"),
+            pytest.param("b", None, False, "parts must be a list or a tuple of str, got NoneType", id="parts-none"),
+            pytest.param("b", iter(["a"]), False, "parts must be a list or a tuple of str", id="parts-iterator"),
         ],
     )
     def test_state_invalid_content(self, bucket, parts, is_dir, message):

@@ -15,6 +15,7 @@ from iterproxy import not_
 from . import utils
 from .aws import context
 from .core import S3Path
+from .core.serde import S3PathDict
 from .content_type import ContentTypeEnum
 from .validate import validate_s3_bucket
 from .validate import validate_s3_key

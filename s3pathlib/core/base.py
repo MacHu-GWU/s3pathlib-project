@@ -273,7 +273,7 @@ class BaseS3Path:
     def _from_parsed_parts(
         cls: type[S3Path],
         bucket: str | None,
-        parts: T.Iterable[str],
+        parts: list[str] | tuple[str, ...],
         is_dir: bool | None,
     ) -> S3Path:
         """
@@ -282,9 +282,16 @@ class BaseS3Path:
         ``parts`` is copied into a tuple, so the path never shares a mutable
         list with the caller and can not be changed after it is built.
 
-        :raises S3ValidationError: if the fields are not one of the six valid
-            states, see the module docstring.
+        :raises S3ValidationError: if ``parts`` is not a list or a tuple, or
+            the fields are not one of the six valid states, see the module
+            docstring.
         """
+        # a str is iterable too: tuple("abc") would silently give 3 parts
+        if not isinstance(parts, (list, tuple)):
+            raise S3ValidationError(
+                "invalid S3Path state: parts must be a list or a tuple of str, "
+                f"got {type(parts).__name__}: {parts!r}"
+            )
         parts = tuple(parts)
         _ensure_valid_state(bucket, parts, is_dir)
         self = object.__new__(cls)
