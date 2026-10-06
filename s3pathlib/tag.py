@@ -10,9 +10,11 @@ Helpers that convert S3 tags between a Python dict and the formats boto3 uses.
 .. _put_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object_tagging.html
 """
 
+from urllib.parse import quote
 from urllib.parse import urlencode
 
-from .type import TagType, TagSetType
+from .type import TagType
+from .type import TagSetType
 
 
 def parse_tags(data: TagSetType) -> TagType:
@@ -52,14 +54,14 @@ def encode_url_query(tags: TagType) -> str:
     """
     Encode a dict of tags as a URL query string (``Key1=Value1&Key2=Value2``),
     the format some APIs use for the tagging parameter. Special characters
-    are percent-encoded, and spaces become ``+``.
+    are percent-encoded, and spaces become ``%20``.
 
     Example::
 
         >>> encode_url_query({"name": "Alice", "team": "data eng"})
-        'name=Alice&team=data+eng'
+        'name=Alice&team=data%20eng'
     """
-    return urlencode(tags)
+    return urlencode(tags, quote_via=quote)
 
 
 def encode_for_put_object(tags: TagType) -> str:

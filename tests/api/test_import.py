@@ -24,7 +24,8 @@ TOP_LEVEL_NAMES = [
     "not_",
 ]
 
-# Names users could access as ``s3pathlib.api.*`` in 2.x.
+# Names users could access as ``s3pathlib.api.*`` in 2.x,
+# now under ``s3pathlib.api.better_client.*``.
 BETTER_CLIENT_NAMES = [
     name
     for name in dir(s3pathlib.better_client.api)
@@ -32,13 +33,25 @@ BETTER_CLIENT_NAMES = [
 ]
 
 
-@pytest.mark.parametrize("name", TOP_LEVEL_NAMES + BETTER_CLIENT_NAMES)
+@pytest.mark.parametrize("name", TOP_LEVEL_NAMES)
 def test_api_exports(name):
     """
-    Every public name of 2.x is importable from ``s3pathlib.api``, which is
-    the only migration step most users need for 3.0.
+    Every top level public name of 2.x is importable from ``s3pathlib.api``,
+    which is the only migration step most users need for 3.0.
     """
     assert hasattr(s3pathlib.api, name)
+
+
+@pytest.mark.parametrize("name", BETTER_CLIENT_NAMES)
+def test_api_better_client_exports(name):
+    """
+    The low level helpers are grouped under ``s3pathlib.api.better_client``
+    instead of being mixed into ``s3pathlib.api``.
+    """
+    assert getattr(s3pathlib.api.better_client, name) is getattr(
+        s3pathlib.better_client.api, name
+    )
+    assert not hasattr(s3pathlib.api, name)
 
 
 def test_top_level_api_is_the_api_module():

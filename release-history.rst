@@ -30,10 +30,11 @@ Backlog (TODO)
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
 - Remove ``deprecate_v1``, ``deprecate_v2``, ``warn_deprecate`` and ``warn_beta`` from ``s3pathlib.marker``.
+- The low level helpers that were available as ``s3pathlib.api.*`` in 2.x (``is_bucket_exists``, ``upload_dir``, ``paginate_list_objects_v2``, ...) moved to ``s3pathlib.api.better_client.*``.
 
 **Features and Improvements**
 
-- Add the ``s3pathlib.api`` module as the public entry point. Import public names with ``from s3pathlib.api import ...``. It also keeps the low level helpers that were available as ``s3pathlib.api.*`` in 2.x.
+- Add the ``s3pathlib.api`` module as the public entry point. Import public names with ``from s3pathlib.api import ...``.
 - Add :class:`s3pathlib.exc.S3PathlibError` as the base class of all exceptions raised by ``s3pathlib``, so ``except S3PathlibError`` catches them all.
 - Regroup the exception hierarchy: ``S3BucketNotExist``, ``S3FolderNotExist`` and ``S3FileNotExist`` now inherit from ``S3NotExist``; the ``*AlreadyExist`` exceptions inherit from ``S3AlreadyExist``. Every exception still inherits from the same builtin exception as before (``FileNotFoundError``, ``FileExistsError``, ``PermissionError``, ``TypeError``), so existing ``except`` clauses keep working.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
@@ -43,6 +44,7 @@ Backlog (TODO)
 - Support ``smart_open`` 8.x.
 - Support ``boto_session_manager`` 2.x, which moved ``BotoSesManager`` to ``boto_session_manager.api``.
 - ``S3Path.create_bucket`` is no longer beta and no longer emits a warning.
+- Encode spaces in object tags as ``%20`` instead of ``+`` when sending the ``Tagging`` parameter, the same as the official AWS SDKs, so S3 cannot read them as a literal plus sign.
 
 **Miscellaneous**
 

@@ -78,7 +78,7 @@ def test_encode_tag_set_round_trip():
     "value, encoded",
     [
         ("v", "k=v"),
-        ("a b", "k=a+b"),
+        ("a b", "k=a%20b"),
         ("a=b", "k=a%3Db"),
         ("a&b", "k=a%26b"),
         ("a/b", "k=a%2Fb"),
@@ -89,7 +89,9 @@ def test_encode_tag_set_round_trip():
 def test_encode_url_query_special_chars(value, encoded):
     """
     Characters that have meaning in a query string are escaped, so a value
-    cannot be split into extra tags or change its content.
+    cannot be split into extra tags or change its content. A space is sent as
+    ``%20`` (like the official AWS SDKs), not ``+``, which S3 could read as a
+    literal plus sign.
     """
     assert encode_url_query({"k": value}) == encoded
 
