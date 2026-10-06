@@ -9,6 +9,9 @@ from __future__ import annotations
 import typing as T
 
 from .filterable_property import FilterableProperty
+from ..exc import S3PathIsNotFileError
+from ..exc import S3PathIsNotFolderError
+from ..exc import S3PathTypeError
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
@@ -96,7 +99,7 @@ class AttributeAPIMixin:
     def is_parent_of(self: S3Path, other: S3Path) -> bool:
         """
         Test if it is the parent directory or grand-grand-... parent directory
-        of another one.
+        of another one, i.e. it is in ``other.parents``.
 
         Examples::
 
@@ -108,36 +111,46 @@ class AttributeAPIMixin:
             >>> S3Path("bucket").is_parent_of(S3Path("bucket/folder/file.txt"))
             True
 
-            # the root bucket's parent is itself
+            # a dir is not its own parent
+            >>> S3Path("bucket/folder/").is_parent_of(S3Path("bucket/folder/"))
+            False
+
+            # but the bucket root's parent is itself, see :attr:`parent`
             >>> S3Path("bucket").is_parent_of(S3Path("bucket"))
             True
 
-            # the 'self' has to be a directory
-            >>> S3Path("bucket/a").is_parent_of(S3Path("bucket/a/b/c"))
-            TypeError: S3Path('s3://bucket/a') is not a valid directory!
+            # relative paths, void is the parent of every relative path
+            >>> S3Path.make_relpath("a/").is_parent_of(S3Path.make_relpath("a/b/c"))
+            True
 
-            # the 'self' and 'other' has to be concrete S3Path
-            >>> S3Path().is_parent_of(S3Path())
-            TypeError: both S3Path(), S3Path() has to be a concrete S3Path!
+        A path in another bucket, or an absolute path and a relative path, is
+        never a parent.
+
+        :raises S3PathIsNotFolderError: if this path is a file, a file can not
+            be a parent.
+        :raises TypeError: if ``other`` is not an S3Path.
         """
-        if self._bucket is None or other._bucket is None:
-            raise TypeError(f"both {self}, {other} has to be a concrete S3Path!")
+        if not isinstance(other, AttributeAPIMixin):
+            raise TypeError(
+                f"other has to be an S3Path, got {type(other).__name__}: {other!r}"
+            )
+        if self.is_file():
+            raise S3PathIsNotFolderError(
+                f"{self._error_label()} is a file, it can not be a parent dir!"
+            )
         if self._bucket != other._bucket:
             return False
-        if self.is_dir() is False:
-            raise TypeError(f"{self} is not a valid directory!")
-        n_parts_other = len(other.parts)
-        if n_parts_other == 0:
-            return len(self._parts) == 0
-        else:
-            return (
-                self._parts[: (n_parts_other - 1)] == other._parts[:-1]
-                and len(self._parts) < n_parts_other
-            )
+        if len(other._parts) == 0:
+            # a bucket root (or void) is its own parent
+            return self == other
+        return self in other.parents
 
     def is_prefix_of(self: S3Path, other: S3Path) -> bool:
         """
-        Test if it is a prefix of another one.
+        Test if its key is a prefix of the key of another one, in the same
+        bucket. It is a string prefix, the same as the ``Prefix`` of the S3
+        list APIs, so ``a`` is a prefix of ``ab``, and a path is a prefix of
+        itself. Use :meth:`is_parent_of` to test the dir hierarchy.
 
         Example::
 
@@ -146,19 +159,31 @@ class AttributeAPIMixin:
 
             >>> S3Path("bucket/folder/").is_prefix_of(S3Path("bucket/folder/"))
             True
+
+            >>> S3Path("bucket/data").is_prefix_of(S3Path("bucket/data-2024.csv"))
+            True
+
+            >>> S3Path("bucket/b").is_prefix_of(S3Path("bucket/c"))
+            False
+
+        A path in another bucket, or an absolute path and a relative path, is
+        never a prefix.
+
+        :raises TypeError: if ``other`` is not an S3Path.
         """
-        if self._bucket is None or other._bucket is None:
-            raise TypeError(f"both {self}, {other} has to be a concrete S3Path!")
+        if not isinstance(other, AttributeAPIMixin):
+            raise TypeError(
+                f"other has to be an S3Path, got {type(other).__name__}: {other!r}"
+            )
         if self._bucket != other._bucket:
             return False
-        return self.uri <= other.uri
+        return other.key.startswith(self.key)
 
     @FilterableProperty
-    def basename(self: S3Path) -> str | None:
+    def basename(self: S3Path) -> str:
         """
         The file name with extension, or the last folder name if it is a
-        directory. If not available, it returns None. For example it doesn't
-        make sence for s3 bucket.
+        directory. A bucket root and void have no name, it returns ``""``.
 
         Logically: dirname + basename = abspath
 
@@ -174,7 +199,7 @@ class AttributeAPIMixin:
 
             # s3 bucket
             >>> S3Path("bucket").basename
-            None
+            ''
 
             # void path
             >>> S3Path().basename
@@ -182,7 +207,7 @@ class AttributeAPIMixin:
 
             # relative path
             >>> S3Path.make_relpath("folder", "file.txt").basename
-            None
+            'file.txt'
         """
         if len(self._parts):
             return self._parts[-1]
@@ -190,7 +215,7 @@ class AttributeAPIMixin:
             return ""
 
     @FilterableProperty
-    def dirname(self: S3Path) -> str | None:
+    def dirname(self: S3Path) -> str:
         """
         The basename of it's parent directory.
 
@@ -209,18 +234,22 @@ class AttributeAPIMixin:
     def fname(self: S3Path) -> str:
         """
         The final path component, minus its last suffix (file extension).
-        Only if it is not a directory.
+        Only for a file. A leading dot is part of the name, the same as
+        ``pathlib.PurePath.stem``.
 
         Example::
 
             >>> S3Path("bucket", "folder", "file.txt").fname
             'file'
+            >>> S3Path("bucket", "archive.tar.gz").fname
+            'archive.tar'
+            >>> S3Path("bucket", ".env").fname
+            '.env'
+
+        :raises S3PathIsNotFileError: if it is not a file.
         """
-        if self.is_dir():
-            raise TypeError
-        basename: str = self.basename
-        if not basename:
-            raise ValueError
+        self._ensure_file_for("fname")
+        basename = self.basename
         i = basename.rfind(".")
         if 0 < i < len(basename) - 1:
             return basename[:i]
@@ -231,29 +260,41 @@ class AttributeAPIMixin:
     def ext(self: S3Path) -> str:
         """
         The final component's last suffix, if any. Usually it is the file
-        extension. Only if it is not a directory.
+        extension. Only for a file. The same as ``pathlib.PurePath.suffix``.
 
         Example::
 
-            >>> S3Path("bucket", "folder", "file.txt").fname
+            >>> S3Path("bucket", "folder", "file.txt").ext
             '.txt'
+            >>> S3Path("bucket", "archive.tar.gz").ext
+            '.gz'
+            >>> S3Path("bucket", "README").ext
+            ''
+
+        :raises S3PathIsNotFileError: if it is not a file.
         """
-        if self.is_dir():
-            raise TypeError
-        basename: str = self.basename
-        if not basename:
-            raise ValueError
+        self._ensure_file_for("ext")
+        basename = self.basename
         i = basename.rfind(".")
         if 0 < i < len(basename) - 1:
             return basename[i:]
         else:
             return ""
 
+    def _ensure_file_for(self: S3Path, attribute: str) -> None:
+        """
+        ``fname`` and ``ext`` only exist for a file.
+        """
+        if self.is_file() is False:
+            raise S3PathIsNotFileError(
+                f"{self._error_label()} is not a file, it has no {attribute}!"
+            )
+
     @FilterableProperty
     def abspath(self: S3Path) -> str:
         """
         The Unix styled absolute path from the bucket. You can think of the
-        bucket as a root drive.
+        bucket as a root drive. It is ``"/" + key``.
 
         Example::
 
@@ -269,27 +310,13 @@ class AttributeAPIMixin:
             >>> S3Path("bucket").abspath
             '/'
 
-            # void path
-            >>> S3Path().abspath
-            TypeError: relative path doesn't have absolute path!
-
-            # relative path
-            >>> S3Path.make_relpath("folder", "file.txt").abspath
-            TypeError: relative path doesn't have absolute path!
+        :raises S3PathTypeError: if it has no bucket (a relative path or void).
         """
-        if self._bucket is None:
-            raise TypeError("relative path doesn't have absolute path!")
-        if self.is_bucket():
-            return "/"
-        elif self.is_dir():
-            return "/" + "/".join(self._parts) + "/"
-        elif self.is_file():
-            return "/" + "/".join(self._parts)
-        else:  # pragma: no cover
-            raise TypeError
+        self._ensure_bucket_for("abspath")
+        return "/" + self.key
 
     @FilterableProperty
-    def dirpath(self: S3Path):
+    def dirpath(self: S3Path) -> str:
         """
         The Unix styled absolute path from the bucket of the **parent directory**.
 
@@ -307,14 +334,9 @@ class AttributeAPIMixin:
             >>> S3Path("bucket").dirpath
             '/'
 
-            # void path
-            >>> S3Path().dirpath
-            TypeError: relative path doesn't have absolute path!
-
-            # relative path
-            >>> S3Path.make_relpath("folder", "file.txt").dirpath
-            TypeError: relative path doesn't have absolute path!
+        :raises S3PathTypeError: if it has no bucket (a relative path or void).
         """
+        self._ensure_bucket_for("dirpath")
         return self.parent.abspath
 
     @property
@@ -326,36 +348,48 @@ class AttributeAPIMixin:
 
             # s3 object
             >>> S3Path("bucket", "folder", "file.txt").root
-            '/folder/'
+            S3Path('s3://bucket/')
+
+        :raises S3PathTypeError: if it has no bucket (a relative path or void).
         """
-        if self.is_relpath() or self.is_void():
-            raise TypeError("only concrete File or Directory has a bucket root!")
-        else:
-            return self._from_parsed_parts(
-                bucket=self.bucket,
-                parts=[],
-                is_dir=True,
+        self._ensure_bucket_for("root")
+        return self._from_parsed_parts(
+            bucket=self._bucket,
+            parts=(),
+            is_dir=True,
+        )
+
+    def _ensure_bucket_for(self: S3Path, attribute: str) -> None:
+        """
+        ``abspath``, ``dirpath`` and ``root`` only exist for a path with a
+        bucket.
+        """
+        if self._bucket is None:
+            raise S3PathTypeError(
+                f"{self._error_label()} has no bucket, it has no {attribute}!"
             )
 
     def __repr__(self: S3Path):
         """
         You cannot use the returned string of __repr__ to recover the original
-        S3Path method.
-        """
-        classname = self.__class__.__name__
+        S3Path method. ``str(p)`` is the same as ``repr(p)``; use :attr:`uri`
+        for the S3 URI.
 
+        Example::
+
+            >>> S3Path("bucket", "folder/")
+            S3Path('s3://bucket/folder/')
+            >>> S3Path.make_relpath("folder/")
+            S3RelPath('folder/')
+            >>> S3Path()
+            S3VoidPath()
+        """
         if self.is_void():
             return "S3VoidPath()"
-
         elif self.is_relpath():
-            key = self.key
-            if len(key):
-                return f"S3RelPath({key!r})"
-            else:  # pragma: no cover
-                return "S3RelPath()"
-        else: # bucket, folder or object
-            uri = self.uri
-            return "{}('{}')".format(classname, uri)
+            return f"S3RelPath({self.key!r})"
+        else:  # bucket, folder or object
+            return f"{self.__class__.__name__}('{self.uri}')"
 
     def __str__(self: S3Path):
         return self.__repr__()
