@@ -35,9 +35,10 @@ class UriAPIMixin:
         return self._bucket
 
     @FilterableProperty
-    def key(self: S3Path) -> str | None:
+    def key(self: S3Path) -> str:
         """
-        Return object or directory key as string, if available.
+        Return object or directory key as string. A directory key ends with
+        ``/``; a bucket or void path has an empty key.
 
         Examples::
 
@@ -45,23 +46,25 @@ class UriAPIMixin:
             >>> S3Path("bucket/folder/file.txt").key
             'folder/file.txt'
 
-            # a s3 object
+            # a s3 directory
             >>> S3Path("bucket/folder/").key
-            'folder/file.txt'
+            'folder/'
 
             # a relative path
             >>> S3Path("bucket/folder/file.txt").relative_to(S3Path("bucket")).key
-            'folder/file.txt
+            'folder/file.txt'
 
             >>> S3Path("bucket/folder/").relative_to(S3Path("bucket")).key
             'folder/'
 
-            # an empty S3Path
+            # a bucket and a void path
+            >>> S3Path("bucket").key
+            ''
             >>> S3Path().key
             ''
         """
         if len(self._parts):
-            return "{}{}".format("/".join(self._parts), "/" if self._is_dir else "")
+            return "/".join(self._parts) + ("/" if self._is_dir else "")
         else:
             return ""
 
@@ -73,9 +76,10 @@ class UriAPIMixin:
         - for regular s3 object, it returns ``"s3://{bucket}/{key}"``
         - if it is a directory, the s3 uri always ends with ``"/"``.
         - if it is bucket only (no key), it returns ``"s3://{bucket}/"``
-        - if it is not an concrete S3Path, it returns ``None``
-        - it has to have bucket, if not (usually because it is an relative path)
-            it returns ``None``
+        - if it has no bucket (a relative path or a void path), it returns
+            ``None``
+
+        The key is not URL encoded, an S3 URI keeps the key as it is.
 
         Examples::
 
@@ -89,155 +93,82 @@ class UriAPIMixin:
             's3://bucket/'
 
             # void path doesn't have uri
-            >>> S3Path().uri
-            None
+            >>> S3Path().uri is None
+            True
 
             # relative path doesn't have uri
-            >>> S3Path("bucket/folder/file.txt").relative_to(S3Path("bucket")).uri
-            None
+            >>> S3Path("bucket/folder/file.txt").relative_to(S3Path("bucket")).uri is None
+            True
         """
         if self._bucket is None:
             return None
-        if len(self._parts):
-            return "s3://{}/{}".format(
-                self.bucket,
-                self.key,
-            )
-        else:
-            return "s3://{}/".format(self._bucket)
+        return f"s3://{self._bucket}/{self.key}"
 
     @property
     def console_url(self: S3Path) -> str | None:
         """
-        Return an url that can inspect the object, directory details in AWS Console.
-        """
-        uri: str = self.uri
-        if uri is None:
-            return None
-        else:
-            console_url = utils.make_s3_console_url(
-                s3_uri=uri,
-                version_id=self._static_version_id,
-            )
-            return console_url
+        Return an url that can inspect the object, directory details in the
+        global AWS Console of the ``aws`` partition. Same as
+        :meth:`get_console_url` with the default arguments.
 
-    def get_regional_console_url(self: S3Path, region: str) -> str | None:
-        """
-        Return an url that can inspect the object, directory details in AWS Console.
-        """
-        uri: str = self.uri
-        if uri is None:
-            return None
-        else:
-            console_url = utils.make_s3_console_url(
-                s3_uri=uri,
-                version_id=self._static_version_id,
-                aws_region=region,
-            )
-            return console_url
+        Example::
 
-    @property
-    def us_gov_cloud_console_url(self: S3Path) -> str | None:
+            >>> S3Path("bucket", "folder", "file.txt").console_url
+            'https://console.aws.amazon.com/s3/object/bucket?prefix=folder/file.txt'
         """
-        Return a Gov Cloud url that can inspect the object, directory details
-        in AWS Console.
-        """
-        uri: str = self.uri
-        if uri is None:
-            return None
-        else:
-            console_url = utils.make_s3_console_url(
-                s3_uri=uri,
-                version_id=self._static_version_id,
-                is_us_gov_cloud=True,
-            )
-            return console_url
+        return self.get_console_url()
 
-    def get_regional_us_gov_cloud_console_url(
-        self: S3Path, region: str
+    def get_console_url(
+        self: S3Path,
+        region: str | None = None,
+        partition: str = AwsPartitionEnum.aws,
     ) -> str | None:
         """
-        Return a Gov Cloud url that can inspect the object, directory details
-        in AWS Console.
+        Return an url that can inspect the object, directory details in AWS
+        Console.
+
+        Example::
+
+            >>> p = S3Path("bucket", "folder", "file.txt")
+            >>> p.get_console_url(region="us-east-1")
+            'https://us-east-1.console.aws.amazon.com/s3/object/bucket?region=us-east-1&prefix=folder/file.txt'
+            >>> p.get_console_url(partition="aws-us-gov")
+            'https://console.amazonaws-us-gov.com/s3/object/bucket?prefix=folder/file.txt'
+
+        If the object metadata is already loaded and has a version id, the url
+        opens that version. It does not call the AWS API.
+
+        :param region: use the regional console, e.g. ``"us-east-1"``.
+            ``None`` (the default) uses the global console.
+        :param partition: one of :class:`~s3pathlib.constants.AwsPartitionEnum`,
+            e.g. ``aws``, ``aws-cn``, ``aws-us-gov`` or ``aws-eusc``.
+
+        :return: ``None`` if it has no bucket (a relative path or a void path).
+
+        :raises S3ValidationError: if the partition is not supported or
+            ``region`` is empty.
         """
-        uri: str = self.uri
+        uri = self.uri
         if uri is None:
             return None
-        else:
-            console_url = utils.make_s3_console_url(
-                s3_uri=uri,
-                version_id=self._static_version_id,
-                aws_region=region,
-                is_us_gov_cloud=True,
-            )
-            return console_url
-
-    @property
-    def s3_select_console_url(self: S3Path) -> str | None:
-        """
-        Return an AWS US Gov Cloud S3 Console url that can inspect data with s3 select.
-        """
-        if self.is_file():
-            return utils.make_s3_select_console_url(
-                bucket=self.bucket,
-                key=self.key,
-                is_us_gov_cloud=False,
-            )
-        else:
-            raise TypeError("you can only do s3 select with an object!")
-
-    def get_regional_s3_select_console_url(
-        self: S3Path, region: str
-    ) -> str | None:
-        """
-        Return an AWS US Gov Cloud S3 Console url that can inspect data with s3 select.
-        """
-        if self.is_file():
-            return utils.make_s3_select_console_url(
-                bucket=self.bucket,
-                key=self.key,
-                aws_region=region,
-                is_us_gov_cloud=False,
-            )
-        else:
-            raise TypeError("you can only do s3 select with an object!")
-
-    @property
-    def s3_select_us_gov_cloud_console_url(self: S3Path) -> str | None:
-        """
-        Return an AWS S3 Console url that can inspect data with s3 select.
-        """
-        if self.is_file():
-            return utils.make_s3_select_console_url(
-                bucket=self.bucket,
-                key=self.key,
-                is_us_gov_cloud=True,
-            )
-        else:
-            raise TypeError("you can only do s3 select with an object!")
-
-    def get_regional_s3_select_us_gov_cloud_console_url(
-        self: S3Path, region: str
-    ) -> str | None:
-        """
-        Return an AWS S3 Console url that can inspect data with s3 select.
-        """
-        if self.is_file():
-            return utils.make_s3_select_console_url(
-                bucket=self.bucket,
-                key=self.key,
-                aws_region=region,
-                is_us_gov_cloud=True,
-            )
-        else:
-            raise TypeError("you can only do s3 select with an object!")
+        return utils.make_s3_console_url(
+            s3_uri=uri,
+            version_id=self._static_version_id,
+            aws_region=region,
+            partition=partition,
+        )
 
     @FilterableProperty
     def arn(self: S3Path) -> str | None:
         """
         Return the AWS S3 resource ARN in the ``aws`` partition.
-        Use :meth:`get_arn` for the ``aws-cn`` or ``aws-us-gov`` partition.
+        Use :meth:`get_arn` for the other partitions.
         See `ARN definition here <https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html>`_
+
+        Example::
+
+            >>> S3Path("bucket", "folder", "file.txt").arn
+            'arn:aws:s3:::bucket/folder/file.txt'
         """
         return self.get_arn()
 
@@ -254,15 +185,17 @@ class UriAPIMixin:
             'arn:aws-cn:s3:::bucket/folder/file.txt'
 
         :param partition: one of :class:`~s3pathlib.constants.AwsPartitionEnum`,
-            e.g. ``aws``, ``aws-cn`` or ``aws-us-gov``.
+            e.g. ``aws``, ``aws-cn``, ``aws-us-gov`` or ``aws-eusc``.
 
-        :raises ValueError: if the partition is not supported.
+        :return: ``None`` if it has no bucket (a relative path or a void path).
+
+        :raises S3ValidationError: if the partition is not supported.
         """
-        partition = AwsPartitionEnum(partition)
+        partition = utils._ensure_partition(partition)
         if self._bucket is None:
             return None
         if len(self._parts):
-            return f"arn:{partition}:s3:::{self.bucket}/{self.key}"
+            return f"arn:{partition}:s3:::{self._bucket}/{self.key}"
         else:
             return f"arn:{partition}:s3:::{self._bucket}"
 
@@ -284,6 +217,8 @@ class UriAPIMixin:
 
         :raises S3ValidationError: if it is not an S3 URI.
         """
+        # the constructor also accepts an ARN or a bucket name, so check that
+        # it is a URI first
         utils.split_s3_uri(uri)
         return cls._from_parts([uri])
 
@@ -307,5 +242,7 @@ class UriAPIMixin:
 
         :raises S3ValidationError: if it is not an S3 ARN of a supported partition.
         """
+        # the constructor also accepts a URI or a bucket name, so check that
+        # it is an ARN first
         utils.split_s3_arn(arn)
         return cls._from_parts([arn])

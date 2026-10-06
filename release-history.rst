@@ -37,6 +37,9 @@ Backlog (TODO)
 - Remove ``s3pathlib.utils.validate_s3_bucket`` and ``s3pathlib.utils.validate_s3_key``, two placeholders that did nothing. The real validators are in ``s3pathlib.validate``.
 - Remove ``hash_binary``, ``md5_binary``, ``sha256_binary``, ``hash_file`` and ``DEFAULT_CHUNK_SIZE`` from ``s3pathlib.utils``; they were not used by the library. Use the standard library ``hashlib`` instead, e.g. ``hashlib.md5(data).hexdigest()``.
 - The low level helpers that were available as ``s3pathlib.api.*`` in 2.x (``is_bucket_exists``, ``upload_dir``, ``paginate_list_objects_v2``, ...) moved to ``s3pathlib.api.better_client.*``.
+- Remove the S3 console URL variants from ``S3Path``: ``get_regional_console_url(region)``, ``us_gov_cloud_console_url`` and ``get_regional_us_gov_cloud_console_url(region)``. Use ``S3Path.get_console_url(region=..., partition=...)`` instead, e.g. ``p.get_console_url(partition="aws-us-gov")``. ``S3Path.console_url`` is kept.
+- Remove the S3 Select console URLs: ``S3Path.s3_select_console_url``, ``S3Path.get_regional_s3_select_console_url``, ``S3Path.s3_select_us_gov_cloud_console_url``, ``S3Path.get_regional_s3_select_us_gov_cloud_console_url`` and ``s3pathlib.utils.make_s3_select_console_url``. AWS closed Amazon S3 Select to new customers on July 25, 2024 and recommends Amazon Athena or client-side filtering instead.
+- Remove the ``is_us_gov_cloud`` argument of ``utils.make_s3_console_url``. Use ``partition="aws-us-gov"`` instead.
 
 **Features and Improvements**
 
@@ -52,13 +55,14 @@ Backlog (TODO)
     - Add ``S3Path.get_arn(partition)``. ``S3Path.arn`` still returns the ``aws`` partition ARN.
     - ``S3Path(arn)``, ``S3Path.from_s3_arn`` and ``validate_s3_arn`` accept ARNs from all supported partitions.
 - Add the general purpose bucket naming rules to ``s3pathlib.constants`` (``S3_BUCKET_MIN_LENGTH``, ``S3_BUCKET_MAX_LENGTH``, ``S3_BUCKET_RESERVED_PREFIXES``, ``S3_BUCKET_RESERVED_SUFFIXES``) and ``S3_KEY_MAX_BYTES``.
-- ``utils.make_s3_console_url`` and ``utils.make_s3_select_console_url`` accept a ``partition`` argument and support the China (``console.amazonaws.cn``) and European Sovereign Cloud (``console.amazonaws-eusc.eu``) consoles. The console domains are in ``s3pathlib.constants.AWS_CONSOLE_DOMAIN``. ``is_us_gov_cloud=True`` still works and means ``partition="aws-us-gov"``.
+- ``utils.make_s3_console_url`` accepts a ``partition`` argument and supports the China (``console.amazonaws.cn``) and European Sovereign Cloud (``console.amazonaws-eusc.eu``) consoles. The console domains are in ``s3pathlib.constants.AWS_CONSOLE_DOMAIN``.
+- Add ``S3Path.get_console_url(region=None, partition="aws")``, the console URL of the path in any region and any supported partition.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 
 **Bugfixes**
 
 - ``S3Path.list_buckets()`` failed with ``S3ValidationError`` when the account had a legacy bucket (created in us-east-1 before March 2018, with uppercase letters or underscores). It now lists every bucket S3 returns. ``S3Path.from_s3_uri``, ``S3Path.from_s3_arn`` and ``S3Path.from_bucket`` also accept legacy bucket names.
-- ``utils.make_s3_console_url`` and ``utils.make_s3_select_console_url`` did not URL encode the key, so a key with ``&``, ``#``, ``?``, ``+``, ``%`` or spaces opened the wrong object or none at all.
+- ``utils.make_s3_console_url`` did not URL encode the key, so a key with ``&``, ``#``, ``?``, ``+``, ``%`` or spaces opened the wrong object or none at all.
 - ``utils.repr_data_size`` showed ``1048575`` bytes as ``1024.00 KB`` instead of ``1.00 MB``, raised ``KeyError`` above 1024 YB, and accepted negative sizes. It now carries rounding over to the next unit, shows larger sizes in YB, and rejects negative sizes with ``ValueError``.
 - ``utils.parse_data_size`` raised a bare ``ValueError`` for a number without unit (e.g. ``"100"``); a bare number now means bytes, and invalid text raises ``ValueError`` with a message.
 - ``utils.smart_join_s3_key`` returned ``"/"`` for no parts with ``is_dir=True``; it now returns ``""`` (the bucket root).
@@ -76,6 +80,8 @@ Backlog (TODO)
 - ``S3Path.create_bucket`` is no longer beta and no longer emits a warning.
 - Encode spaces in object tags as ``%20`` instead of ``+`` when sending the ``Tagging`` parameter, the same as the official AWS SDKs, so S3 cannot read them as a literal plus sign.
 - ``S3Path(...)`` raises ``TypeError`` with a message naming the wrong argument type, instead of a bare ``TypeError``.
+- ``S3Path.get_arn``, ``S3Path.get_console_url`` and ``utils.make_s3_console_url`` raise ``S3ValidationError`` (still a ``ValueError``) for an unsupported partition, with a message listing the supported ones. An empty region (``""``) also raises ``S3ValidationError`` instead of building a URL whose host starts with ``.``.
+- Fix the ``S3Path.key`` and ``S3Path.uri`` docstring examples.
 
 **Miscellaneous**
 

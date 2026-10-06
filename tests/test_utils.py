@@ -205,7 +205,7 @@ def test_split_parts_and_smart_join_round_trip(key):
 
 
 # ------------------------------------------------------------------------------
-# make_s3_console_url / make_s3_select_console_url
+# make_s3_console_url
 # ------------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "kwargs, expected",
@@ -246,9 +246,9 @@ def test_split_parts_and_smart_join_round_trip(key):
             id="regional-bucket-root",
         ),
         pytest.param(
-            dict(s3_uri="s3://my-bucket/my-file.zip", is_us_gov_cloud=True),
+            dict(s3_uri="s3://my-bucket/my-file.zip", partition="aws-us-gov"),
             "https://console.amazonaws-us-gov.com/s3/object/my-bucket?prefix=my-file.zip",
-            id="us-gov-flag",
+            id="us-gov",
         ),
         pytest.param(
             dict(s3_uri="s3://my-bucket/my-file.zip", partition="aws-us-gov", aws_region="us-gov-east-1"),
@@ -324,8 +324,6 @@ def test_make_s3_console_url_keeps_slash_readable():
         pytest.param(dict(prefix="key"), "pass both bucket and prefix", id="prefix-only"),
         pytest.param(dict(), "pass both bucket and prefix", id="nothing"),
         pytest.param(dict(bucket="b", prefix="k", s3_uri="s3://b/k"), "not both", id="both-forms"),
-        pytest.param(dict(s3_uri="s3://b/k", is_us_gov_cloud=True, partition="aws"), "conflicts", id="conflicting-partition"),
-        pytest.param(dict(s3_uri="s3://b/k", partition="aws-iso"), "aws-iso", id="unknown-partition"),
     ],
 )
 def test_make_s3_console_url_invalid_args(kwargs, message):
@@ -345,45 +343,25 @@ def test_make_s3_console_url_invalid_uri():
         utils.make_s3_console_url(s3_uri="https://my-bucket/key")
 
 
-@pytest.mark.parametrize(
-    "kwargs, expected",
-    [
-        pytest.param(
-            dict(bucket="my-bucket", key="data.csv"),
-            "https://console.aws.amazon.com/s3/buckets/my-bucket/object/select?prefix=data.csv",
-            id="default",
-        ),
-        pytest.param(
-            dict(bucket="my-bucket", key="data.csv", aws_region="us-east-1"),
-            "https://us-east-1.console.aws.amazon.com/s3/buckets/my-bucket/object/select?region=us-east-1&prefix=data.csv",
-            id="regional",
-        ),
-        pytest.param(
-            dict(bucket="my-bucket", key="data.csv", is_us_gov_cloud=True),
-            "https://console.amazonaws-us-gov.com/s3/buckets/my-bucket/object/select?prefix=data.csv",
-            id="us-gov",
-        ),
-        pytest.param(
-            dict(bucket="my-bucket", key="a&b #1.csv"),
-            "https://console.aws.amazon.com/s3/buckets/my-bucket/object/select?prefix=a%26b%20%231.csv",
-            id="encoded-key",
-        ),
-    ],
-)
-def test_make_s3_select_console_url(kwargs, expected):
+def test_make_s3_console_url_unsupported_partition():
     """
-    The S3 Select URL follows the same partition, region and encoding rules
-    as the console URL.
+    An unsupported partition is rejected, and the message lists the
+    supported ones.
     """
-    assert utils.make_s3_select_console_url(**kwargs) == expected
+    with pytest.raises(
+        S3ValidationError,
+        match="partition must be one of aws, aws-cn, aws-us-gov, aws-eusc, got 'aws-iso'",
+    ):
+        utils.make_s3_console_url(s3_uri="s3://b/k", partition="aws-iso")
 
 
-def test_make_s3_select_console_url_conflicting_partition():
+def test_make_s3_console_url_empty_region():
     """
-    Conflicting partition arguments are rejected here too.
+    An empty region would build a host starting with ``.``; ``None`` is the
+    way to ask for the global console.
     """
-    with pytest.raises(ValueError, match="conflicts"):
-        utils.make_s3_select_console_url("b", "k", is_us_gov_cloud=True, partition="aws")
+    with pytest.raises(S3ValidationError, match="aws_region must not be empty"):
+        utils.make_s3_console_url(s3_uri="s3://b/k", aws_region="")
 
 
 # ------------------------------------------------------------------------------

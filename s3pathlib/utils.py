@@ -153,24 +153,19 @@ def smart_join_s3_key(
         return key
 
 
-def _resolve_console_partition(
-    partition: str | None,
-    is_us_gov_cloud: bool,
-) -> AwsPartitionEnum:
+def _ensure_partition(partition: str) -> AwsPartitionEnum:
     """
-    Resolve the partition of a console URL from the ``partition`` and the
-    older ``is_us_gov_cloud`` arguments.
+    Convert a partition name to :class:`~s3pathlib.constants.AwsPartitionEnum`.
+
+    :raises S3ValidationError: if the partition is not supported.
     """
-    if partition is None:
-        if is_us_gov_cloud:
-            return AwsPartitionEnum.aws_us_gov
-        return AwsPartitionEnum.aws
-    partition = AwsPartitionEnum(partition)
-    if is_us_gov_cloud and partition is not AwsPartitionEnum.aws_us_gov:
-        raise ValueError(
-            f"is_us_gov_cloud=True conflicts with partition={partition.value!r}"
-        )
-    return partition
+    try:
+        return AwsPartitionEnum(partition)
+    except ValueError:
+        partitions = ", ".join(partition.value for partition in AwsPartitionEnum)
+        raise S3ValidationError(
+            f"partition must be one of {partitions}, got {partition!r}"
+        ) from None
 
 
 def _console_endpoint(
@@ -179,10 +174,16 @@ def _console_endpoint(
 ) -> tuple[str, str]:
     """
     Return the console host and the ``region=...&`` query string part.
+
+    :raises S3ValidationError: if ``aws_region`` is an empty string.
     """
     domain = AWS_CONSOLE_DOMAIN[partition]
     if aws_region is None:
         return domain, ""
+    if not aws_region:
+        raise S3ValidationError(
+            "aws_region must not be empty, use None for the global console"
+        )
     return f"{aws_region}.{domain}", f"region={aws_region}&"
 
 
@@ -192,8 +193,7 @@ def make_s3_console_url(
     s3_uri: str | None = None,
     version_id: str | None = None,
     aws_region: str | None = None,
-    is_us_gov_cloud: bool = False,
-    partition: str | None = None,
+    partition: str = AwsPartitionEnum.aws,
 ) -> str:
     """
     Return the AWS S3 console URL of a bucket, folder or object, to open it in
@@ -207,6 +207,8 @@ def make_s3_console_url(
         'https://console.aws.amazon.com/s3/buckets/my-bucket?prefix=my-folder/'
         >>> make_s3_console_url("my-bucket", "")
         'https://console.aws.amazon.com/s3/buckets/my-bucket?tab=objects'
+        >>> make_s3_console_url("my-bucket", "data.json", aws_region="us-gov-west-1", partition="aws-us-gov")
+        'https://us-gov-west-1.console.amazonaws-us-gov.com/s3/object/my-bucket?region=us-gov-west-1&prefix=data.json'
 
     Pass either ``bucket`` and ``prefix``, or ``s3_uri``. A prefix ending with
     ``/`` is a folder, an empty prefix is the bucket root, otherwise it is an
@@ -218,13 +220,13 @@ def make_s3_console_url(
     :param s3_uri: e.g. ``"s3://my-bucket/my-folder/data.json"``.
     :param version_id: open a specific version of the object.
     :param aws_region: use the regional console, e.g. ``"us-east-1"``.
-    :param is_us_gov_cloud: use the AWS GovCloud console. Same as
-        ``partition="aws-us-gov"``.
+        ``None`` (the default) uses the global console.
     :param partition: the AWS partition of the console, one of
         :class:`~s3pathlib.constants.AwsPartitionEnum`. Default ``"aws"``.
 
-    :raises ValueError: if the arguments are not one of the two forms above,
-        or the partitions conflict or are not supported.
+    :raises ValueError: if the arguments are not one of the two forms above.
+    :raises S3ValidationError: if the partition is not supported or
+        ``aws_region`` is empty.
     """
     if s3_uri is None:
         if (bucket is None) or (prefix is None):
@@ -234,7 +236,7 @@ def make_s3_console_url(
             raise ValueError("pass either bucket and prefix, or s3_uri, not both")
         bucket, prefix = split_s3_uri(s3_uri)
 
-    partition = _resolve_console_partition(partition, is_us_gov_cloud)
+    partition = _ensure_partition(partition)
     endpoint, region_param = _console_endpoint(partition, aws_region)
 
     if len(prefix) == 0:
@@ -251,33 +253,6 @@ def make_s3_console_url(
         version_part = f"&versionId={quote(version_id, safe='')}"
 
     return f"https://{endpoint}/s3/{s3_type}/{bucket}?{region_param}{prefix_part}{version_part}"
-
-
-def make_s3_select_console_url(
-    bucket: str,
-    key: str,
-    aws_region: str | None = None,
-    is_us_gov_cloud: bool = False,
-    partition: str | None = None,
-) -> str:
-    """
-    Return the AWS S3 console URL that queries an object with S3 Select.
-
-    Example::
-
-        >>> make_s3_select_console_url("my-bucket", "data.csv")
-        'https://console.aws.amazon.com/s3/buckets/my-bucket/object/select?prefix=data.csv'
-
-    The arguments have the same meaning as in :func:`make_s3_console_url`.
-
-    :raises ValueError: if the partitions conflict or are not supported.
-    """
-    partition = _resolve_console_partition(partition, is_us_gov_cloud)
-    endpoint, region_param = _console_endpoint(partition, aws_region)
-    return (
-        f"https://{endpoint}/s3/buckets/{bucket}/object/select"
-        f"?{region_param}prefix={quote(key, safe='/')}"
-    )
 
 
 def ensure_s3_object(
