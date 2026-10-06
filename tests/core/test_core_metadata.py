@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
+import hashlib
 from datetime import datetime
 
 from s3pathlib.core import S3Path
-from s3pathlib.utils import md5_binary
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.mock import BaseTest
 
@@ -26,7 +26,7 @@ class MetadataAPIMixin(BaseTest):
     def _test_attributes(self):
         p = self.p
 
-        assert p.etag == md5_binary("Hello World!".encode("utf-8"))
+        assert p.etag == hashlib.md5("Hello World!".encode("utf-8")).hexdigest()
         _ = p.last_modified_at
         assert p.size == 12
         assert p.size_for_human == "12 B"

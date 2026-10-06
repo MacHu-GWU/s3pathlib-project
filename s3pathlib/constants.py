@@ -34,3 +34,14 @@ class AwsPartitionEnum(enum.StrEnum):
     aws_cn = "aws-cn"
     aws_us_gov = "aws-us-gov"
     aws_eusc = "aws-eusc"  # AWS European Sovereign Cloud
+
+
+# AWS Management Console domain of each partition. A regional console prepends
+# the region, e.g. ``us-east-1.console.aws.amazon.com``. Note that the console
+# domain is not the API endpoint suffix (e.g. ``amazonaws.com.cn``).
+AWS_CONSOLE_DOMAIN = {
+    AwsPartitionEnum.aws: "console.aws.amazon.com",
+    AwsPartitionEnum.aws_cn: "console.amazonaws.cn",
+    AwsPartitionEnum.aws_us_gov: "console.amazonaws-us-gov.com",
+    AwsPartitionEnum.aws_eusc: "console.amazonaws-eusc.eu",
+}

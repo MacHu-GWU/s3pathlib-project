@@ -35,6 +35,7 @@ Backlog (TODO)
 - ``validate_s3_bucket`` now checks the naming rules for a *new* general purpose bucket, as documented by AWS: it also rejects two adjacent periods, the reserved prefixes ``sthree-`` and ``amzn-s3-demo-``, and the reserved suffixes ``-s3alias``, ``--ol-s3``, ``.mrap``, ``--x-s3`` and ``--table-s3``.
 - ``S3Path(...)`` and ``utils.split_s3_uri`` reject a malformed URI such as ``https://bucket/key`` or ``s3:/bucket/key`` with ``S3ValidationError``, instead of silently parsing it into a wrong bucket and key. An empty bucket (e.g. ``S3Path("")``, ``s3://``) also raises ``S3ValidationError`` instead of ``IndexError``.
 - Remove ``s3pathlib.utils.validate_s3_bucket`` and ``s3pathlib.utils.validate_s3_key``, two placeholders that did nothing. The real validators are in ``s3pathlib.validate``.
+- Remove ``hash_binary``, ``md5_binary``, ``sha256_binary``, ``hash_file`` and ``DEFAULT_CHUNK_SIZE`` from ``s3pathlib.utils``; they were not used by the library. Use the standard library ``hashlib`` instead, e.g. ``hashlib.md5(data).hexdigest()``.
 - The low level helpers that were available as ``s3pathlib.api.*`` in 2.x (``is_bucket_exists``, ``upload_dir``, ``paginate_list_objects_v2``, ...) moved to ``s3pathlib.api.better_client.*``.
 
 **Features and Improvements**
@@ -51,11 +52,17 @@ Backlog (TODO)
     - Add ``S3Path.get_arn(partition)``. ``S3Path.arn`` still returns the ``aws`` partition ARN.
     - ``S3Path(arn)``, ``S3Path.from_s3_arn`` and ``validate_s3_arn`` accept ARNs from all supported partitions.
 - Add the general purpose bucket naming rules to ``s3pathlib.constants`` (``S3_BUCKET_MIN_LENGTH``, ``S3_BUCKET_MAX_LENGTH``, ``S3_BUCKET_RESERVED_PREFIXES``, ``S3_BUCKET_RESERVED_SUFFIXES``) and ``S3_KEY_MAX_BYTES``.
+- ``utils.make_s3_console_url`` and ``utils.make_s3_select_console_url`` accept a ``partition`` argument and support the China (``console.amazonaws.cn``) and European Sovereign Cloud (``console.amazonaws-eusc.eu``) consoles. The console domains are in ``s3pathlib.constants.AWS_CONSOLE_DOMAIN``. ``is_us_gov_cloud=True`` still works and means ``partition="aws-us-gov"``.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 
 **Bugfixes**
 
 - ``S3Path.list_buckets()`` failed with ``S3ValidationError`` when the account had a legacy bucket (created in us-east-1 before March 2018, with uppercase letters or underscores). It now lists every bucket S3 returns. ``S3Path.from_s3_uri``, ``S3Path.from_s3_arn`` and ``S3Path.from_bucket`` also accept legacy bucket names.
+- ``utils.make_s3_console_url`` and ``utils.make_s3_select_console_url`` did not URL encode the key, so a key with ``&``, ``#``, ``?``, ``+``, ``%`` or spaces opened the wrong object or none at all.
+- ``utils.repr_data_size`` showed ``1048575`` bytes as ``1024.00 KB`` instead of ``1.00 MB``, raised ``KeyError`` above 1024 YB, and accepted negative sizes. It now carries rounding over to the next unit, shows larger sizes in YB, and rejects negative sizes with ``ValueError``.
+- ``utils.parse_data_size`` raised a bare ``ValueError`` for a number without unit (e.g. ``"100"``); a bare number now means bytes, and invalid text raises ``ValueError`` with a message.
+- ``utils.smart_join_s3_key`` returned ``"/"`` for no parts with ``is_dir=True``; it now returns ``""`` (the bucket root).
+- ``utils.grouper_list`` with ``n < 1`` silently returned everything as one list; it now raises ``ValueError``.
 - ``validate_s3_key`` rejected valid keys with non-ASCII characters or characters such as ``~`` and ``%``. It now accepts any UTF-8 key.
 - ``validate_s3_key`` measured the 1024 limit in characters; it now measures UTF-8 bytes, as S3 does.
 - ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
@@ -70,6 +77,7 @@ Backlog (TODO)
 **Miscellaneous**
 
 - Add the ``typing-extensions`` dependency on Python < 3.13, for the ``deprecated`` backport.
+- ``utils.ensure_s3_object`` and ``utils.ensure_s3_dir`` raise ``S3ValidationError`` (still a ``ValueError``).
 - Fix package metadata: use the SPDX license expression ``Apache-2.0`` and correct the ``classifiers`` field name.
 - Switch the build backend from poetry to setuptools, and manage the development environment with mise and uv.
 - Add ``s3pathlib.paths`` to centralize project paths, and simplify the test helpers in ``s3pathlib.tests``.

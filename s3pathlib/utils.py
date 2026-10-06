@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
-import typing as T
-import hashlib
+"""
+In-memory helpers: S3 URI / ARN parsing, S3 key joining, AWS console URLs,
+human readable data sizes. Nothing here talks to AWS.
+"""
 
-try:
-    import botocore.exceptions
-except ImportError:  # pragma: no cover
-    pass
-except:  # pragma: no cover
-    raise
+import re
+import typing as T
+from urllib.parse import quote
 
 from .constants import AwsPartitionEnum
+from .constants import AWS_CONSOLE_DOMAIN
 from .exc import S3ValidationError
 
 
@@ -96,24 +96,28 @@ def join_s3_uri(
     key: str,
 ) -> str:
     """
-    Join AWS S3 URI from bucket and key.
+    Join an AWS S3 URI from bucket and key. The inverse of :func:`split_s3_uri`.
 
-    :param bucket: example, ``"my-bucket"``
-    :param key: example, ``"my-folder/data.json"`` or ``"my-folder/"``
+    Example::
+
+        >>> join_s3_uri("my-bucket", "my-folder/data.json")
+        's3://my-bucket/my-folder/data.json'
+        >>> join_s3_uri("my-bucket", "")
+        's3://my-bucket/'
     """
-    return "s3://{}/{}".format(bucket, key)
+    return f"s3://{bucket}/{key}"
 
 
 def split_parts(key: str) -> T.List[str]:
     """
-    Split s3 key parts using "/" delimiter.
+    Split an S3 key into parts by ``/``, dropping empty parts.
 
     Example::
 
         >>> split_parts("a/b/c")
-        ["a", "b", "c"]
+        ['a', 'b', 'c']
         >>> split_parts("//a//b//c//")
-        ["a", "b", "c"]
+        ['a', 'b', 'c']
     """
     return [part for part in key.split("/") if part]
 
@@ -123,28 +127,61 @@ def smart_join_s3_key(
     is_dir: bool,
 ) -> str:
     """
-    Note, it assume that there's no such double slack in your path. It ensure
-    that there's only one consecutive "/" in the s3 key.
-
-    :param parts: list of s3 key path parts, could have "/"
-    :param is_dir: if True, the s3 key ends with "/". otherwise enforce no
-        tailing "/".
+    Join parts into an S3 key. Each part may contain ``/``; repeated, leading
+    and trailing ``/`` are collapsed so the key has no empty segment.
 
     Example::
 
         >>> smart_join_s3_key(parts=["/a/", "b/", "/c"], is_dir=True)
-        a/b/c/
+        'a/b/c/'
         >>> smart_join_s3_key(parts=["/a/", "b/", "/c"], is_dir=False)
-        a/b/c
+        'a/b/c'
+
+    :param parts: parts of the S3 key, each may contain ``/``.
+    :param is_dir: if True, the key ends with ``/``, otherwise it does not.
+        With no parts the key is ``""`` (the bucket root) either way.
     """
     new_parts = list()
     for part in parts:
         new_parts.extend(split_parts(part))
     key = "/".join(new_parts)
-    if is_dir:
+    if is_dir and key:
         return key + "/"
     else:
         return key
+
+
+def _resolve_console_partition(
+    partition: T.Optional[str],
+    is_us_gov_cloud: bool,
+) -> AwsPartitionEnum:
+    """
+    Resolve the partition of a console URL from the ``partition`` and the
+    older ``is_us_gov_cloud`` arguments.
+    """
+    if partition is None:
+        if is_us_gov_cloud:
+            return AwsPartitionEnum.aws_us_gov
+        return AwsPartitionEnum.aws
+    partition = AwsPartitionEnum(partition)
+    if is_us_gov_cloud and partition is not AwsPartitionEnum.aws_us_gov:
+        raise ValueError(
+            f"is_us_gov_cloud=True conflicts with partition={partition.value!r}"
+        )
+    return partition
+
+
+def _console_endpoint(
+    partition: AwsPartitionEnum,
+    aws_region: T.Optional[str],
+) -> T.Tuple[str, str]:
+    """
+    Return the console host and the ``region=...&`` query string part.
+    """
+    domain = AWS_CONSOLE_DOMAIN[partition]
+    if aws_region is None:
+        return domain, ""
+    return f"{aws_region}.{domain}", f"region={aws_region}&"
 
 
 def make_s3_console_url(
@@ -154,58 +191,62 @@ def make_s3_console_url(
     version_id: T.Optional[str] = None,
     aws_region: T.Optional[str] = None,
     is_us_gov_cloud: bool = False,
+    partition: T.Optional[str] = None,
 ) -> str:
     """
-    Return an AWS Console url that you can use to open it in your browser.
-
-    :param bucket: example, ``"my-bucket"``
-    :param prefix: example, ``"my-folder/"``
-    :param s3_uri: example, ``"s3://my-bucket/my-folder/data.json"``
+    Return the AWS S3 console URL of a bucket, folder or object, to open it in
+    a browser.
 
     Example::
 
         >>> make_s3_console_url(s3_uri="s3://my-bucket/my-folder/data.json")
-        https://s3.console.aws.amazon.com/s3/object/my-bucket?prefix=my-folder/data.json
+        'https://console.aws.amazon.com/s3/object/my-bucket?prefix=my-folder/data.json'
+        >>> make_s3_console_url("my-bucket", "my-folder/")
+        'https://console.aws.amazon.com/s3/buckets/my-bucket?prefix=my-folder/'
+        >>> make_s3_console_url("my-bucket", "")
+        'https://console.aws.amazon.com/s3/buckets/my-bucket?tab=objects'
+
+    Pass either ``bucket`` and ``prefix``, or ``s3_uri``. A prefix ending with
+    ``/`` is a folder, an empty prefix is the bucket root, otherwise it is an
+    object. The prefix is URL encoded, so keys with ``&``, ``#``, spaces etc.
+    still open the right object.
+
+    :param bucket: e.g. ``"my-bucket"``.
+    :param prefix: the key, e.g. ``"my-folder/data.json"`` or ``"my-folder/"``.
+    :param s3_uri: e.g. ``"s3://my-bucket/my-folder/data.json"``.
+    :param version_id: open a specific version of the object.
+    :param aws_region: use the regional console, e.g. ``"us-east-1"``.
+    :param is_us_gov_cloud: use the AWS GovCloud console. Same as
+        ``partition="aws-us-gov"``.
+    :param partition: the AWS partition of the console, one of
+        :class:`~s3pathlib.constants.AwsPartitionEnum`. Default ``"aws"``.
+
+    :raises ValueError: if the arguments are not one of the two forms above,
+        or the partitions conflict or are not supported.
     """
     if s3_uri is None:
-        if not ((bucket is not None) and (prefix is not None)):
-            raise ValueError
+        if (bucket is None) or (prefix is None):
+            raise ValueError("pass both bucket and prefix, or s3_uri")
     else:
-        if not ((bucket is None) and (prefix is None)):
-            raise ValueError
+        if (bucket is not None) or (prefix is not None):
+            raise ValueError("pass either bucket and prefix, or s3_uri, not both")
         bucket, prefix = split_s3_uri(s3_uri)
 
-    if aws_region is None:
-        region_part_in_domain = ""
-        region_param = ""
-    else:  # pragma: no cover
-        region_part_in_domain = f"{aws_region}."
-        region_param = f"region={aws_region}&"
-
-    if is_us_gov_cloud:
-        endpoint = f"{region_part_in_domain}console.amazonaws-us-gov.com"
-    else:
-        endpoint = f"{region_part_in_domain}console.aws.amazon.com"
+    partition = _resolve_console_partition(partition, is_us_gov_cloud)
+    endpoint, region_param = _console_endpoint(partition, aws_region)
 
     if len(prefix) == 0:
-        return (
-            "https://{endpoint}/s3/buckets/{bucket}?{region_param}tab=objects".format(
-                endpoint=endpoint,
-                bucket=bucket,
-                region_param=region_param,
-            )
-        )
+        return f"https://{endpoint}/s3/buckets/{bucket}?{region_param}tab=objects"
     elif prefix.endswith("/"):
         s3_type = "buckets"
-        prefix_part = f"prefix={prefix}"
     else:
         s3_type = "object"
-        prefix_part = f"prefix={prefix}"
+    prefix_part = f"prefix={quote(prefix, safe='/')}"
 
     if version_id is None:
         version_part = ""
     else:
-        version_part = f"&versionId={version_id}"
+        version_part = f"&versionId={quote(version_id, safe='')}"
 
     return f"https://{endpoint}/s3/{s3_type}/{bucket}?{region_param}{prefix_part}{version_part}"
 
@@ -215,22 +256,25 @@ def make_s3_select_console_url(
     key: str,
     aws_region: T.Optional[str] = None,
     is_us_gov_cloud: bool = False,
+    partition: T.Optional[str] = None,
 ) -> str:
-    if aws_region is None:
-        region_part_in_domain = ""
-        region_param = ""
-    else:  # pragma: no cover
-        region_part_in_domain = f"{aws_region}."
-        region_param = f"region={aws_region}&"
-    if is_us_gov_cloud:
-        endpoint = f"{region_part_in_domain}console.amazonaws-us-gov.com"
-    else:
-        endpoint = f"{region_part_in_domain}console.aws.amazon.com"
-    return "https://{endpoint}/s3/buckets/{bucket}/object/select?{region_param}prefix={key}".format(
-        endpoint=endpoint,
-        bucket=bucket,
-        region_param=region_param,
-        key=key,
+    """
+    Return the AWS S3 console URL that queries an object with S3 Select.
+
+    Example::
+
+        >>> make_s3_select_console_url("my-bucket", "data.csv")
+        'https://console.aws.amazon.com/s3/buckets/my-bucket/object/select?prefix=data.csv'
+
+    The arguments have the same meaning as in :func:`make_s3_console_url`.
+
+    :raises ValueError: if the partitions conflict or are not supported.
+    """
+    partition = _resolve_console_partition(partition, is_us_gov_cloud)
+    endpoint, region_param = _console_endpoint(partition, aws_region)
+    return (
+        f"https://{endpoint}/s3/buckets/{bucket}/object/select"
+        f"?{region_param}prefix={quote(key, safe='/')}"
     )
 
 
@@ -238,233 +282,134 @@ def ensure_s3_object(
     s3_key_or_uri: str,
 ) -> None:
     """
-    Raise exception if the string is not in valid format for a AWS S3 object
+    Check that an S3 key or URI is an object, i.e. it does not end with ``/``.
+
+    :raises S3ValidationError: if it is a folder.
     """
     if s3_key_or_uri.endswith("/"):
-        raise ValueError("'{}' doesn't represent s3 object!".format(s3_key_or_uri))
+        raise S3ValidationError(f"{s3_key_or_uri!r} doesn't represent s3 object!")
 
 
 def ensure_s3_dir(s3_key_or_uri: str) -> None:
     """
-    Raise exception if the string is not in valid format for a AWS S3 directory
+    Check that an S3 key or URI is a folder, i.e. it ends with ``/``.
+
+    :raises S3ValidationError: if it is not a folder.
     """
     if not s3_key_or_uri.endswith("/"):
-        raise ValueError("'{}' doesn't represent s3 dir!".format(s3_key_or_uri))
+        raise S3ValidationError(f"{s3_key_or_uri!r} doesn't represent s3 dir!")
 
 
 MAGNITUDE_OF_DATA = {
     i: v for i, v in enumerate(["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"])
 }
 
+_DATA_SIZE_UNITS = list(MAGNITUDE_OF_DATA.values())
+
 
 def repr_data_size(
     size_in_bytes: int,
     precision: int = 2,
-) -> str:  # pragma: no cover
+) -> str:
     """
-    Return human readable string represent of a file size. Doesn't support
-    size greater than 1YB.
+    Return a human readable data size. Units are powers of 1024
+    (``1 KB = 1024 B``), up to ``YB``; larger sizes are shown in ``YB``.
 
-    For example:
+    Example::
 
-    - 100 bytes => 100 B
-    - 100,000 bytes => 97.66 KB
-    - 100,000,000 bytes => 95.37 MB
-    - 100,000,000,000 bytes => 93.13 GB
-    - 100,000,000,000,000 bytes => 90.95 TB
-    - 100,000,000,000,000,000 bytes => 88.82 PB
-    - and more ...
+        >>> repr_data_size(100)
+        '100 B'
+        >>> repr_data_size(100_000)
+        '97.66 KB'
+        >>> repr_data_size(100_000_000)
+        '95.37 MB'
 
-    Magnitude of data::
+    :param size_in_bytes: the size, must not be negative.
+    :param precision: number of digits after the decimal point.
 
-        1000         kB    kilobyte
-        1000 ** 2    MB    megabyte
-        1000 ** 3    GB    gigabyte
-        1000 ** 4    TB    terabyte
-        1000 ** 5    PB    petabyte
-        1000 ** 6    EB    exabyte
-        1000 ** 7    ZB    zettabyte
-        1000 ** 8    YB    yottabyte
+    :raises ValueError: if the size is negative.
     """
+    if size_in_bytes < 0:
+        raise ValueError(f"data size cannot be negative, got {size_in_bytes}")
     if size_in_bytes < 1024:
-        return "%s B" % size_in_bytes
+        return f"{size_in_bytes} B"
 
+    last = len(_DATA_SIZE_UNITS) - 1
+    size = float(size_in_bytes)
     index = 0
-    while 1:
+    while size >= 1024 and index < last:
+        size /= 1024
         index += 1
-        size_in_bytes, mod = divmod(size_in_bytes, 1024)
-        if size_in_bytes < 1024:
-            break
-    template = "{0:.%sf} {1}" % precision
-    s = template.format(size_in_bytes + mod / 1024.0, MAGNITUDE_OF_DATA[index])
-    return s
+    # rounding can carry over to the next unit, e.g. 1023.999 KB -> 1.00 MB
+    if round(size, precision) >= 1024 and index < last:
+        size /= 1024
+        index += 1
+    return f"{size:.{precision}f} {_DATA_SIZE_UNITS[index]}"
 
 
-def parse_data_size(s) -> int:  # pragma: no cover
+_DATA_SIZE_PATTERN = re.compile(r"(\d[\d_,]*(?:\.\d*)?|\.\d+)\s*([A-Za-z]*)")
+
+
+def parse_data_size(s: str) -> int:
     """
-    Parse human readable string representing a file size. Doesn't support
-    size greater than 1YB.
+    Parse a human readable data size into bytes. The inverse of
+    :func:`repr_data_size`, units are powers of 1024 and case insensitive.
+    A number without unit is in bytes. ``_`` and ``,`` thousand separators
+    are allowed.
 
-    Examples::
+    Example::
 
         >>> parse_data_size("3.43 MB")
         3596615
-
-        >>> parse_data_size("2_512.4 MB")
-        2634442342
-
         >>> parse_data_size("2,512.4 MB")
         2634442342
+        >>> parse_data_size("100")
+        100
+
+    :raises ValueError: if the string is not a data size.
     """
-    s = s.strip()
-
-    # split digits and
-    digits = set("01234567890_,.")
-    digit_parts = list()
-    ind = 0
-    for ind, c in enumerate(s):
-        if c in digits:
-            digit_parts.append(c)
-        else:
-            break
-    digit = "".join(digit_parts)
-    digit = digit.replace("_", "").replace(",", "")
-    digit = float(digit)
-
-    unit_part = s[ind:].strip()
-
-    unit_ind = None
-    for ind, unit in MAGNITUDE_OF_DATA.items():
-        if unit_part.upper() == unit:
-            unit_ind = ind
-            break
-
-    if unit_ind is None:
-        raise ValueError
-
-    unit = 1024**unit_ind
-    return int(digit * unit)
-
-
-def hash_binary(
-    b: bytes,
-    hash_meth: callable,
-) -> str:  # pragma: no cover
-    """
-    Get the hash of a binary object.
-
-    :param b: binary object
-    :param hash_meth: callable hash method, example: hashlib.md5
-
-    :return: hash value in hex digits.
-    """
-    m = hash_meth()
-    m.update(b)
-    return m.hexdigest()
-
-
-def md5_binary(
-    b: bytes,
-) -> str:  # pragma: no cover
-    """
-    Get the md5 hash of a binary object.
-
-    :param b: binary object
-
-    :return: hash value in hex digits.
-    """
-    return hash_binary(b, hashlib.md5)
-
-
-def sha256_binary(
-    b: bytes,
-) -> str:  # pragma: no cover
-    """
-    Get the md5 hash of a binary object.
-
-    :param b: binary object
-
-    :return: hash value in hex digits.
-    """
-    return hash_binary(b, hashlib.sha256)
-
-
-DEFAULT_CHUNK_SIZE = 1 << 6
-
-
-def hash_file(
-    abspath: str,
-    hash_meth: callable,
-    nbytes: int = 0,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
-) -> str:  # pragma: no cover
-    """
-    Get the hash of a file on local drive.
-
-    :param abspath: absolute path of the file
-    :param hash_meth: callable hash method, example: hashlib.md5
-    :param nbytes: only hash first nbytes of the file
-    :param chunk_size: internal option, stream chunk_size of the data for hash
-        each time, avoid high memory usage.
-
-    :return: hash value in hex digits.
-    """
-    if nbytes < 0:
-        raise ValueError("nbytes cannot smaller than 0")
-    if chunk_size < 1:
-        raise ValueError("nbytes cannot smaller than 1")
-    if (nbytes > 0) and (nbytes < chunk_size):
-        chunk_size = nbytes
-
-    m = hash_meth()
-    with open(abspath, "rb") as f:
-        if nbytes:  # use first n bytes
-            have_reads = 0
-            while True:
-                have_reads += chunk_size
-                if have_reads > nbytes:
-                    n = nbytes - (have_reads - chunk_size)
-                    if n:
-                        data = f.read(n)
-                        m.update(data)
-                    break
-                else:
-                    data = f.read(chunk_size)
-                    m.update(data)
-        else:  # use entire content
-            while True:
-                data = f.read(chunk_size)
-                if not data:
-                    break
-                m.update(data)
-
-    return m.hexdigest()
+    match = _DATA_SIZE_PATTERN.fullmatch(s.strip())
+    if match is None:
+        raise ValueError(f"cannot parse data size {s!r}, expected e.g. '3.43 MB'")
+    number, unit = match.groups()
+    unit = unit.upper() or "B"
+    if unit not in _DATA_SIZE_UNITS:
+        raise ValueError(
+            f"unknown unit {match.group(2)!r} in {s!r}, "
+            f"expected one of {', '.join(_DATA_SIZE_UNITS)}"
+        )
+    value = float(number.replace("_", "").replace(",", ""))
+    return int(value * 1024 ** _DATA_SIZE_UNITS.index(unit))
 
 
 def grouper_list(
     l: T.Iterable,
     n: int,
-) -> T.Iterable[list]:  # pragma: no cover
+) -> T.Iterable[list]:
     """
-    Evenly divide list into fixed-length piece, no filled value if chunk
-    size smaller than fixed-length.
+    Split an iterable into lists of ``n`` items; the last list holds the rest.
 
     Example::
 
-        >>> list(grouper_list(range(10), n=3)
+        >>> list(grouper_list(range(10), n=3))
         [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]
 
-    :param l: an iterable object
-    :param n: number of item per list
+    :param l: an iterable, consumed once.
+    :param n: number of items per list, at least 1.
+
+    :raises ValueError: if ``n`` is less than 1.
     """
+    if n < 1:
+        raise ValueError(f"n must be at least 1, got {n}")
+    return _grouper_list(l, n)
+
+
+def _grouper_list(l: T.Iterable, n: int) -> T.Iterable[list]:
     chunk = list()
-    counter = 0
     for item in l:
-        counter += 1
         chunk.append(item)
-        if counter == n:
+        if len(chunk) == n:
             yield chunk
             chunk = list()
-            counter = 0
-    if len(chunk) > 0:
+    if chunk:
         yield chunk
