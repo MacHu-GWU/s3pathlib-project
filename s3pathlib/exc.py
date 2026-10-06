@@ -17,6 +17,7 @@ Each one also inherits from the matching builtin exception, so
     │   ├── S3FolderAlreadyExist
     │   └── S3FileAlreadyExist
     ├── S3PermissionDenied(PermissionError)
+    ├── S3ValidationError(ValueError)
     └── S3PathTypeError(TypeError)
         ├── S3PathIsNotBucketError
         ├── S3PathIsNotFolderError
@@ -90,6 +91,14 @@ class S3FileAlreadyExist(S3AlreadyExist):
 
 class S3PermissionDenied(S3PathlibError, PermissionError):
     pass
+
+
+class S3ValidationError(S3PathlibError, ValueError):
+    """
+    A bucket name, key, URI or ARN is not valid.
+
+    .. versionadded:: 3.0.0
+    """
 
 
 class S3PathTypeError(S3PathlibError, TypeError):

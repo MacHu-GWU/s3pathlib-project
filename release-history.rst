@@ -30,6 +30,7 @@ Backlog (TODO)
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
 - Remove ``deprecate_v1``, ``deprecate_v2``, ``warn_deprecate`` and ``warn_beta`` from ``s3pathlib.marker``.
+- Remove ``S3BucketValidationError``, ``S3KeyValidationError`` and the key charset constants (``safe_key_charset``, ``req_special_handling_key_charset``, ``to_avoid_key_charset``, ``valid_key_charset``) from ``s3pathlib.validate``. Validators now raise :class:`s3pathlib.exc.S3ValidationError`.
 - The low level helpers that were available as ``s3pathlib.api.*`` in 2.x (``is_bucket_exists``, ``upload_dir``, ``paginate_list_objects_v2``, ...) moved to ``s3pathlib.api.better_client.*``.
 
 **Features and Improvements**
@@ -37,7 +38,16 @@ Backlog (TODO)
 - Add the ``s3pathlib.api`` module as the public entry point. Import public names with ``from s3pathlib.api import ...``.
 - Add :class:`s3pathlib.exc.S3PathlibError` as the base class of all exceptions raised by ``s3pathlib``, so ``except S3PathlibError`` catches them all.
 - Regroup the exception hierarchy: ``S3BucketNotExist``, ``S3FolderNotExist`` and ``S3FileNotExist`` now inherit from ``S3NotExist``; the ``*AlreadyExist`` exceptions inherit from ``S3AlreadyExist``. Every exception still inherits from the same builtin exception as before (``FileNotFoundError``, ``FileExistsError``, ``PermissionError``, ``TypeError``), so existing ``except`` clauses keep working.
+- Add :class:`s3pathlib.exc.S3ValidationError`, raised by every validator in ``s3pathlib.validate``. It is also a ``ValueError``, so existing ``except ValueError`` clauses keep working.
+- ``validate_s3_uri`` accepts a bucket URI without the trailing slash, e.g. ``s3://bucket``.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
+
+**Bugfixes**
+
+- ``validate_s3_key`` (used by ``S3Path.from_s3_uri`` and ``S3Path.from_s3_arn``) rejected valid keys with non-ASCII characters or characters such as ``~`` and ``%``. It now accepts any UTF-8 key.
+- ``validate_s3_key`` measured the 1024 limit in characters; it now measures UTF-8 bytes, as S3 does.
+- ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
+- ``validate_s3_bucket`` rejected access point aliases (``...-s3alias``), which S3 accepts wherever a bucket name is used.
 
 **Minor Improvements**
 

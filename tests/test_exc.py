@@ -14,6 +14,7 @@ from s3pathlib.exc import S3BucketAlreadyExist
 from s3pathlib.exc import S3FolderAlreadyExist
 from s3pathlib.exc import S3FileAlreadyExist
 from s3pathlib.exc import S3PermissionDenied
+from s3pathlib.exc import S3ValidationError
 from s3pathlib.exc import S3PathTypeError
 from s3pathlib.exc import S3PathIsNotBucketError
 from s3pathlib.exc import S3PathIsNotFolderError
@@ -100,6 +101,7 @@ def test_ensure_all_none_message_lists_arg_names():
         (S3FolderAlreadyExist, [S3AlreadyExist, S3PathlibError, FileExistsError]),
         (S3FileAlreadyExist, [S3AlreadyExist, S3PathlibError, FileExistsError]),
         (S3PermissionDenied, [S3PathlibError, PermissionError]),
+        (S3ValidationError, [S3PathlibError, ValueError]),
         (S3PathTypeError, [S3PathlibError, TypeError]),
         (S3PathIsNotBucketError, [S3PathTypeError, S3PathlibError, TypeError]),
         (S3PathIsNotFolderError, [S3PathTypeError, S3PathlibError, TypeError]),
