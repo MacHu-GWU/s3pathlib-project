@@ -246,17 +246,17 @@ class BaseS3Path:
             elif isinstance(arg, BaseS3Path):
                 if arg._bucket is not None:
                     raise TypeError(
-                        "from the second arguments, it has to be raw string "
-                        "(as a part) or a relative S3Path (without bucket)! "
-                        f"this is invalid: {arg}."
+                        "a key part has to be a str or a relative S3Path, "
+                        f"got an absolute path {arg!r}; only the first "
+                        "argument can have a bucket"
                     )
                 if arg._parts:
                     _parts.extend(arg._parts)
                     _is_dir = arg._is_dir
             else:
                 raise TypeError(
-                    "from the second arguments, it has to be a str or a "
-                    f"relative S3Path, got {type(arg).__name__}: {arg!r}"
+                    "a key part has to be a str or a relative S3Path, "
+                    f"got {type(arg).__name__}: {arg!r}"
                 )
 
         if len(_parts) == 0:

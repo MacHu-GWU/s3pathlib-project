@@ -44,6 +44,7 @@ Backlog (TODO)
 
     - ``S3Path("bucket").to_file()`` raises ``S3PathIsNotFileError`` (a ``TypeError``). Before, it returned a "bucket that is a file", for which ``is_file()`` was ``True`` and ``is_bucket()`` was ``False``.
     - ``S3Path.from_dict`` raises ``S3ValidationError`` for data that is not a valid state, e.g. an empty bucket, a part containing ``/``, or a bucket root with ``is_dir=False``. Before, it built a broken path such as ``s3:///a``.
+- ``relative_to`` (and ``-``) is now the exact inverse of ``/``: ``base / target.relative_to(base) == target``. When both paths have the same parts but one is a file and the other a dir (e.g. ``S3Path("b", "a/").relative_to(S3Path("b", "a"))``), it raises ``ValueError``. Before, it returned the void path, and ``base / void`` was not ``target``.
 
 **Features and Improvements**
 
@@ -62,6 +63,9 @@ Backlog (TODO)
 - ``utils.make_s3_console_url`` accepts a ``partition`` argument and supports the China (``console.amazonaws.cn``) and European Sovereign Cloud (``console.amazonaws-eusc.eu``) consoles. The console domains are in ``s3pathlib.constants.AWS_CONSOLE_DOMAIN``.
 - Add ``S3Path.get_console_url(region=None, partition="aws")``, the console URL of the path in any region and any supported partition.
 - ``S3Path.parents`` supports relative paths and the void path, the same as ``pathlib.PurePath.parents``: the parents of a relative path end with the void path, and the void path has no parents. Before, both raised ``ValueError``.
+- Deprecate joining onto a file and using a file as the base of ``relative_to``. ``S3Path("bucket", "folder") / "file.txt"``, ``S3Path("bucket", "folder").joinpath(...)`` and ``S3Path("bucket", "a/b").relative_to(S3Path("bucket", "a"))`` still work, but emit a ``DeprecationWarning``, because a file has no sub path; they will raise ``S3PathIsNotFolderError`` in 4.0.0. This includes chains such as ``S3Path("bucket") / "folder" / "file.txt"``, where ``S3Path("bucket") / "folder"`` is a file. Use a dir: ``S3Path("bucket") / "folder/" / "file.txt"``, ``.to_dir()``, or join all parts at once with ``S3Path("bucket").joinpath("folder", "file.txt")`` or ``S3Path("bucket") / ["folder", "file.txt"]``.
+- ``relative_to`` (and ``-``) works between two relative paths, e.g. ``S3Path.make_relpath("a/b").relative_to(S3Path.make_relpath("a/"))``, the same as ``pathlib``. Before, it raised ``ValueError``.
+- ``S3Path.make_relpath`` accepts relative paths as parts, and follows the same rules as the ``S3Path`` constructor.
 - ``S3Path() / x`` works and gives ``x`` as a relative path, the same as ``S3Path().joinpath(x)``. The void path is the identity of joining paths. Before, it raised ``TypeError``.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 
@@ -77,6 +81,8 @@ Backlog (TODO)
 - ``validate_s3_key`` measured the 1024 limit in characters; it now measures UTF-8 bytes, as S3 does.
 - ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
 - ``S3Path(...)`` ignores empty arguments (``""`` or a void path) when deciding whether the path is a file or a directory. Before, ``S3Path("bucket", "a", S3Path())`` was neither a file nor a directory, and ``S3Path("bucket", "a/", "")`` became a file.
+- ``S3Path.make_relpath("a", "/")`` is a dir, the same as ``S3Path(S3Path(), "a", "/")``. Before, ``make_relpath`` ignored a trailing ``"/"`` argument and returned a file.
+- ``ensure_relpath`` and ``ensure_not_relpath`` had their error messages swapped.
 - The parent of a single part relative path (e.g. ``S3Path.make_relpath("a").parent``) and ``S3Path(S3Path(), "/")`` are now the void path. Before, they were a "void path that is a dir", for which ``is_void()`` was ``True`` but ``is_relpath()`` was ``False``.
 - ``S3Path.parts`` returned the internal list, so changing it changed the path but not its cached hash, which broke ``==`` and ``hash``. It now returns a copy.
 
@@ -86,9 +92,12 @@ Backlog (TODO)
 - Support ``boto_session_manager`` 2.x, which moved ``BotoSesManager`` to ``boto_session_manager.api``.
 - ``S3Path.create_bucket`` is no longer beta and no longer emits a warning.
 - Encode spaces in object tags as ``%20`` instead of ``+`` when sending the ``Tagging`` parameter, the same as the official AWS SDKs, so S3 cannot read them as a literal plus sign.
-- ``S3Path(...)`` raises ``TypeError`` with a message naming the wrong argument type, instead of a bare ``TypeError``.
+- ``S3Path(...)`` raises ``TypeError`` with a message naming the wrong argument type, instead of a bare ``TypeError``. ``joinpath``, ``/`` and ``make_relpath`` use the same message for an invalid part.
+- ``ensure_relpath`` raises ``S3PathIsNotRelpathError`` and ``ensure_not_relpath`` raises ``S3PathTypeError``, instead of a bare ``TypeError`` (both are still ``TypeError``).
+- ``relative_to`` raises ``TypeError`` with a message for an argument that is not an ``S3Path``, instead of ``AttributeError``, and its ``ValueError`` messages say why the path is not under the other one.
+- ``S3Path() / [a, b]`` joins the list at once, the same as ``joinpath(a, b)``.
 - ``S3Path.get_arn``, ``S3Path.get_console_url`` and ``utils.make_s3_console_url`` raise ``S3ValidationError`` (still a ``ValueError``) for an unsupported partition, with a message listing the supported ones. An empty region (``""``) also raises ``S3ValidationError`` instead of building a URL whose host starts with ``.``.
-- Fix the ``S3Path.key``, ``S3Path.uri`` and ``S3Path.parent`` docstring examples.
+- Fix the ``S3Path.key``, ``S3Path.uri`` and ``S3Path.parent`` docstring examples, and the ``-`` docstring, which had the operands swapped.
 - Document the six states of an ``S3Path`` (``s3pathlib.core.base``), the full truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` / ``is_dir`` / ``is_file`` (``s3pathlib.core.is_test``), and what ``bucket`` / ``key`` / ``uri`` / ``arn`` / ``console_url`` return for each kind of path and why (``s3pathlib.core.uri``).
 
 **Miscellaneous**

@@ -134,7 +134,11 @@ class MutateAPIMixin:
         if self.is_dir():
             return self.copy()
         elif self.is_file():
-            return self.joinpath("/")
+            return self._from_parsed_parts(
+                bucket=self._bucket,
+                parts=self._parts,
+                is_dir=True,
+            )
         else:
             raise ValueError("only concrete file or folder S3Path can do .to_dir()")
 

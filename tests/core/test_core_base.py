@@ -209,6 +209,11 @@ class BaseS3PathMixin(BaseTest):
                 id="void-then-dir",
             ),
             pytest.param(
+                (S3Path("bucket", "folder"), relpath("r1/"), relpath("r2/"), relpath("f.txt")),
+                ("bucket", ["folder", "r1", "r2", "f.txt"], False),
+                id="many-relpaths",
+            ),
+            pytest.param(
                 (S3Path("bucket", "a/"), "b"),
                 ("bucket", ["a", "b"], False),
                 id="dir-then-file",
@@ -361,7 +366,7 @@ class BaseS3PathMixin(BaseTest):
     )
     def test_constructor_later_arg_type_error(self, value):
         with pytest.raises(
-            TypeError, match="it has to be a str or a relative S3Path, got"
+            TypeError, match="a key part has to be a str or a relative S3Path, got"
         ):
             S3Path("bucket", "a", value)
 
@@ -369,7 +374,7 @@ class BaseS3PathMixin(BaseTest):
         """
         Only the first argument can carry a bucket.
         """
-        with pytest.raises(TypeError, match="relative S3Path \\(without bucket\\)"):
+        with pytest.raises(TypeError, match="got an absolute path .* only the first"):
             S3Path(S3Path("bucket"), S3Path("a", "b", "c"))
 
 

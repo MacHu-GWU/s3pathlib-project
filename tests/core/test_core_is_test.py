@@ -113,7 +113,7 @@ class TestIsTestAPIMixin:
         [
             pytest.param(S3Path.make_relpath("a").parent, id="relpath-parent"),
             pytest.param(S3Path(S3Path(), "/"), id="void-and-slash"),
-            pytest.param(S3Path("b", "a").relative_to(S3Path("b", "a")), id="p-minus-p"),
+            pytest.param(S3Path("b", "a/").relative_to(S3Path("b", "a/")), id="p-minus-p"),
             pytest.param(S3Path.make_relpath("/"), id="make-relpath-slash"),
         ],
     )
