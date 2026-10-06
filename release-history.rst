@@ -33,6 +33,7 @@ Backlog (TODO)
 
 **Features and Improvements**
 
+- Add the ``s3pathlib.api`` module as the public entry point. Import public names with ``from s3pathlib.api import ...``. It also keeps the low level helpers that were available as ``s3pathlib.api.*`` in 2.x.
 - Add :class:`s3pathlib.exc.S3PathlibError` as the base class of all exceptions raised by ``s3pathlib``, so ``except S3PathlibError`` catches them all.
 - Regroup the exception hierarchy: ``S3BucketNotExist``, ``S3FolderNotExist`` and ``S3FileNotExist`` now inherit from ``S3NotExist``; the ``*AlreadyExist`` exceptions inherit from ``S3AlreadyExist``. Every exception still inherits from the same builtin exception as before (``FileNotFoundError``, ``FileExistsError``, ``PermissionError``, ``TypeError``), so existing ``except`` clauses keep working.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.

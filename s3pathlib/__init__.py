@@ -10,7 +10,7 @@ from ._version import __maintainer_email__
 
 try:
     from . import utils
-    from .better_client import api
+    from . import api
     from .aws import context
     from .core import S3Path
     from .content_type import ContentTypeEnum

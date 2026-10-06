@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
 
 """
-S3 content type.
+Common content types for S3 objects.
 """
+
 
 class ContentTypeEnum:
     """
-    The following is the list of content type that AWS S3 support. So you
-    can click Open button to preview it in the browser.
+    Common content types that browsers can render. Set one of them as the
+    object's content type, and the "Open" button in the AWS S3 console
+    previews the object in the browser instead of downloading it.
+
+    Example::
+
+        >>> S3Path("bucket", "data.json").write_text(
+        ...     "{}", content_type=ContentTypeEnum.app_json
+        ... )
     """
     image_jpeg = "image/jpeg"
     image_png = "image/png"

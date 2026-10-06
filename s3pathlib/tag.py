@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-This module provides AWS Tags manipulation helpers.
+Helpers that convert S3 tags between a Python dict and the formats boto3 uses.
 
 .. _get_bucket_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_bucket_tagging.html
 .. _get_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object_tagging.html
@@ -17,14 +17,17 @@ from .type import TagType, TagSetType
 
 def parse_tags(data: TagSetType) -> TagType:
     """
-    Convert the tag set in boto3 API response into pythonic dictionary key value
-    pairs.
+    Convert a tag set from a boto3 response into a dict.
 
-    - get_bucket_tagging_: it's a tag set.
-    - get_object_tagging_: it's a tag set.
+    get_bucket_tagging_ and get_object_tagging_ return tags as a tag set.
 
-    :param data: the tag set in boto3 API response.
-    :return: the pythonic dictionary key value pairs.
+    Example::
+
+        >>> parse_tags([{"Key": "name", "Value": "Alice"}])
+        {'name': 'Alice'}
+
+    :param data: the ``TagSet`` list in the boto3 response.
+    :return: a dict of tag key and value.
     """
     if isinstance(data, list):
         return {dct["Key"]: dct["Value"] for dct in data}
@@ -34,25 +37,27 @@ def parse_tags(data: TagSetType) -> TagType:
 
 def encode_tag_set(tags: TagType) -> TagSetType:
     """
-    Some API requires: ``[{"Key": "name", "Value": "Alice"}, {...}, ...]``
-    for tagging parameter.
+    Encode a dict of tags as a tag set, the format some APIs use for the
+    tagging parameter.
 
     Example::
 
-        >>> encode_tag_set({"name": "Alice", ...})
-        [{"Key": "name", "Value": "Alice"}, ...]
+        >>> encode_tag_set({"name": "Alice"})
+        [{'Key': 'name', 'Value': 'Alice'}]
     """
     return [{"Key": k, "Value": v} for k, v in tags.items()]
 
 
 def encode_url_query(tags: TagType) -> str:
     """
-    Some API requires: ``Key1=Value1&Key2=Value2`` for tagging parameter.
+    Encode a dict of tags as a URL query string (``Key1=Value1&Key2=Value2``),
+    the format some APIs use for the tagging parameter. Special characters
+    are percent-encoded, and spaces become ``+``.
 
     Example::
 
-        >>> encode_url_query({"name": "Alice", ...})
-        "name=Alice&..."
+        >>> encode_url_query({"name": "Alice", "team": "data eng"})
+        'name=Alice&team=data+eng'
     """
     return urlencode(tags)
 

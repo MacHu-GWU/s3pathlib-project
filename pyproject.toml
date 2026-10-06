@@ -67,7 +67,6 @@ dev = [
 test = [
     "pytest>=8.2.2,<9.0.0", # Testing framework
     "pytest-cov>=6.0.0,<7.0.0", # Coverage reporting
-    "decorator>=5.0.5,<6.0.0", # Decorator for testing
     "moto>=5.1.22,<6.0.0", # mock AWS services
     "rich>=14.0.0,<15.0.0", # pretty print
 ]
