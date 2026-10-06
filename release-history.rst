@@ -84,6 +84,7 @@ Backlog (TODO)
 - ``S3Path.make_relpath("a", "/")`` is a dir, the same as ``S3Path(S3Path(), "a", "/")``. Before, ``make_relpath`` ignored a trailing ``"/"`` argument and returned a file.
 - ``ensure_relpath`` and ``ensure_not_relpath`` had their error messages swapped.
 - The parent of a single part relative path (e.g. ``S3Path.make_relpath("a").parent``) and ``S3Path(S3Path(), "/")`` are now the void path. Before, they were a "void path that is a dir", for which ``is_void()`` was ``True`` but ``is_relpath()`` was ``False``.
+- Comparing an ``S3Path`` with another type (e.g. ``p == "s3://bucket/key"``, ``p != None``, or ``p in ["a", p]``) raised ``AttributeError``. Now ``==`` returns ``False`` and ``<`` / ``<=`` / ``>`` / ``>=`` raise ``TypeError``, the same as ``pathlib``.
 - ``S3Path.parts`` returned the internal list, so changing it changed the path but not its cached hash, which broke ``==`` and ``hash``. It now returns a copy.
 
 **Minor Improvements**
@@ -98,6 +99,7 @@ Backlog (TODO)
 - ``S3Path() / [a, b]`` joins the list at once, the same as ``joinpath(a, b)``.
 - ``S3Path.get_arn``, ``S3Path.get_console_url`` and ``utils.make_s3_console_url`` raise ``S3ValidationError`` (still a ``ValueError``) for an unsupported partition, with a message listing the supported ones. An empty region (``""``) also raises ``S3ValidationError`` instead of building a URL whose host starts with ``.``.
 - Fix the ``S3Path.key``, ``S3Path.uri`` and ``S3Path.parent`` docstring examples, and the ``-`` docstring, which had the operands swapped.
+- Document how ``S3Path`` objects compare (``s3pathlib.core.comparison``): equality ignores the object version, and the order is part by part like ``pathlib``, not the key string order of S3 list APIs.
 - Document the six states of an ``S3Path`` (``s3pathlib.core.base``), the full truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` / ``is_dir`` / ``is_file`` (``s3pathlib.core.is_test``), and what ``bucket`` / ``key`` / ``uri`` / ``arn`` / ``console_url`` return for each kind of path and why (``s3pathlib.core.uri``).
 
 **Miscellaneous**
