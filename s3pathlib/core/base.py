@@ -141,8 +141,10 @@ class BaseS3Path:
             # handle S3 URI and ARN
             if arg.startswith("s3://"):
                 arg = arg[5:]
-            elif arg.startswith("arn:aws:s3:::"):
-                arg = arg[13:]
+            elif arg.startswith("arn:"):
+                # validates the partition, then keeps "{bucket}/{key}" as is
+                utils.split_s3_arn(arg)
+                arg = arg.split(":::", 1)[1]
             else:
                 pass
 

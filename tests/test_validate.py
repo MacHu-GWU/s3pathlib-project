@@ -207,11 +207,14 @@ def test_validate_s3_uri_invalid(uri, message):
         pytest.param("arn:aws:s3:::my-bucket/folder/", id="folder"),
         pytest.param("arn:aws:s3:::my-bucket/folder/file.txt", id="file"),
         pytest.param("arn:aws:s3:::my-bucket/数据.csv", id="non-ascii-key"),
+        pytest.param("arn:aws-cn:s3:::my-bucket/folder/file.txt", id="china-partition"),
+        pytest.param("arn:aws-us-gov:s3:::my-bucket/folder/file.txt", id="us-gov-partition"),
     ],
 )
 def test_validate_s3_arn_valid(arn):
     """
-    Bucket, folder and file ARNs in the ``aws`` partition pass.
+    Bucket, folder and file ARNs pass in every supported partition
+    (``aws``, ``aws-cn``, ``aws-us-gov``).
     """
     validate_s3_arn(arn)
 
@@ -219,18 +222,18 @@ def test_validate_s3_arn_valid(arn):
 @pytest.mark.parametrize(
     "arn, message",
     [
-        pytest.param("my-bucket/key", "must starts with 'arn:aws:s3:::'", id="no-prefix"),
-        pytest.param("s3://my-bucket", "must starts with 'arn:aws:s3:::'", id="uri-not-arn"),
-        pytest.param("arn:aws-cn:s3:::my-bucket", "must starts with 'arn:aws:s3:::'", id="china-partition-unsupported"),
+        pytest.param("my-bucket/key", "partition is one of", id="no-prefix"),
+        pytest.param("s3://my-bucket", "partition is one of", id="uri-not-arn"),
+        pytest.param("arn:aws-iso:s3:::my-bucket", "partition is one of", id="unsupported-partition"),
+        pytest.param("arn:aws:iam::my-bucket", "partition is one of", id="not-s3-service"),
         pytest.param("arn:aws:s3:::b", "between 3 and 63", id="bad-bucket"),
         pytest.param("arn:aws:s3:::my-bucket/" + "a" * 1025, "at most 1024 bytes", id="bad-key"),
     ],
 )
 def test_validate_s3_arn_invalid(arn, message):
     """
-    The ARN prefix is checked here; the bucket and key are delegated to
-    ``validate_s3_bucket`` and ``validate_s3_key``. Other partitions such as
-    ``aws-cn`` are not supported yet (a known limitation).
+    The ARN prefix (partition and service) is checked first; the bucket and
+    key are delegated to ``validate_s3_bucket`` and ``validate_s3_key``.
     """
     with pytest.raises(S3ValidationError, match=message):
         validate_s3_arn(arn)

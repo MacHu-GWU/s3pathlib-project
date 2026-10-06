@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+
+from s3pathlib.exc import S3ValidationError
 from s3pathlib.core import S3Path
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.mock import BaseTest
@@ -78,6 +80,8 @@ class BaseS3Path(BaseTest):
         for p in [
             S3Path("s3://bucket/folder/file.txt"),
             S3Path("arn:aws:s3:::bucket/folder/file.txt"),
+            S3Path("arn:aws-cn:s3:::bucket/folder/file.txt"),
+            S3Path("arn:aws-us-gov:s3:::bucket/folder/file.txt"),
         ]:
             assert p._bucket == "bucket"
             assert p._parts == ["folder", "file.txt"]
@@ -86,10 +90,15 @@ class BaseS3Path(BaseTest):
         for p in [
             S3Path("s3://bucket/folder/subfolder/"),
             S3Path("arn:aws:s3:::bucket/folder/subfolder/"),
+            S3Path("arn:aws-cn:s3:::bucket/folder/subfolder/"),
         ]:
             assert p._bucket == "bucket"
             assert p._parts == ["folder", "subfolder"]
             assert p._is_dir is True
+
+        # an ARN from an unsupported partition is rejected
+        with pytest.raises(S3ValidationError):
+            S3Path("arn:aws-iso:s3:::bucket/folder/file.txt")
 
     def _test_type_error(self):
         with pytest.raises(TypeError):

@@ -3,6 +3,8 @@
 import pytest
 import os
 from s3pathlib import utils
+from s3pathlib.constants import AwsPartitionEnum
+from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
 
 dir_here = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +16,43 @@ def test_split_s3_uri():
     bucket, key = utils.split_s3_uri(s3_uri)
     assert bucket == "my-bucket"
     assert key == "my-prefix/my-file.zip"
+
+
+@pytest.mark.parametrize(
+    "arn, expected",
+    [
+        ("arn:aws:s3:::bucket", ("aws", "bucket", "")),
+        ("arn:aws:s3:::bucket/", ("aws", "bucket", "")),
+        ("arn:aws:s3:::bucket/folder/", ("aws", "bucket", "folder/")),
+        ("arn:aws-cn:s3:::bucket/folder/file.txt", ("aws-cn", "bucket", "folder/file.txt")),
+        ("arn:aws-us-gov:s3:::bucket/file.txt", ("aws-us-gov", "bucket", "file.txt")),
+    ],
+)
+def test_split_s3_arn(arn, expected):
+    """
+    An S3 ARN in any supported partition splits into partition, bucket and
+    key; the partition is an ``AwsPartitionEnum`` member.
+    """
+    partition, bucket, key = utils.split_s3_arn(arn)
+    assert (partition, bucket, key) == expected
+    assert isinstance(partition, AwsPartitionEnum)
+
+
+@pytest.mark.parametrize(
+    "arn",
+    [
+        "s3://bucket/key",
+        "arn:aws-iso:s3:::bucket/key",
+        "arn:aws:iam::bucket/key",
+    ],
+)
+def test_split_s3_arn_invalid(arn):
+    """
+    Anything that is not an S3 ARN of a supported partition is rejected, and
+    the message lists the supported partitions.
+    """
+    with pytest.raises(S3ValidationError, match="aws, aws-cn, aws-us-gov"):
+        utils.split_s3_arn(arn)
 
 
 def test_join_s3_uri():

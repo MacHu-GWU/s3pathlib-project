@@ -10,6 +10,9 @@ except ImportError:  # pragma: no cover
 except:  # pragma: no cover
     raise
 
+from .constants import AwsPartitionEnum
+from .exc import S3ValidationError
+
 
 def split_s3_uri(
     s3_uri: str,
@@ -25,6 +28,37 @@ def split_s3_uri(
     bucket = parts[2]
     key = "/".join(parts[3:])
     return bucket, key
+
+
+def split_s3_arn(
+    s3_arn: str,
+) -> T.Tuple[AwsPartitionEnum, str, str]:
+    """
+    Split an AWS S3 ARN, returns partition, bucket and key.
+
+    Example::
+
+        >>> split_s3_arn("arn:aws-cn:s3:::my-bucket/my-folder/data.json")
+        (<AwsPartitionEnum.aws_cn: 'aws-cn'>, 'my-bucket', 'my-folder/data.json')
+
+    :param s3_arn: ``arn:{partition}:s3:::{bucket}`` or
+        ``arn:{partition}:s3:::{bucket}/{key}``, where partition is one of
+        :class:`~s3pathlib.constants.AwsPartitionEnum`.
+
+    :raises S3ValidationError: if it is not an S3 ARN of a supported partition.
+
+    .. versionadded:: 3.0.0
+    """
+    for partition in AwsPartitionEnum:
+        prefix = f"arn:{partition}:s3:::"
+        if s3_arn.startswith(prefix):
+            bucket, _, key = s3_arn[len(prefix) :].partition("/")
+            return partition, bucket, key
+    partitions = ", ".join(partition.value for partition in AwsPartitionEnum)
+    raise S3ValidationError(
+        f"S3 ARN must start with 'arn:{{partition}}:s3:::', "
+        f"partition is one of {partitions}, got {s3_arn!r}"
+    )
 
 
 def join_s3_uri(

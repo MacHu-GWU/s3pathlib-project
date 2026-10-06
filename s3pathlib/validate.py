@@ -16,6 +16,7 @@ import string
 
 from .constants import S3_KEY_MAX_BYTES
 from .exc import S3ValidationError
+from .utils import split_s3_arn
 
 valid_bucket_charset: set = set(string.ascii_lowercase + string.digits + ".-")
 letter_and_number: set = set(string.ascii_lowercase + string.digits)
@@ -146,18 +147,20 @@ def validate_s3_arn(arn: str) -> None:
     """
     Validate an S3 ARN:
 
-    - bucket: ``arn:aws:s3:::{bucket}``
-    - object: ``arn:aws:s3:::{bucket}/{key}``
-    - directory: ``arn:aws:s3:::{bucket}/{prefix}/``
+    - bucket: ``arn:{partition}:s3:::{bucket}``
+    - object: ``arn:{partition}:s3:::{bucket}/{key}``
+    - directory: ``arn:{partition}:s3:::{bucket}/{prefix}/``
 
-    The bucket and key parts are checked by :func:`validate_s3_bucket` and
-    :func:`validate_s3_key`. Only the ``aws`` partition is supported.
+    ``partition`` is one of :class:`~s3pathlib.constants.AwsPartitionEnum`:
+    ``aws``, ``aws-cn`` or ``aws-us-gov``. The bucket and key parts are
+    checked by :func:`validate_s3_bucket` and :func:`validate_s3_key`.
 
     :raises S3ValidationError: if the ARN is not valid.
-    """
-    if not arn.startswith("arn:aws:s3:::"):
-        raise S3ValidationError("S3 ARN must starts with 'arn:aws:s3:::'")
 
-    bucket, _, key = arn[len("arn:aws:s3:::") :].partition("/")
+    .. versionchanged:: 3.0.0
+
+        Support the ``aws-cn`` and ``aws-us-gov`` partitions.
+    """
+    _, bucket, key = split_s3_arn(arn)
     validate_s3_bucket(bucket)
     validate_s3_key(key)

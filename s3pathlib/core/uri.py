@@ -8,7 +8,9 @@ console URL related API.
 import typing as T
 
 from .filterable_property import FilterableProperty
-from .. import utils, validate
+from .. import utils
+from .. import validate
+from ..constants import AwsPartitionEnum
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
@@ -262,19 +264,40 @@ class UriAPIMixin:
     @FilterableProperty
     def arn(self: "S3Path") -> T.Optional[str]:
         """
-        Return an AWS S3 Resource ARN. See `ARN definition here <https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html>`_
+        Return the AWS S3 resource ARN in the ``aws`` partition.
+        Use :meth:`get_arn` for the ``aws-cn`` or ``aws-us-gov`` partition.
+        See `ARN definition here <https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html>`_
 
         .. versionadded:: 1.0.1
         """
+        return self.get_arn()
+
+    def get_arn(
+        self: "S3Path",
+        partition: str = AwsPartitionEnum.aws,
+    ) -> T.Optional[str]:
+        """
+        Return the AWS S3 resource ARN in the given partition.
+
+        Example::
+
+            >>> S3Path("s3://bucket/folder/file.txt").get_arn("aws-cn")
+            'arn:aws-cn:s3:::bucket/folder/file.txt'
+
+        :param partition: one of :class:`~s3pathlib.constants.AwsPartitionEnum`,
+            ``aws``, ``aws-cn`` or ``aws-us-gov``.
+
+        :raises ValueError: if the partition is not supported.
+
+        .. versionadded:: 3.0.0
+        """
+        partition = AwsPartitionEnum(partition)
         if self._bucket is None:
             return None
         if len(self._parts):
-            return "arn:aws:s3:::{}/{}".format(
-                self.bucket,
-                self.key,
-            )
+            return f"arn:{partition}:s3:::{self.bucket}/{self.key}"
         else:
-            return "arn:aws:s3:::{}".format(self._bucket)
+            return f"arn:{partition}:s3:::{self._bucket}"
 
     @classmethod
     def from_s3_uri(cls: T.Type["S3Path"], uri: str) -> "S3Path":
@@ -305,10 +328,17 @@ class UriAPIMixin:
 
         >>> p.arn
         'arn:aws:s3:::bucket/folder/file.txt'
+
+        The ``aws-cn`` and ``aws-us-gov`` partitions are also supported. The
+        partition is not stored, an S3 path is identified by bucket and key.
+
+        .. versionchanged:: 3.0.0
+
+            Support the ``aws-cn`` and ``aws-us-gov`` partitions.
         """
         validate.validate_s3_arn(arn)
         return cls._from_parts(
             [
-                arn.replace("arn:aws:s3:::", "", 1),
+                arn.split(":::", 1)[1],
             ]
         )

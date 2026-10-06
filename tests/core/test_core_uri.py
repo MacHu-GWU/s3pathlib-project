@@ -2,6 +2,7 @@
 
 import pytest
 from s3pathlib.core import S3Path
+from s3pathlib.constants import AwsPartitionEnum
 from s3pathlib.tests import run_cov_test
 
 
@@ -132,6 +133,53 @@ class TestUriAPIMixin:
         assert p._bucket == "bucket"
         assert p._parts == ["folder", "file.txt"]
         assert p._is_dir is False
+
+    @pytest.mark.parametrize(
+        "partition, arn",
+        [
+            ("aws", "arn:aws:s3:::bucket/folder/file.txt"),
+            ("aws-cn", "arn:aws-cn:s3:::bucket/folder/file.txt"),
+            ("aws-us-gov", "arn:aws-us-gov:s3:::bucket/folder/file.txt"),
+            (AwsPartitionEnum.aws_cn, "arn:aws-cn:s3:::bucket/folder/file.txt"),
+        ],
+    )
+    def test_get_arn_partitions(self, partition, arn):
+        """
+        ``get_arn`` builds the ARN in the given partition, accepting either a
+        plain string or an ``AwsPartitionEnum`` member.
+        """
+        assert S3Path("bucket", "folder", "file.txt").get_arn(partition) == arn
+
+    def test_get_arn_bucket_and_void(self):
+        """
+        A bucket has no key part; a void path (no bucket) has no ARN.
+        """
+        assert S3Path("bucket").get_arn("aws-cn") == "arn:aws-cn:s3:::bucket"
+        assert S3Path().get_arn("aws-cn") is None
+
+    def test_get_arn_default_matches_arn_property(self):
+        """
+        ``arn`` stays the ``aws`` partition ARN, same as ``get_arn()``.
+        """
+        p = S3Path("bucket", "folder/")
+        assert p.arn == p.get_arn() == "arn:aws:s3:::bucket/folder/"
+
+    def test_get_arn_invalid_partition(self):
+        """
+        An unsupported partition is rejected instead of building a bad ARN.
+        """
+        with pytest.raises(ValueError):
+            S3Path("bucket", "file.txt").get_arn("aws-iso")
+
+    @pytest.mark.parametrize("partition", ["aws-cn", "aws-us-gov"])
+    def test_from_s3_arn_partitions(self, partition):
+        """
+        ARNs from other partitions parse to the same bucket and key; the
+        partition is not stored on the path.
+        """
+        p = S3Path.from_s3_arn(f"arn:{partition}:s3:::bucket/folder/file.txt")
+        assert p == S3Path("s3://bucket/folder/file.txt")
+        assert p.get_arn(partition) == f"arn:{partition}:s3:::bucket/folder/file.txt"
 
 
 if __name__ == "__main__":

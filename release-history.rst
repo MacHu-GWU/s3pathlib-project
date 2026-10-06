@@ -40,6 +40,12 @@ Backlog (TODO)
 - Regroup the exception hierarchy: ``S3BucketNotExist``, ``S3FolderNotExist`` and ``S3FileNotExist`` now inherit from ``S3NotExist``; the ``*AlreadyExist`` exceptions inherit from ``S3AlreadyExist``. Every exception still inherits from the same builtin exception as before (``FileNotFoundError``, ``FileExistsError``, ``PermissionError``, ``TypeError``), so existing ``except`` clauses keep working.
 - Add :class:`s3pathlib.exc.S3ValidationError`, raised by every validator in ``s3pathlib.validate``. It is also a ``ValueError``, so existing ``except ValueError`` clauses keep working.
 - ``validate_s3_uri`` accepts a bucket URI without the trailing slash, e.g. ``s3://bucket``.
+- Support S3 ARNs in the ``aws-cn`` (China) and ``aws-us-gov`` (GovCloud) partitions, in addition to ``aws``:
+
+    - Add :class:`s3pathlib.constants.AwsPartitionEnum` listing the supported partitions.
+    - Add :func:`s3pathlib.utils.split_s3_arn`, which returns the partition, bucket and key.
+    - Add ``S3Path.get_arn(partition)``. ``S3Path.arn`` still returns the ``aws`` partition ARN.
+    - ``S3Path(arn)``, ``S3Path.from_s3_arn`` and ``validate_s3_arn`` accept ARNs from all supported partitions.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 
 **Bugfixes**
