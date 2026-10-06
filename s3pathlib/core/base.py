@@ -35,7 +35,7 @@ class BaseS3Path:
         :meth:`upload_dir <upload_dir>`,
         :meth:`copy <copy_to>` a file or directory,
         :meth:`move <move_to>` a file or directory,
-        :meth:`delete <delete_if_exists>`  a file or directory,
+        :meth:`delete <delete>`  a file or directory,
         :meth:`iter_objects <iter_objects>` from a prefix.
 
     **Constructor**

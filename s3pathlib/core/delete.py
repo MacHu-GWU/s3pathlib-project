@@ -17,7 +17,6 @@ from ..better_client.delete_object import (
     delete_dir,
     delete_object_versions,
 )
-from ..marker import warn_deprecate
 
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -95,7 +94,7 @@ class DeleteAPIMixin:
 
         .. versionadded:: 2.0.1
 
-            Use this method to replace the :meth:`DeleteAPIMixin.delete_if_exists` method.
+            Use this method to replace ``delete_if_exists``, which is removed in 3.0.0.
         """
         s3_client = resolve_s3_client(context, bsm)
         bucket = self.bucket
@@ -167,78 +166,5 @@ class DeleteAPIMixin:
                 skip_prompt=skip_prompt,
             )
             return self
-        else:  # pragma: no cover
-            raise ValueError
-
-    def delete_if_exists(
-        self: "S3Path",
-        version_id: str = NOTHING,
-        mfa: str = NOTHING,
-        request_payer: str = NOTHING,
-        bypass_governance_retention: bool = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> int:
-        """
-        Delete an object or an entire directory. Will do nothing if it doesn't exist.
-        You can delete a specific version of an object, or remove a delete-marker
-        using the ``version_id`` parameter. Not that it will permanenatly delete
-        the data.
-
-        Example:
-
-            >>> S3Path.from_s3_uri("s3://my-bucket/my-file.txt").delete_if_exists()
-            1 # number of object deleted
-            >>> S3Path.from_s3_uri("s3://my-bucket/my-folder/").delete_if_exists()
-            3 # number of object deleted
-
-        :param mfa: see delete_object_.
-        :param version_id: see delete_object_.
-        :param request_payer: see delete_object_.
-        :param bypass_governance_retention: see delete_object_.
-        :param expected_bucket_owner: see delete_object_.
-        :param bsm: See bsm_.
-
-        :return: number of object is deleted
-
-        .. versionadded:: 1.0.1
-
-        .. deprecated:: 2.0.1
-
-            This method will be removed in 3.X. Use ``delete`` instead.
-        """
-        warn_deprecate(
-            func_name="S3Path.delete_if_exists",
-            version="3.0.1",
-            message="use S3Path.delete instead",
-        )
-
-        s3_client = resolve_s3_client(context, bsm)
-        if self.is_file():
-            if self.exists(bsm=bsm):
-                delete_object(
-                    s3_client=s3_client,
-                    bucket=self.bucket,
-                    key=self.key,
-                    version_id=mfa,
-                    mfa=version_id,
-                    request_payer=request_payer,
-                    bypass_governance_retention=bypass_governance_retention,
-                    expected_bucket_owner=expected_bucket_owner,
-                    ignore_not_found=True,
-                )
-                return 1
-            else:
-                return 0
-        elif self.is_dir():
-            return delete_dir(
-                s3_client=s3_client,
-                bucket=self.bucket,
-                prefix=self.key,
-                mfa=mfa,
-                request_payer=request_payer,
-                bypass_governance_retention=bypass_governance_retention,
-                expected_bucket_owner=expected_bucket_owner,
-            )
         else:  # pragma: no cover
             raise ValueError

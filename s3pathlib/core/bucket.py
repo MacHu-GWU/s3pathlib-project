@@ -13,7 +13,6 @@ import typing as T
 from func_args import NOTHING, resolve_kwargs
 
 from ..aws import context
-from ..marker import warn_beta
 from ..validate import validate_s3_bucket
 from .resolve_s3_client import resolve_s3_client
 
@@ -56,7 +55,6 @@ class BucketAPIMixin:
         """
         Create an S3 bucket.
         """
-        warn_beta("S3Path.create_bucket")
         self.ensure_bucket()
         if region == "us-east-1":
             create_bucket_configuration = NOTHING

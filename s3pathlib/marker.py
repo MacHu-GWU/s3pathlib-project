@@ -1,39 +1,43 @@
 # -*- coding: utf-8 -*-
 
-import warnings
-import functools
+"""
+Mark public API as deprecated.
 
+Use the standard :pep:`702` ``@deprecated`` decorator. At runtime it emits a
+``DeprecationWarning`` that points at the caller's line; type checkers and
+IDEs also flag every call site (e.g. strike-through), so both humans and AI
+coding assistants notice before running the code.
 
-def warn_deprecate(
-    func_name: str,
-    version: str,
-    message: str,
-):
-    warnings.warn(f"{func_name!r} will be deprecated on {version}: {message}")
+Apply it directly on the function, class or method. Do not wrap it in a helper
+function, otherwise type checkers no longer recognize it. Write the message
+as::
 
+    Deprecated since {version}, will be removed in {version}. Use {replacement} instead.
 
-def deprecate_v1(version: str, message: str):
-    def deco(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            warn_deprecate(func.__name__, version, message)
-            return func(*args, **kwargs)
+Example::
 
-        return wrapper
+    from s3pathlib.marker import deprecated
 
-    return deco
+    class S3Path:
+        @deprecated(
+            "Deprecated since 3.1.0, will be removed in 4.0.0. "
+            "Use S3Path.new_method instead."
+        )
+        def old_method(self): ...
 
+.. versionchanged:: 3.0.0
 
-def deprecate_v2(version: str, message: str):
-    from decorator import decorator
-    
-    @decorator
-    def deco(func, *args, **kwargs):
-        warn_deprecate(func.__name__, version, message)
-        return func(*args, **kwargs)
+    Replace ``deprecate_v1``, ``deprecate_v2``, ``warn_deprecate`` and
+    ``warn_beta`` with the standard ``deprecated`` decorator.
+"""
 
-    return deco
+import sys
 
+if sys.version_info >= (3, 13):  # pragma: no cover
+    from warnings import deprecated
+else:  # pragma: no cover
+    from typing_extensions import deprecated
 
-def warn_beta(func_name: str):
-    warnings.warn(f"{func_name!r} is in beta, the api might be changed!")
+__all__ = [
+    "deprecated",
+]

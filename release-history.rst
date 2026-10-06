@@ -28,19 +28,24 @@ Backlog (TODO)
 - Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``, ``boto-session-manager>=2.0.1,<3.0.0``, ``func-args>=1.0.2``.
 - Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none``, it was not used by the library.
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
+- Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
+- Remove ``deprecate_v1``, ``deprecate_v2``, ``warn_deprecate`` and ``warn_beta`` from ``s3pathlib.marker``.
 
 **Features and Improvements**
 
 - Add :class:`s3pathlib.exc.S3PathlibError` as the base class of all exceptions raised by ``s3pathlib``, so ``except S3PathlibError`` catches them all.
 - Regroup the exception hierarchy: ``S3BucketNotExist``, ``S3FolderNotExist`` and ``S3FileNotExist`` now inherit from ``S3NotExist``; the ``*AlreadyExist`` exceptions inherit from ``S3AlreadyExist``. Every exception still inherits from the same builtin exception as before (``FileNotFoundError``, ``FileExistsError``, ``PermissionError``, ``TypeError``), so existing ``except`` clauses keep working.
+- Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 
 **Minor Improvements**
 
 - Support ``smart_open`` 8.x.
 - Support ``boto_session_manager`` 2.x, which moved ``BotoSesManager`` to ``boto_session_manager.api``.
+- ``S3Path.create_bucket`` is no longer beta and no longer emits a warning.
 
 **Miscellaneous**
 
+- Add the ``typing-extensions`` dependency on Python < 3.13, for the ``deprecated`` backport.
 - Fix package metadata: use the SPDX license expression ``Apache-2.0`` and correct the ``classifiers`` field name.
 - Switch the build backend from poetry to setuptools, and manage the development environment with mise and uv.
 - Add ``s3pathlib.paths`` to centralize project paths, and simplify the test helpers in ``s3pathlib.tests``.

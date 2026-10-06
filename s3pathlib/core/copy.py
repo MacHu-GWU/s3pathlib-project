@@ -461,7 +461,7 @@ class CopyAPIMixin:
     ) -> int:
         """
         Move s3 object or s3 directory from one place to another place. It is
-        firstly :meth:`S3Path.copy_to` then :meth:`S3Path.delete_if_exists`
+        firstly :meth:`S3Path.copy_to` then :meth:`S3Path.delete`
 
         :param dst: copy to s3 path
         :param overwrite: if False, none of the file will be uploaded / overwritten
