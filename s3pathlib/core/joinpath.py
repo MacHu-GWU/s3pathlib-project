@@ -4,6 +4,8 @@
 Join path operator implementation.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from .relative import RelativePathAPIMixin
@@ -17,7 +19,7 @@ class JoinPathAPIMixin:
     """
     A mixin class that implements the join path operator.
     """
-    def joinpath(self: "S3Path", *other: T.Union[str, "S3Path"]) -> "S3Path":
+    def joinpath(self: S3Path, *other: str | S3Path) -> S3Path:
         """
         Join with other relative path or string parts.
 
@@ -60,8 +62,8 @@ class JoinPathAPIMixin:
         return self._from_parts(args)
 
     def __truediv__(
-        self: "S3Path", other: T.Union[str, "S3Path", T.List[T.Union[str, "S3Path"]]]
-    ) -> "S3Path":
+        self: S3Path, other: str | S3Path | list[str | S3Path]
+    ) -> S3Path:
         """
         A syntax sugar. Basically ``S3Path(s3path, part1, part2, ...)``
         is equal to ``s3path / part1 / part2 / ...`` or

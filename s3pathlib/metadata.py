@@ -4,6 +4,8 @@
 Helpers for S3 object user-defined metadata.
 """
 
+from __future__ import annotations
+
 import warnings
 
 from .type import MetadataType

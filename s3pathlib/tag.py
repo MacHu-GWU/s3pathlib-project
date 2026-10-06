@@ -10,6 +10,8 @@ Helpers that convert S3 tags between a Python dict and the formats boto3 uses.
 .. _put_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object_tagging.html
 """
 
+from __future__ import annotations
+
 from urllib.parse import quote
 from urllib.parse import urlencode
 

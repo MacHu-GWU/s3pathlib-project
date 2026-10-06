@@ -4,6 +4,8 @@
 Relative Path implementation.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from .. import utils
@@ -19,9 +21,9 @@ class RelativePathAPIMixin:
 
     @classmethod
     def make_relpath(
-        cls: T.Type["S3Path"],
+        cls: type[S3Path],
         *parts: str,
-    ) -> "S3Path":
+    ) -> S3Path:
         """
         A construct method that create a relative S3 Path.
 
@@ -66,7 +68,7 @@ class RelativePathAPIMixin:
             is_dir=_is_dir,
         )
 
-    def relative_to(self: "S3Path", other: "S3Path") -> "S3Path":
+    def relative_to(self: S3Path, other: S3Path) -> S3Path:
         """
         Return the relative path to another path. If the operation
         is not possible (because this is not a sub path of the other path),
@@ -125,7 +127,7 @@ class RelativePathAPIMixin:
             is_dir=is_dir,
         )
 
-    def is_relpath(self: "S3Path") -> bool:
+    def is_relpath(self: S3Path) -> bool:
         """
         Relative path is a special path supposed to join with other concrete
         path.
@@ -146,21 +148,21 @@ class RelativePathAPIMixin:
         else:
             return False
 
-    def __sub__(self: "S3Path", other: "S3Path") -> "S3Path":
+    def __sub__(self: S3Path, other: S3Path) -> S3Path:
         """
         A syntax sugar. Basically ``s3path1 - s3path2`` is equal to
         ``s3path2.relative_to(s3path1)``
         """
         return self.relative_to(other)
 
-    def ensure_relpath(self: "S3Path") -> None:
+    def ensure_relpath(self: S3Path) -> None:
         """
         A validator method that ensure it represents a S3 relative path.
         """
         if self.is_relpath() is not True:
             raise TypeError(f"{self} IS a s3 relative path!")
 
-    def ensure_not_relpath(self: "S3Path") -> None:
+    def ensure_not_relpath(self: S3Path) -> None:
         """
         A validator method that ensure it represents a S3 relative path.
 

@@ -16,6 +16,8 @@ you can use:
 This module implements the same feature.
 """
 
+from __future__ import annotations
+
 import typing as T
 import functools
 
@@ -47,12 +49,12 @@ class FilterableProperty(T.Generic[FilterableType]):
         functools.wraps(func)(self)
         self._func = func
 
-    def __get__(self, obj: T.Union['FilterableType', None], obj_type):
+    def __get__(self, obj: FilterableType | None, obj_type):
         if obj is None:
             return self
         return self._func(obj)
 
-    def __set__(self, obj: T.Union['FilterableType', None], value: T.Any):
+    def __set__(self, obj: FilterableType | None, value: T.Any):
         raise AttributeError(f"can't set attribute S3Path.{self.__name__}")
 
     def __eq__(self, other):

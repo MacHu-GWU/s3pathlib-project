@@ -7,6 +7,8 @@ List object versions related API.
 .. _ListObjectVersions: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectVersions.html
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from func_args import NOTHING
@@ -28,13 +30,13 @@ class IterObjectVersionsAPIMixin:
     """
 
     def list_object_versions(
-        self: "S3Path",
+        self: S3Path,
         batch_size: int = 1000,
         limit: int = NOTHING,
         delimiter: str = NOTHING,
         encoding_type: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
         """
         Recursively iterate objects under this prefix, yield :class:`S3Path`.
@@ -50,7 +52,7 @@ class IterObjectVersionsAPIMixin:
         s3_client = resolve_s3_client(context, bsm)
         bucket = self.bucket
 
-        def _iter_s3path() -> T.Iterable["S3Path"]:
+        def _iter_s3path() -> T.Iterable[S3Path]:
             proxy = paginate_list_object_versions(
                 s3_client=s3_client,
                 bucket=bucket,

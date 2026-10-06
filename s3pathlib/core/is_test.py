@@ -9,6 +9,8 @@ Is the S3Path a XYZ testing.
 - :meth:`~IsTestAPIMixin.is_bucket`
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from ..exc import (
@@ -27,7 +29,7 @@ class IsTestAPIMixin:
     A mixin class that implements the condition test methods.
     """
 
-    def is_void(self: "S3Path") -> bool:
+    def is_void(self: S3Path) -> bool:
         """
         Test if it is a void S3 path.
 
@@ -39,7 +41,7 @@ class IsTestAPIMixin:
         """
         return (self._bucket is None) and (len(self._parts) == 0)
 
-    def is_dir(self: "S3Path") -> bool:
+    def is_dir(self: S3Path) -> bool:
         """
         Test if it is a S3 directory
 
@@ -53,7 +55,7 @@ class IsTestAPIMixin:
         else:
             return self._is_dir
 
-    def is_file(self: "S3Path") -> bool:
+    def is_file(self: S3Path) -> bool:
         """
         Test if it is a S3 object
 
@@ -66,7 +68,7 @@ class IsTestAPIMixin:
         else:
             return not self._is_dir
 
-    def is_bucket(self: "S3Path") -> bool:
+    def is_bucket(self: S3Path) -> bool:
         """
         Test if it is a S3 bucket.
 
@@ -81,7 +83,7 @@ class IsTestAPIMixin:
             and (self._is_dir is True)
         )
 
-    def is_delete_marker(self: "S3Path") -> bool:
+    def is_delete_marker(self: S3Path) -> bool:
         """
         Test if it is a delete-marker. A delete-marker is just a version of
         an object without content.
@@ -94,47 +96,47 @@ class IsTestAPIMixin:
         else:
             return False
 
-    def ensure_object(self: "S3Path") -> None:
+    def ensure_object(self: S3Path) -> None:
         """
         A validator method that ensure it represents a S3 object.
         """
         if self.is_file() is not True:
             raise S3PathIsNotFileError.make(self.uri)
 
-    def ensure_file(self: "S3Path") -> None:
+    def ensure_file(self: S3Path) -> None:
         """
         A validator method that ensure it represents a S3 object.
         """
         return self.ensure_object()
 
-    def ensure_not_object(self: "S3Path") -> None:
+    def ensure_not_object(self: S3Path) -> None:
         """
         A validator method that ensure it IS NOT a S3 object.
         """
         if self.is_file() is True:
             raise TypeError(f"S3 URI: {self} IS an s3 object!")
 
-    def ensure_not_file(self: "S3Path") -> None:
+    def ensure_not_file(self: S3Path) -> None:
         """
         A validator method that ensure it IS NOT a S3 object.
         """
         self.ensure_not_object()
 
-    def ensure_dir(self: "S3Path") -> None:
+    def ensure_dir(self: S3Path) -> None:
         """
         A validator method that ensure it represents a S3 dir.
         """
         if self.is_dir() is not True:
             raise S3PathIsNotFolderError.make(self.uri)
 
-    def ensure_not_dir(self: "S3Path") -> None:
+    def ensure_not_dir(self: S3Path) -> None:
         """
         A validator method that ensure it IS NOT a S3 dir.
         """
         if self.is_dir() is True:
             raise TypeError(f"{self} IS an s3 directory!")
 
-    def ensure_bucket(self: "S3Path") -> None:
+    def ensure_bucket(self: S3Path) -> None:
         """
         A validator method that ensure it represents a S3 bucket.
         """

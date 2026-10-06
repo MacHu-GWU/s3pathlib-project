@@ -9,5 +9,4 @@ Import::
     # or
     >>> from s3pathlib import S3Path
 """
-
 from .s3path import S3Path

@@ -4,6 +4,8 @@
 Manage the AWS environment that ``s3pathlib`` dealing with.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 try:
@@ -27,11 +29,11 @@ class Context:
     """
 
     def __init__(self):
-        self.boto_ses: T.Optional["boto3.session.Session"] = None
-        self._aws_region: T.Optional[str] = None
-        self._aws_account_id: T.Optional[str] = None
-        self._s3_client: T.Optional["S3Client"] = None
-        self._sts_client: T.Optional["STSClient"] = None
+        self.boto_ses: boto3.session.Session | None = None
+        self._aws_region: str | None = None
+        self._aws_account_id: str | None = None
+        self._s3_client: S3Client | None = None
+        self._sts_client: STSClient | None = None
 
         # try to create default session
         try:
@@ -39,7 +41,7 @@ class Context:
         except:  # pragma: no cover
             pass
 
-    def attach_boto_session(self, boto_ses: "boto3.session.Session"):
+    def attach_boto_session(self, boto_ses: boto3.session.Session):
         """
         Attach a custom boto session, also remove caches.
         """
@@ -49,20 +51,20 @@ class Context:
         self._aws_account_id = None
         self._aws_region = None
 
-    def attach_s3_client(self, s3_client: "S3Client"):
+    def attach_s3_client(self, s3_client: S3Client):
         """
         Attach a custom s3 client.
         """
         self._s3_client = s3_client
 
-    def attach_sts_client(self, sts_client: "STSClient"):
+    def attach_sts_client(self, sts_client: STSClient):
         """
         Attach a custom sts client.
         """
         self._sts_client = sts_client
 
     @property
-    def s3_client(self) -> "S3Client":
+    def s3_client(self) -> S3Client:
         """
         Access the s3 client.
 
@@ -73,7 +75,7 @@ class Context:
         return self._s3_client
 
     @property
-    def sts_client(self) -> "STSClient":
+    def sts_client(self) -> STSClient:
         """
         Access the s3 client.
 

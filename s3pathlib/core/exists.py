@@ -4,6 +4,8 @@
 Tagging related API.
 """
 
+from __future__ import annotations
+
 import typing as T
 from func_args import NOTHING
 
@@ -26,9 +28,9 @@ class ExistsAPIMixin:
     """
 
     def exists(
-        self: "S3Path",
+        self: S3Path,
         version_id: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> bool:
         """
         Test if an S3Path object actually exists in S3 bucket.
@@ -83,9 +85,9 @@ class ExistsAPIMixin:
             raise TypeError
 
     def ensure_not_exists(
-        self: "S3Path",
+        self: S3Path,
         version_id: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> None:
         """
         A validator method ensure that it doesn't exists.

@@ -7,6 +7,8 @@ Improve the delete_object_ API.
 .. _delete_objects: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_objects.html
 """
 
+from __future__ import annotations
+
 import typing as T
 
 
@@ -30,7 +32,7 @@ if T.TYPE_CHECKING:  # pragma: no cover
 
 
 def delete_object(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     key: str,
     version_id: str = NOTHING,
@@ -39,7 +41,7 @@ def delete_object(
     bypass_governance_retention: bool = NOTHING,
     expected_bucket_owner: str = NOTHING,
     ignore_not_found: bool = False,
-) -> T.Optional["DeleteObjectOutputTypeDef"]:
+) -> DeleteObjectOutputTypeDef | None:
     """
     Wrapper of delete_object_.
 
@@ -153,7 +155,7 @@ def delete_dir(
 
 
 def delete_object_versions(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     prefix: str,
     batch_size: int = 1000,

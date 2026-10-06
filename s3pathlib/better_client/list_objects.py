@@ -7,6 +7,8 @@ Improve the list_objects_v2_ and ListObjectsV2_ API.
 .. _ListObjectsV2: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectsV2.html
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from func_args import NOTHING, resolve_kwargs
@@ -42,7 +44,7 @@ class ListObjectsV2OutputTypeDefIterproxy(IterProxy["ListObjectsV2OutputTypeDef"
     It has two utility methods to get the contents and common prefixes.
     """
 
-    def _yield_content(self) -> T.Iterator["ObjectTypeDef"]:
+    def _yield_content(self) -> T.Iterator[ObjectTypeDef]:
         for response in self:
             for content in response.get("Contents", []):
                 yield content
@@ -53,7 +55,7 @@ class ListObjectsV2OutputTypeDefIterproxy(IterProxy["ListObjectsV2OutputTypeDef"
         """
         return ObjectTypeDefIterproxy(self._yield_content())
 
-    def _yield_common_prefixes(self) -> T.Iterator["CommonPrefixTypeDef"]:
+    def _yield_common_prefixes(self) -> T.Iterator[CommonPrefixTypeDef]:
         for response in self:
             for common_prefix in response.get("CommonPrefixes", []):
                 yield common_prefix
@@ -66,9 +68,9 @@ class ListObjectsV2OutputTypeDefIterproxy(IterProxy["ListObjectsV2OutputTypeDef"
 
     def extract_contents_and_common_prefixes(
         self, response: dict
-    ) -> T.Tuple[
-        T.List["ObjectTypeDef"],
-        T.List["CommonPrefixTypeDef"],
+    ) -> tuple[
+        list[ObjectTypeDef],
+        list[CommonPrefixTypeDef],
     ]:
         return (
             response.get("Contents", []),
@@ -77,7 +79,7 @@ class ListObjectsV2OutputTypeDefIterproxy(IterProxy["ListObjectsV2OutputTypeDef"
 
     def contents_and_common_prefixs(
         self,
-    ) -> T.Tuple[T.List["ObjectTypeDef"], T.List["CommonPrefixTypeDef"]]:
+    ) -> tuple[list[ObjectTypeDef], list[CommonPrefixTypeDef]]:
         """
         Return the full list of object contents and folders.
         """
@@ -94,7 +96,7 @@ class ListObjectsV2OutputTypeDefIterproxy(IterProxy["ListObjectsV2OutputTypeDef"
 
 
 def paginate_list_objects_v2(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     prefix: str,
     batch_size: int = 1000,
@@ -166,7 +168,7 @@ def paginate_list_objects_v2(
     return ListObjectsV2OutputTypeDefIterproxy(_paginate_list_objects_v2())
 
 
-def is_content_an_object(content: "ObjectTypeDef") -> bool:
+def is_content_an_object(content: ObjectTypeDef) -> bool:
     """
     Return True if the content is an object (not a folder).
 
@@ -181,11 +183,11 @@ def is_content_an_object(content: "ObjectTypeDef") -> bool:
 
 
 def calculate_total_size(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     prefix: str,
     include_folder: bool = False,
-) -> T.Tuple[int, int]:
+) -> tuple[int, int]:
     """
     Perform the "Calculate Total Size" action in AWS S3 console.
 
@@ -214,7 +216,7 @@ def calculate_total_size(
 
 
 def count_objects(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     prefix: str,
     include_folder: bool = False,

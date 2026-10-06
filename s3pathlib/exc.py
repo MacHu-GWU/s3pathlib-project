@@ -25,7 +25,7 @@ Each one also inherits from the matching builtin exception, so
         └── S3PathIsNotRelpathError
 """
 
-import typing as T
+from __future__ import annotations
 
 
 def ensure_all_none(**kwargs) -> None:
@@ -49,7 +49,7 @@ class _UriRelatedError:
 
     @classmethod
     def make(
-        cls: T.Type[T.Union[Exception, "_UriRelatedError"]],
+        cls: type[Exception | _UriRelatedError],
         uri: str,
     ):
         return cls(cls._tpl.format(uri=uri))
@@ -106,7 +106,7 @@ class S3PathTypeError(S3PathlibError, TypeError):
 
     @classmethod
     def make(
-        cls: T.Type[T.Union[Exception, "S3PathTypeError"]],
+        cls: type[Exception | S3PathTypeError],
         uri: str,
     ):
         return cls(f"{uri!r} is not a {cls._expected_type}!")

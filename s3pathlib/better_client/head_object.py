@@ -6,6 +6,8 @@ Improve the head_object_ API.
 .. _head_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
 """
 
+from __future__ import annotations
+
 import typing as T
 from datetime import datetime
 
@@ -20,7 +22,7 @@ if T.TYPE_CHECKING: # pragma: no cover
 
 
 def head_object(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     key: str,
     if_match: str = NOTHING,
@@ -36,7 +38,7 @@ def head_object(
     expected_bucket_owner: str = NOTHING,
     checksum_mode: str = NOTHING,
     ignore_not_found: bool = False,
-) -> T.Optional[T.Union[dict, "HeadObjectOutputTypeDef"]]:
+) -> dict | HeadObjectOutputTypeDef | None:
     """
     Wrapper of head_object_.
 
@@ -99,7 +101,7 @@ def head_object(
 
 
 def is_object_exists(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     key: str,
     version_id: str = NOTHING,

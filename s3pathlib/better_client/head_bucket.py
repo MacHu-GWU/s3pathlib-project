@@ -6,6 +6,8 @@ Improve the head_bucket_ API.
 .. _head_bucket: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_bucket
 """
 
+from __future__ import annotations
+
 import typing as T
 
 import botocore.exceptions
@@ -16,7 +18,7 @@ if T.TYPE_CHECKING:  # pragma: no cover
 
 
 def is_bucket_exists(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
 ) -> bool:
     """

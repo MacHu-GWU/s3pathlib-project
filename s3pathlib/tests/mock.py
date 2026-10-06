@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import typing as T
 import os
 import sys
@@ -240,7 +242,7 @@ class BaseTest:
         rprint(data)
 
     @property
-    def s3_client(self) -> "S3Client":
+    def s3_client(self) -> S3Client:
         """
         The boto3 S3 client the tests run against (moto or real AWS). Use it
         to verify S3 state with native calls.

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import enum
 
 IS_DELETE_MARKER = "IsDeleteMarker"

@@ -4,6 +4,8 @@
 Sync file, folder between s3-to-s3, s3-to-local, local-to-s3.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 import subprocess
@@ -17,7 +19,7 @@ if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
 
 
-def _preprocess(path: T.Union["S3Path", PathType]) -> T.Union["S3Path", str]:
+def _preprocess(path: S3Path | PathType) -> S3Path | str:
     if hasattr(path, "console_url"):
         return path
     else:
@@ -31,17 +33,17 @@ class SyncAPIMixin:
 
     @classmethod
     def sync(
-        cls: T.Type["S3Path"],
-        src: T.Union["S3Path", PathType],
-        dst: T.Union["S3Path", PathType],
-        bsm: T.Optional["BotoSesManager"] = None,
+        cls: type[S3Path],
+        src: S3Path | PathType,
+        dst: S3Path | PathType,
+        bsm: BotoSesManager | None = None,
         quite: bool = True,
-        include: T.Optional[str] = None,
-        exclude: T.Optional[str] = None,
-        acl: T.Optional[str] = None,
+        include: str | None = None,
+        exclude: str | None = None,
+        acl: str | None = None,
         only_show_errors: bool = False,
         no_progress: bool = False,
-        page_size: T.Optional[str] = None,
+        page_size: str | None = None,
         delete: bool = False,
         verbose: bool = True,
     ):
@@ -129,16 +131,16 @@ class SyncAPIMixin:
             raise SystemError("'aws s3 sync' command failed!")
 
     def sync_from(
-        self: "S3Path",
-        src: T.Union["S3Path", PathType],
-        bsm: T.Optional["BotoSesManager"] = None,
+        self: S3Path,
+        src: S3Path | PathType,
+        bsm: BotoSesManager | None = None,
         quite: bool = True,
-        include: T.Optional[str] = None,
-        exclude: T.Optional[str] = None,
-        acl: T.Optional[str] = None,
+        include: str | None = None,
+        exclude: str | None = None,
+        acl: str | None = None,
         only_show_errors: bool = False,
         no_progress: bool = False,
-        page_size: T.Optional[str] = None,
+        page_size: str | None = None,
         delete: bool = False,
         verbose: bool = True,
     ):
@@ -161,16 +163,16 @@ class SyncAPIMixin:
         )
 
     def sync_to(
-        self: "S3Path",
-        dst: T.Union["S3Path", PathType],
-        bsm: T.Optional["BotoSesManager"] = None,
+        self: S3Path,
+        dst: S3Path | PathType,
+        bsm: BotoSesManager | None = None,
         quite: bool = True,
-        include: T.Optional[str] = None,
-        exclude: T.Optional[str] = None,
-        acl: T.Optional[str] = None,
+        include: str | None = None,
+        exclude: str | None = None,
+        acl: str | None = None,
         only_show_errors: bool = False,
         no_progress: bool = False,
-        page_size: T.Optional[str] = None,
+        page_size: str | None = None,
         delete: bool = False,
         verbose: bool = True,
     ):

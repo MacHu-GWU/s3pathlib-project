@@ -7,6 +7,8 @@ List objects related API.
 .. _ListObjectsV2: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectsV2.html
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from iterproxy import IterProxy
@@ -39,25 +41,25 @@ class S3PathIterProxy(IterProxy["S3Path"]):
     See :class:`s3pathlib.iterproxy.IterProxy` for more details.
     """
 
-    def __next__(self) -> "S3Path":
+    def __next__(self) -> S3Path:
         return super(S3PathIterProxy, self).__next__()
 
-    def one(self) -> "S3Path":
+    def one(self) -> S3Path:
         return super(S3PathIterProxy, self).one()
 
-    def one_or_none(self) -> T.Union["S3Path", None]:
+    def one_or_none(self) -> S3Path | None:
         return super(S3PathIterProxy, self).one_or_none()
 
-    def many(self, k: int) -> T.List["S3Path"]:
+    def many(self, k: int) -> list[S3Path]:
         return super(S3PathIterProxy, self).many(k)
 
-    def all(self) -> T.List["S3Path"]:
+    def all(self) -> list[S3Path]:
         return super(S3PathIterProxy, self).all()
 
-    def skip(self, k: int) -> "S3PathIterProxy":
+    def skip(self, k: int) -> S3PathIterProxy:
         return super(S3PathIterProxy, self).skip(k=k)
 
-    def filter_by_ext(self, *exts: str) -> "S3PathIterProxy":
+    def filter_by_ext(self, *exts: str) -> S3PathIterProxy:
         """
         Filter S3 object by file extension. Case is insensitive.
 
@@ -73,14 +75,14 @@ class S3PathIterProxy(IterProxy["S3Path"]):
         elif n == 1:
             ext = exts[0].lower()
 
-            def f(p: "S3Path") -> bool:
+            def f(p: S3Path) -> bool:
                 return p.ext.lower() == ext
 
             return self.filter(f)
         else:
             valid_exts = set([ext.lower() for ext in exts])
 
-            def f(p: "S3Path") -> bool:
+            def f(p: S3Path) -> bool:
                 return p.ext.lower() in valid_exts
 
             return self.filter(f)
@@ -92,7 +94,7 @@ class IterObjectsAPIMixin:
     """
 
     def iter_objects(
-        self: "S3Path",
+        self: S3Path,
         batch_size: int = 1000,
         limit: int = NOTHING,
         encoding_type: str = NOTHING,
@@ -101,7 +103,7 @@ class IterObjectsAPIMixin:
         request_payer: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
         recursive: bool = True,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
         """
         Recursively iterate objects under this prefix, yield :class:`S3Path`.
@@ -142,7 +144,7 @@ class IterObjectsAPIMixin:
         s3_client = resolve_s3_client(context, bsm)
         bucket = self.bucket
 
-        def _iter_s3path() -> T.Iterable["S3Path"]:
+        def _iter_s3path() -> T.Iterable[S3Path]:
             kwargs = dict(
                 s3_client=s3_client,
                 bucket=bucket,
@@ -167,7 +169,7 @@ class IterObjectsAPIMixin:
         return S3PathIterProxy(_iter_s3path())
 
     def iterdir(
-        self: "S3Path",
+        self: S3Path,
         batch_size: int = 1000,
         limit: int = NOTHING,
         encoding_type: str = NOTHING,
@@ -175,7 +177,7 @@ class IterObjectsAPIMixin:
         start_after: str = NOTHING,
         request_payer: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
         """
         iterate objects and folder under this prefix non-recursively,
@@ -213,7 +215,7 @@ class IterObjectsAPIMixin:
         s3_client = resolve_s3_client(context, bsm)
         bucket = self.bucket
 
-        def _iter_s3path() -> T.Iterable["S3Path"]:
+        def _iter_s3path() -> T.Iterable[S3Path]:
             root = self.root
 
             proxy = paginate_list_objects_v2(
@@ -239,11 +241,11 @@ class IterObjectsAPIMixin:
         return S3PathIterProxy(_iter_s3path())
 
     def calculate_total_size(
-        self: "S3Path",
+        self: S3Path,
         for_human: bool = False,
         include_folder: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> T.Tuple[int, T.Union[int, str]]:
+        bsm: BotoSesManager | S3Client | None = None,
+    ) -> tuple[int, int | str]:
         """
         Perform the "Calculate Total Size" action in AWS S3 console
 
@@ -287,9 +289,9 @@ class IterObjectsAPIMixin:
         return count, size
 
     def count_objects(
-        self: "S3Path",
+        self: S3Path,
         include_folder: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> int:
         """
         Count how many objects are under this s3 directory.

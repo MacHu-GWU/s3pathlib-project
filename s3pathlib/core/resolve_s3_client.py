@@ -4,6 +4,8 @@
 Resolve what s3 client to use for API call.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from ..aws import Context
@@ -15,8 +17,8 @@ if T.TYPE_CHECKING:  # pragma: no cover
 
 def resolve_s3_client(
     context: Context,
-    bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-) -> "S3Client":
+    bsm: BotoSesManager | S3Client | None = None,
+) -> S3Client:
     """
     Figure out the final boto session to use for API call.
     If ``BotoSesManager`` is defined, then prioritize to use it.

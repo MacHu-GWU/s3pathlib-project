@@ -4,6 +4,7 @@
 Common content types for S3 objects.
 """
 
+from __future__ import annotations
 
 class ContentTypeEnum:
     """

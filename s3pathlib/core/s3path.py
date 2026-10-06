@@ -6,6 +6,8 @@ The ``S3Path`` public API class.
 
 # The import order is very important. The later one depends on the earlier one.
 
+from __future__ import annotations
+
 from .base import BaseS3Path
 from .is_test import IsTestAPIMixin
 from .uri import UriAPIMixin

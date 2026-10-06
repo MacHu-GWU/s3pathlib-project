@@ -9,6 +9,8 @@ Smart open library integration.
 .. _put_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
 """
 
+from __future__ import annotations
+
 import typing as T
 import copy
 from datetime import datetime
@@ -35,20 +37,20 @@ class OpenerAPIMixin:
     """
 
     def open(
-        self: "S3Path",
-        mode: T.Optional[str] = "r",
-        version_id: T.Optional[str] = NOTHING,
-        buffering: T.Optional[int] = -1,
-        encoding: T.Optional[str] = None,
-        errors: T.Optional[str] = None,
-        newline: T.Optional[str] = None,
+        self: S3Path,
+        mode: str | None = "r",
+        version_id: str | None = NOTHING,
+        buffering: int | None = -1,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
         closefd=True,
         opener=None,
         ignore_ext: bool = False,
-        compression: T.Optional[str] = None,
+        compression: str | None = None,
         multipart_upload: bool = True,
-        metadata: T.Optional[MetadataType] = NOTHING,
-        tags: T.Optional[TagType] = NOTHING,
+        metadata: MetadataType | None = NOTHING,
+        tags: TagType | None = NOTHING,
         # write related parameters
         acl: str = NOTHING,
         cache_control: str = NOTHING,
@@ -103,8 +105,8 @@ class OpenerAPIMixin:
         part_number: int = NOTHING,
         checksum_mode: str = NOTHING,
         # other parameters
-        transport_params: T.Optional[dict] = None,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        transport_params: dict | None = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ):
         """
         Open S3Path as a file-liked object.
@@ -226,7 +228,7 @@ class OpenerAPIMixin:
         if compression is not None:
             open_kwargs["compression"] = compression
 
-        existing_client_kwargs: T.Dict[str, T.Dict[str, T.Any]]
+        existing_client_kwargs: dict[str, dict[str, T.Any]]
         existing_client_kwargs = transport_params.get("client_kwargs", {})
         if is_write_mode:
             # if any of additional parameters exists, we need additional handling

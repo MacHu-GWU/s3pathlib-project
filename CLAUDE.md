@@ -19,6 +19,10 @@ from .abc import xyz
 
 Order: `import typing as T` first, then standard library, then third-party, then s3pathlib's own relative imports.
 
+## Type Hints
+
+Python 3.11+ syntax: `X | None`, `A | B`, `list[str]`, `dict[str, int]`, `type[X]`; never `T.Optional` / `T.Union` / `T.List` / `T.Dict` / `T.Tuple` / `T.Type`. Every module with type annotations starts with `from __future__ import annotations`, so forward references need no quotes (`-> S3Path | None`). Pure re-export modules (`__init__.py`, `api.py`) don't need it.
+
 ## Docstrings
 
 3.0.0 is the baseline; its public API is listed in `release-history.rst`. Only use `.. versionadded::` / `.. versionchanged::` for changes after 3.0.0.

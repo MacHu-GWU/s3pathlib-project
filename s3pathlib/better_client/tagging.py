@@ -10,6 +10,8 @@ Update S3 bucket, object tagging.
 .. _put_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object_tagging.html
 """
 
+from __future__ import annotations
+
 import typing as T
 import botocore.exceptions
 from func_args import NOTHING, resolve_kwargs
@@ -22,7 +24,7 @@ if T.TYPE_CHECKING:  # pragma: no cover
 
 
 def update_bucket_tagging(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     tags: tag.TagType,
     checksum_algorithm: str = NOTHING,
@@ -61,7 +63,7 @@ def update_bucket_tagging(
 
 
 def update_object_tagging(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     key: str,
     tags: tag.TagType,
@@ -70,7 +72,7 @@ def update_object_tagging(
     checksum_algorithm: str = NOTHING,
     expected_bucket_owner: str = NOTHING,
     request_payer: str = NOTHING,
-) -> T.Tuple[T.Optional[str], tag.TagType]:
+) -> tuple[str | None, tag.TagType]:
     """
     Allow you to use ``dict.update`` liked API to update s3 object tagging.
     It is a combination of get, update and put.

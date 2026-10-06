@@ -4,6 +4,8 @@
 S3Path property methods.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from .filterable_property import FilterableProperty
@@ -18,7 +20,7 @@ class AttributeAPIMixin:
     """
 
     @property
-    def parent(self: "S3Path") -> T.Optional["S3Path"]:
+    def parent(self: S3Path) -> S3Path | None:
         """
         Return the parent s3 directory.
 
@@ -51,7 +53,7 @@ class AttributeAPIMixin:
             )
 
     @property
-    def parents(self: "S3Path") -> T.List["S3Path"]:
+    def parents(self: S3Path) -> list[S3Path]:
         """
         An immutable sequence providing access to the logical ancestors of
         the path.
@@ -76,7 +78,7 @@ class AttributeAPIMixin:
                 parent = new_parent
         return l
 
-    def is_parent_of(self: "S3Path", other: "S3Path") -> bool:
+    def is_parent_of(self: S3Path, other: S3Path) -> bool:
         """
         Test if it is the parent directory or grand-grand-... parent directory
         of another one.
@@ -118,7 +120,7 @@ class AttributeAPIMixin:
                 and len(self._parts) < n_parts_other
             )
 
-    def is_prefix_of(self: "S3Path", other: "S3Path") -> bool:
+    def is_prefix_of(self: S3Path, other: S3Path) -> bool:
         """
         Test if it is a prefix of another one.
 
@@ -137,7 +139,7 @@ class AttributeAPIMixin:
         return self.uri <= other.uri
 
     @FilterableProperty
-    def basename(self: "S3Path") -> T.Optional[str]:
+    def basename(self: S3Path) -> str | None:
         """
         The file name with extension, or the last folder name if it is a
         directory. If not available, it returns None. For example it doesn't
@@ -173,7 +175,7 @@ class AttributeAPIMixin:
             return ""
 
     @FilterableProperty
-    def dirname(self: "S3Path") -> T.Optional[str]:
+    def dirname(self: S3Path) -> str | None:
         """
         The basename of it's parent directory.
 
@@ -189,7 +191,7 @@ class AttributeAPIMixin:
         return self.parent.basename
 
     @FilterableProperty
-    def fname(self: "S3Path") -> str:
+    def fname(self: S3Path) -> str:
         """
         The final path component, minus its last suffix (file extension).
         Only if it is not a directory.
@@ -211,7 +213,7 @@ class AttributeAPIMixin:
             return basename
 
     @FilterableProperty
-    def ext(self: "S3Path") -> str:
+    def ext(self: S3Path) -> str:
         """
         The final component's last suffix, if any. Usually it is the file
         extension. Only if it is not a directory.
@@ -233,7 +235,7 @@ class AttributeAPIMixin:
             return ""
 
     @FilterableProperty
-    def abspath(self: "S3Path") -> str:
+    def abspath(self: S3Path) -> str:
         """
         The Unix styled absolute path from the bucket. You can think of the
         bucket as a root drive.
@@ -272,7 +274,7 @@ class AttributeAPIMixin:
             raise TypeError
 
     @FilterableProperty
-    def dirpath(self: "S3Path"):
+    def dirpath(self: S3Path):
         """
         The Unix styled absolute path from the bucket of the **parent directory**.
 
@@ -301,7 +303,7 @@ class AttributeAPIMixin:
         return self.parent.abspath
 
     @property
-    def root(self: "S3Path") -> "S3Path":
+    def root(self: S3Path) -> S3Path:
         """
         Return the S3 Bucket root folder S3Path object.
 
@@ -320,7 +322,7 @@ class AttributeAPIMixin:
                 is_dir=True,
             )
 
-    def __repr__(self: "S3Path"):
+    def __repr__(self: S3Path):
         """
         You cannot use the returned string of __repr__ to recover the original
         S3Path method.
@@ -340,5 +342,5 @@ class AttributeAPIMixin:
             uri = self.uri
             return "{}('{}')".format(classname, uri)
 
-    def __str__(self: "S3Path"):
+    def __str__(self: S3Path):
         return self.__repr__()

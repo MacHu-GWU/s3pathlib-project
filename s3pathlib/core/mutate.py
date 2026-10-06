@@ -4,6 +4,8 @@
 S3Path object mutation implementation.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from .. import exc
@@ -17,7 +19,7 @@ class MutateAPIMixin:
     A mixin class that implements the S3Path object mutation.
     """
 
-    def copy(self: "S3Path") -> "S3Path":
+    def copy(self: S3Path) -> S3Path:
         """
         Create a copy of S3Path object that logically equals to this one,
         but is actually different identity in memory. Also, the cache data
@@ -39,7 +41,7 @@ class MutateAPIMixin:
         )
 
     def change(
-        self: "S3Path",
+        self: S3Path,
         new_bucket: str = None,
         new_abspath: str = None,
         new_dirpath: str = None,
@@ -47,7 +49,7 @@ class MutateAPIMixin:
         new_basename: str = None,
         new_fname: str = None,
         new_ext: str = None,
-    ) -> "S3Path":
+    ) -> S3Path:
         """
         Create a new S3Path by replacing part of the attributes. If no argument
         is given, it behaves like :meth:`copy`.
@@ -135,7 +137,7 @@ class MutateAPIMixin:
             )
         return p
 
-    def to_dir(self: "S3Path") -> "S3Path":
+    def to_dir(self: S3Path) -> S3Path:
         """
         Convert the S3Path to a directory. If the S3Path is a file, then append
         a "/" at the end. If the S3Path is already a directory, then do nothing.
@@ -152,7 +154,7 @@ class MutateAPIMixin:
         else:
             raise ValueError("only concrete file or folder S3Path can do .to_dir()")
 
-    def to_file(self: "S3Path") -> "S3Path":
+    def to_file(self: S3Path) -> S3Path:
         """
         Convert the S3Path to a file. If the S3Path is a directory, then strip
         out the last "/". If the S3Path is already a file, then do nothing.

@@ -4,6 +4,8 @@
 The base constructor of S3Path object.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 try:
@@ -106,9 +108,9 @@ class BaseS3Path:
     )
 
     def __new__(
-        cls: T.Type["S3Path"],
-        *args: T.Union[str, "S3Path"],
-    ) -> "S3Path":
+        cls: type[S3Path],
+        *args: str | S3Path,
+    ) -> S3Path:
         """
         The constructor of :class:`S3Path`.
         """
@@ -116,10 +118,10 @@ class BaseS3Path:
 
     @classmethod
     def _from_parts(
-        cls: T.Type["S3Path"],
-        args: T.List[T.Union[str, "S3Path"]],
+        cls: type[S3Path],
+        args: list[str | S3Path],
         init: bool = True,
-    ) -> "S3Path":
+    ) -> S3Path:
         """
         Low level implementation of the constructor.
         """
@@ -198,12 +200,12 @@ class BaseS3Path:
 
     @classmethod
     def _from_parsed_parts(
-        cls: T.Type["S3Path"],
-        bucket: T.Optional[str],
-        parts: T.List[str],
-        is_dir: T.Optional[bool],
+        cls: type[S3Path],
+        bucket: str | None,
+        parts: list[str],
+        is_dir: bool | None,
         init: bool = True,
-    ) -> "S3Path":
+    ) -> S3Path:
         self = object.__new__(cls)
         self._bucket = bucket
         self._parts = parts
@@ -213,14 +215,14 @@ class BaseS3Path:
             self._init()
         return self
 
-    def _init(self: "S3Path") -> None:
+    def _init(self: S3Path) -> None:
         """
         Additional instance initialization
         """
         pass
 
     @FilterableProperty
-    def parts(self: "S3Path") -> T.List[str]:
+    def parts(self: S3Path) -> list[str]:
         """
         Provides sequence-like access to the components in the filesystem path.
         It doesn't include the bucket, because bucket is considered as "drive".

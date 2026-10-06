@@ -7,6 +7,8 @@ Tagging related API.
 .. _put_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object_tagging.html
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from func_args import NOTHING, resolve_kwargs
@@ -30,12 +32,12 @@ class TaggingAPIMixin:
     """
 
     def get_tags(
-        self: "S3Path",
+        self: S3Path,
         version_id: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
         request_payer: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> T.Tuple[T.Optional[str], TagType]:
+        bsm: BotoSesManager | S3Client | None = None,
+    ) -> tuple[str | None, TagType]:
         """
         Get s3 object tags in key value pairs dict.
 
@@ -57,15 +59,15 @@ class TaggingAPIMixin:
         return returned_version_id, tags
 
     def put_tags(
-        self: "S3Path",
+        self: S3Path,
         tags: TagType,
         version_id: str = NOTHING,
         content_md5: str = NOTHING,
         checksum_algorithm: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
         request_payer: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> T.Tuple[T.Optional[str], TagType]:
+        bsm: BotoSesManager | S3Client | None = None,
+    ) -> tuple[str | None, TagType]:
         """
         Do full replacement of s3 object tags.
 
@@ -91,15 +93,15 @@ class TaggingAPIMixin:
         return returned_version_id, tags
 
     def update_tags(
-        self: "S3Path",
+        self: S3Path,
         tags: TagType,
         version_id: str = NOTHING,
         content_md5: str = NOTHING,
         checksum_algorithm: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
         request_payer: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> T.Tuple[T.Optional[str], TagType]:
+        bsm: BotoSesManager | S3Client | None = None,
+    ) -> tuple[str | None, TagType]:
         """
         Do partial updates of s3 object tags.
 

@@ -4,6 +4,8 @@
 Upload file from local to s3.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from pathlib_mate import Path
@@ -28,13 +30,13 @@ class UploadAPIMixin:
     """
 
     def upload_file(
-        self: "S3Path",
+        self: S3Path,
         path: PathType,
         overwrite: bool = False,
         extra_args: dict = NOTHING,
         callback: callable = NOTHING,
-        config: "TransferConfig" = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        config: TransferConfig = NOTHING,
+        bsm: BotoSesManager | S3Client | None = None,
     ):
         """
         Upload a file from local file system to targeted S3 path
@@ -66,11 +68,11 @@ class UploadAPIMixin:
         )
 
     def upload_dir(
-        self: "S3Path",
+        self: S3Path,
         local_dir: PathType,
         pattern: str = "**/*",
         overwrite: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> int:
         """
         Upload a directory on local file system and all sub-folders, files to

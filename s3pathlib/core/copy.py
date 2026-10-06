@@ -6,6 +6,8 @@ Copy file from s3 to s3.
 .. _copy_file: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/copy_object.html
 """
 
+from __future__ import annotations
+
 import typing as T
 from datetime import datetime
 
@@ -29,13 +31,13 @@ class CopyAPIMixin:
     """
 
     def copy_file(
-        self: "S3Path",
-        dst: "S3Path",
+        self: S3Path,
+        dst: S3Path,
         version_id: str = NOTHING,
-        metadata: T.Optional[MetadataType] = NOTHING,
-        tags: T.Optional[TagType] = NOTHING,
+        metadata: MetadataType | None = NOTHING,
+        tags: TagType | None = NOTHING,
         overwrite: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
         acl: str = NOTHING,
         cache_control: str = NOTHING,
         content_disposition: str = NOTHING,
@@ -144,12 +146,12 @@ class CopyAPIMixin:
         return s3_client.copy_object(**resolve_kwargs(**kwargs))
 
     def copy_dir(
-        self: "S3Path",
-        dst: "S3Path",
-        metadata: T.Optional[MetadataType] = NOTHING,
-        tags: T.Optional[TagType] = NOTHING,
+        self: S3Path,
+        dst: S3Path,
+        metadata: MetadataType | None = NOTHING,
+        tags: TagType | None = NOTHING,
         overwrite: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
         acl: str = NOTHING,
         cache_control: str = NOTHING,
         content_disposition: str = NOTHING,
@@ -205,7 +207,7 @@ class CopyAPIMixin:
         dst.ensure_not_relpath()
 
         # calculate to do list
-        todo: T.List[T.Tuple["S3Path", "S3Path"]] = list()
+        todo: list[tuple[S3Path, S3Path]] = list()
         for p_src in self.iter_objects(bsm=bsm):
             p_relpath = p_src.relative_to(self)
             p_dst = dst.joinpath(p_relpath)
@@ -261,13 +263,13 @@ class CopyAPIMixin:
         return len(todo)
 
     def copy_to(
-        self: "S3Path",
-        dst: "S3Path",
+        self: S3Path,
+        dst: S3Path,
         version_id: str = NOTHING,
-        metadata: T.Optional[MetadataType] = NOTHING,
-        tags: T.Optional[TagType] = NOTHING,
+        metadata: MetadataType | None = NOTHING,
+        tags: TagType | None = NOTHING,
         overwrite: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
         acl: str = NOTHING,
         cache_control: str = NOTHING,
         content_disposition: str = NOTHING,
@@ -398,12 +400,12 @@ class CopyAPIMixin:
             raise TypeError
 
     def move_to(
-        self: "S3Path",
-        dst: "S3Path",
-        metadata: T.Optional[MetadataType] = NOTHING,
-        tags: T.Optional[TagType] = NOTHING,
+        self: S3Path,
+        dst: S3Path,
+        metadata: MetadataType | None = NOTHING,
+        tags: TagType | None = NOTHING,
         overwrite: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
         acl: str = NOTHING,
         cache_control: str = NOTHING,
         content_disposition: str = NOTHING,

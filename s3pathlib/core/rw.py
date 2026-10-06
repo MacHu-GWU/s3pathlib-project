@@ -10,6 +10,8 @@ Read and write related API.
 .. _encode: https://docs.python.org/3/library/stdtypes.html#str.encode
 """
 
+from __future__ import annotations
+
 import typing as T
 from datetime import datetime
 
@@ -34,7 +36,7 @@ class ReadAndWriteAPIMixin:
     A mixin class that implements the Text / Bytes, Read / Write methods.
     """
     def read_bytes(
-        self: "S3Path",
+        self: S3Path,
         version_id: str = NOTHING,
         if_match: str = NOTHING,
         if_modified_since: datetime = NOTHING,
@@ -53,7 +55,7 @@ class ReadAndWriteAPIMixin:
         part_number: int = NOTHING,
         expected_bucket_owner: str = NOTHING,
         checksum_mode: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> bytes:
         """
         Read binary data from s3 object.
@@ -129,7 +131,7 @@ class ReadAndWriteAPIMixin:
         return data
 
     def read_text(
-        self: "S3Path",
+        self: S3Path,
         encoding="utf-8",
         errors="strict",
         version_id: str = NOTHING,
@@ -150,7 +152,7 @@ class ReadAndWriteAPIMixin:
         part_number: int = NOTHING,
         expected_bucket_owner: str = NOTHING,
         checksum_mode: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> str:
         """
         Read text data from s3 object.
@@ -218,7 +220,7 @@ class ReadAndWriteAPIMixin:
         return data.decode(encoding, errors=errors)
 
     def write_bytes(
-        self: "S3Path",
+        self: S3Path,
         data: bytes,
         metadata: MetadataType = NOTHING,
         tags: TagType = NOTHING,
@@ -253,8 +255,8 @@ class ReadAndWriteAPIMixin:
         object_lock_retain_until_datetime: datetime = NOTHING,
         object_lock_legal_hold_status: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> "S3Path":
+        bsm: BotoSesManager | S3Client | None = None,
+    ) -> S3Path:
         """
         Write binary data to s3 object.
         A simple wrapper around put_object_.
@@ -362,7 +364,7 @@ class ReadAndWriteAPIMixin:
         return s3path
 
     def write_text(
-        self: "S3Path",
+        self: S3Path,
         data: str,
         encoding: str = "utf-8",
         errors: str = "strict",
@@ -399,8 +401,8 @@ class ReadAndWriteAPIMixin:
         object_lock_retain_until_datetime: datetime = NOTHING,
         object_lock_legal_hold_status: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> "S3Path":
+        bsm: BotoSesManager | S3Client | None = None,
+    ) -> S3Path:
         """
         Write text to s3 object.
         A simple wrapper around put_object_.
@@ -496,7 +498,7 @@ class ReadAndWriteAPIMixin:
         )
 
     def touch(
-        self: "S3Path",
+        self: S3Path,
         exist_ok: bool = False,
         metadata: MetadataType = NOTHING,
         tags: TagType = NOTHING,
@@ -531,7 +533,7 @@ class ReadAndWriteAPIMixin:
         object_lock_retain_until_datetime: datetime = NOTHING,
         object_lock_legal_hold_status: str = NOTHING,
         expected_bucket_owner: str = NOTHING,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ):
         """
         Create an empty S3 object at the S3 location if the S3 object not exists.
@@ -632,10 +634,10 @@ class ReadAndWriteAPIMixin:
             raise exc.S3FileAlreadyExist.make(self.uri)
 
     def mkdir(
-        self: "S3Path",
+        self: S3Path,
         exist_ok: bool = False,
         parents: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ):
         """
         Make an S3 folder (empty "/" file)

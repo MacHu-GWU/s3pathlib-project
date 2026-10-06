@@ -5,6 +5,8 @@ S3 URI (Uniform Resource Identifier), ARN (Amazon Resource Name),
 console URL related API.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from .filterable_property import FilterableProperty
@@ -21,7 +23,7 @@ class UriAPIMixin:
     """
 
     @FilterableProperty
-    def bucket(self: "S3Path") -> T.Optional[str]:
+    def bucket(self: S3Path) -> str | None:
         """
         Return bucket name as string, if available.
 
@@ -33,7 +35,7 @@ class UriAPIMixin:
         return self._bucket
 
     @FilterableProperty
-    def key(self: "S3Path") -> T.Optional[str]:
+    def key(self: S3Path) -> str | None:
         """
         Return object or directory key as string, if available.
 
@@ -64,7 +66,7 @@ class UriAPIMixin:
             return ""
 
     @FilterableProperty
-    def uri(self: "S3Path") -> T.Optional[str]:
+    def uri(self: S3Path) -> str | None:
         """
         Return AWS S3 URI.
 
@@ -105,7 +107,7 @@ class UriAPIMixin:
             return "s3://{}/".format(self._bucket)
 
     @property
-    def console_url(self: "S3Path") -> T.Optional[str]:
+    def console_url(self: S3Path) -> str | None:
         """
         Return an url that can inspect the object, directory details in AWS Console.
         """
@@ -119,7 +121,7 @@ class UriAPIMixin:
             )
             return console_url
 
-    def get_regional_console_url(self: "S3Path", region: str) -> T.Optional[str]:
+    def get_regional_console_url(self: S3Path, region: str) -> str | None:
         """
         Return an url that can inspect the object, directory details in AWS Console.
         """
@@ -135,7 +137,7 @@ class UriAPIMixin:
             return console_url
 
     @property
-    def us_gov_cloud_console_url(self: "S3Path") -> T.Optional[str]:
+    def us_gov_cloud_console_url(self: S3Path) -> str | None:
         """
         Return a Gov Cloud url that can inspect the object, directory details
         in AWS Console.
@@ -152,8 +154,8 @@ class UriAPIMixin:
             return console_url
 
     def get_regional_us_gov_cloud_console_url(
-        self: "S3Path", region: str
-    ) -> T.Optional[str]:
+        self: S3Path, region: str
+    ) -> str | None:
         """
         Return a Gov Cloud url that can inspect the object, directory details
         in AWS Console.
@@ -171,7 +173,7 @@ class UriAPIMixin:
             return console_url
 
     @property
-    def s3_select_console_url(self: "S3Path") -> T.Optional[str]:
+    def s3_select_console_url(self: S3Path) -> str | None:
         """
         Return an AWS US Gov Cloud S3 Console url that can inspect data with s3 select.
         """
@@ -185,8 +187,8 @@ class UriAPIMixin:
             raise TypeError("you can only do s3 select with an object!")
 
     def get_regional_s3_select_console_url(
-        self: "S3Path", region: str
-    ) -> T.Optional[str]:
+        self: S3Path, region: str
+    ) -> str | None:
         """
         Return an AWS US Gov Cloud S3 Console url that can inspect data with s3 select.
         """
@@ -201,7 +203,7 @@ class UriAPIMixin:
             raise TypeError("you can only do s3 select with an object!")
 
     @property
-    def s3_select_us_gov_cloud_console_url(self: "S3Path") -> T.Optional[str]:
+    def s3_select_us_gov_cloud_console_url(self: S3Path) -> str | None:
         """
         Return an AWS S3 Console url that can inspect data with s3 select.
         """
@@ -215,8 +217,8 @@ class UriAPIMixin:
             raise TypeError("you can only do s3 select with an object!")
 
     def get_regional_s3_select_us_gov_cloud_console_url(
-        self: "S3Path", region: str
-    ) -> T.Optional[str]:
+        self: S3Path, region: str
+    ) -> str | None:
         """
         Return an AWS S3 Console url that can inspect data with s3 select.
         """
@@ -231,7 +233,7 @@ class UriAPIMixin:
             raise TypeError("you can only do s3 select with an object!")
 
     @FilterableProperty
-    def arn(self: "S3Path") -> T.Optional[str]:
+    def arn(self: S3Path) -> str | None:
         """
         Return the AWS S3 resource ARN in the ``aws`` partition.
         Use :meth:`get_arn` for the ``aws-cn`` or ``aws-us-gov`` partition.
@@ -240,9 +242,9 @@ class UriAPIMixin:
         return self.get_arn()
 
     def get_arn(
-        self: "S3Path",
+        self: S3Path,
         partition: str = AwsPartitionEnum.aws,
-    ) -> T.Optional[str]:
+    ) -> str | None:
         """
         Return the AWS S3 resource ARN in the given partition.
 
@@ -265,7 +267,7 @@ class UriAPIMixin:
             return f"arn:{partition}:s3:::{self._bucket}"
 
     @classmethod
-    def from_s3_uri(cls: T.Type["S3Path"], uri: str) -> "S3Path":
+    def from_s3_uri(cls: type[S3Path], uri: str) -> S3Path:
         """
         Construct an :class:`S3Path` from S3 URI.
 
@@ -286,7 +288,7 @@ class UriAPIMixin:
         return cls._from_parts([uri])
 
     @classmethod
-    def from_s3_arn(cls: T.Type["S3Path"], arn: str) -> "S3Path":
+    def from_s3_arn(cls: type[S3Path], arn: str) -> S3Path:
         """
         Construct an :class:`S3Path` from S3 ARN.
 

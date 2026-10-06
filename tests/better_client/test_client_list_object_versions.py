@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import typing as T
 import pytest
 from s3pathlib.better_client.list_object_versions import (
     paginate_list_object_versions,
@@ -62,7 +61,7 @@ class BetterListObjectVersions(DummyData):
         def delete(suffix: str):
             s3_client.delete_object(Bucket=bucket, Key=f"{prefix}{suffix}")
 
-        def list_object_versions(delimiter: T.Optional[str] = None):
+        def list_object_versions(delimiter: str | None = None):
             kwargs = dict(
                 s3_client=s3_client,
                 bucket=bucket,

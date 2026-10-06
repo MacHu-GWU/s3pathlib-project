@@ -7,6 +7,8 @@ Improve the list_object_versions_ and ListObjectVersions_ API.
 .. _ListObjectVersions: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectVersions.html
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from func_args import NOTHING, resolve_kwargs
@@ -51,7 +53,7 @@ class ListObjectVersionsOutputTypeDefIterproxy(
     It has two utility methods to get the contents and common prefixes.
     """
 
-    def _yield_versions(self) -> T.Iterator["ObjectVersionTypeDef"]:
+    def _yield_versions(self) -> T.Iterator[ObjectVersionTypeDef]:
         for response in self:
             for version in response.get("Versions", []):
                 yield version
@@ -62,7 +64,7 @@ class ListObjectVersionsOutputTypeDefIterproxy(
         """
         return ObjectVersionTypeDefIterproxy(self._yield_versions())
 
-    def _yield_delete_markers(self) -> T.Iterator["DeleteMarkerEntryTypeDef"]:
+    def _yield_delete_markers(self) -> T.Iterator[DeleteMarkerEntryTypeDef]:
         for response in self:
             for delete_marker in response.get("DeleteMarkers", []):
                 yield delete_marker
@@ -73,7 +75,7 @@ class ListObjectVersionsOutputTypeDefIterproxy(
         """
         return DeleteMarkerEntryTypeDefIterproxy(self._yield_delete_markers())
 
-    def _yield_common_prefixes(self) -> T.Iterator["CommonPrefixTypeDef"]:
+    def _yield_common_prefixes(self) -> T.Iterator[CommonPrefixTypeDef]:
         for response in self:
             for common_prefix in response.get("CommonPrefixes", []):
                 yield common_prefix
@@ -86,10 +88,10 @@ class ListObjectVersionsOutputTypeDefIterproxy(
 
     def extract_versions_and_delete_markers_and_common_prefixes(
         self, response: dict
-    ) -> T.Tuple[
-        T.List["ObjectVersionTypeDef"],
-        T.List["DeleteMarkerEntryTypeDef"],
-        T.List["CommonPrefixTypeDef"],
+    ) -> tuple[
+        list[ObjectVersionTypeDef],
+        list[DeleteMarkerEntryTypeDef],
+        list[CommonPrefixTypeDef],
     ]:
         return (
             response.get("Versions", []),
@@ -99,10 +101,10 @@ class ListObjectVersionsOutputTypeDefIterproxy(
 
     def versions_and_delete_markers_and_common_prefixes(
         self,
-    ) -> T.Tuple[
-        T.List["ObjectVersionTypeDef"],
-        T.List["DeleteMarkerEntryTypeDef"],
-        T.List["CommonPrefixTypeDef"],
+    ) -> tuple[
+        list[ObjectVersionTypeDef],
+        list[DeleteMarkerEntryTypeDef],
+        list[CommonPrefixTypeDef],
     ]:
         """
         Return the full list of object versions, delete markers and folders.
@@ -121,7 +123,7 @@ class ListObjectVersionsOutputTypeDefIterproxy(
             common_prefixes.extend(common_prefixes_)
         return versions, delete_markers, common_prefixes
 
-    def iterate_key_and_version(self) -> T.Iterator[T.Tuple[str, str]]:
+    def iterate_key_and_version(self) -> T.Iterator[tuple[str, str]]:
         """
         Iterate the key and version pairs.
         """
@@ -133,7 +135,7 @@ class ListObjectVersionsOutputTypeDefIterproxy(
 
 
 def paginate_list_object_versions(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     prefix: str,
     batch_size: int = 1000,

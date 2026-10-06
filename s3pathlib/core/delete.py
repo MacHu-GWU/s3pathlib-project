@@ -7,6 +7,8 @@ Delete S3 file or folder.
 .. _delete_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_object.html
 """
 
+from __future__ import annotations
+
 import typing as T
 from func_args import NOTHING
 
@@ -30,7 +32,7 @@ class DeleteAPIMixin:
     A mixin class that implements delete method.
     """
     def delete(
-        self: "S3Path",
+        self: S3Path,
         version_id: str = NOTHING,
         mfa: str = NOTHING,
         request_payer: str = NOTHING,
@@ -39,8 +41,8 @@ class DeleteAPIMixin:
         check_sum_algorithm: str = NOTHING,
         is_hard_delete: bool = False,
         skip_prompt: bool = False,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
-    ) -> "S3Path":
+        bsm: BotoSesManager | S3Client | None = None,
+    ) -> S3Path:
         """
         Can delete:
 

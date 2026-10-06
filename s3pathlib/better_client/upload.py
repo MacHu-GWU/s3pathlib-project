@@ -4,6 +4,8 @@
 .. _upload_file: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html#
 """
 
+from __future__ import annotations
+
 import typing as T
 
 from pathlib_mate import Path
@@ -19,7 +21,7 @@ if T.TYPE_CHECKING:  # pragma: no cover
 
 
 def upload_dir(
-    s3_client: "S3Client",
+    s3_client: S3Client,
     bucket: str,
     prefix: str,
     local_dir: PathType,
@@ -60,7 +62,7 @@ def upload_dir(
         final_prefix = ""
 
     # list of (local file path, target s3 key)
-    todo: T.List[T.Tuple[str, str]] = list()
+    todo: list[tuple[str, str]] = list()
     for p in p_local_dir.glob(pattern):
         if p.is_file():
             relative_path = p.relative_to(p_local_dir)

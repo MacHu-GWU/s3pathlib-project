@@ -24,6 +24,8 @@ Every validator raises :class:`~s3pathlib.exc.S3ValidationError`, which is
 also a ``ValueError``.
 """
 
+from __future__ import annotations
+
 import string
 
 from .constants import S3_KEY_MAX_BYTES

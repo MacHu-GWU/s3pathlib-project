@@ -5,6 +5,8 @@ In-memory helpers: S3 URI / ARN parsing, S3 key joining, AWS console URLs,
 human readable data sizes. Nothing here talks to AWS.
 """
 
+from __future__ import annotations
+
 import re
 import typing as T
 from urllib.parse import quote
@@ -31,7 +33,7 @@ def _ensure_bucket_part(bucket: str, value: str) -> None:
 
 def split_s3_uri(
     s3_uri: str,
-) -> T.Tuple[str, str]:
+) -> tuple[str, str]:
     """
     Split an AWS S3 URI, returns bucket and key.
 
@@ -59,7 +61,7 @@ def split_s3_uri(
 
 def split_s3_arn(
     s3_arn: str,
-) -> T.Tuple[AwsPartitionEnum, str, str]:
+) -> tuple[AwsPartitionEnum, str, str]:
     """
     Split an AWS S3 ARN, returns partition, bucket and key.
 
@@ -108,7 +110,7 @@ def join_s3_uri(
     return f"s3://{bucket}/{key}"
 
 
-def split_parts(key: str) -> T.List[str]:
+def split_parts(key: str) -> list[str]:
     """
     Split an S3 key into parts by ``/``, dropping empty parts.
 
@@ -123,7 +125,7 @@ def split_parts(key: str) -> T.List[str]:
 
 
 def smart_join_s3_key(
-    parts: T.List[str],
+    parts: list[str],
     is_dir: bool,
 ) -> str:
     """
@@ -152,7 +154,7 @@ def smart_join_s3_key(
 
 
 def _resolve_console_partition(
-    partition: T.Optional[str],
+    partition: str | None,
     is_us_gov_cloud: bool,
 ) -> AwsPartitionEnum:
     """
@@ -173,8 +175,8 @@ def _resolve_console_partition(
 
 def _console_endpoint(
     partition: AwsPartitionEnum,
-    aws_region: T.Optional[str],
-) -> T.Tuple[str, str]:
+    aws_region: str | None,
+) -> tuple[str, str]:
     """
     Return the console host and the ``region=...&`` query string part.
     """
@@ -185,13 +187,13 @@ def _console_endpoint(
 
 
 def make_s3_console_url(
-    bucket: T.Optional[str] = None,
-    prefix: T.Optional[str] = None,
-    s3_uri: T.Optional[str] = None,
-    version_id: T.Optional[str] = None,
-    aws_region: T.Optional[str] = None,
+    bucket: str | None = None,
+    prefix: str | None = None,
+    s3_uri: str | None = None,
+    version_id: str | None = None,
+    aws_region: str | None = None,
     is_us_gov_cloud: bool = False,
-    partition: T.Optional[str] = None,
+    partition: str | None = None,
 ) -> str:
     """
     Return the AWS S3 console URL of a bucket, folder or object, to open it in
@@ -254,9 +256,9 @@ def make_s3_console_url(
 def make_s3_select_console_url(
     bucket: str,
     key: str,
-    aws_region: T.Optional[str] = None,
+    aws_region: str | None = None,
     is_us_gov_cloud: bool = False,
-    partition: T.Optional[str] = None,
+    partition: str | None = None,
 ) -> str:
     """
     Return the AWS S3 console URL that queries an object with S3 Select.

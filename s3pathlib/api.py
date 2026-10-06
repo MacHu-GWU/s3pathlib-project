@@ -8,7 +8,6 @@ Usage::
     from s3pathlib.api import S3Path
     from s3pathlib.api import context
 """
-
 from iterproxy import and_
 from iterproxy import or_
 from iterproxy import not_

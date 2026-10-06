@@ -4,6 +4,8 @@
 Comparison operator implementation.
 """
 
+from __future__ import annotations
+
 import typing as T
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -15,7 +17,7 @@ class ComparisonAPIMixin:
     A mixin class that implements the comparison operator magic methods.
     """
     @property
-    def _cparts(self: "S3Path"):
+    def _cparts(self: S3Path):
         """
         Cached comparison parts, for hashing and comparison
         """
@@ -37,37 +39,37 @@ class ComparisonAPIMixin:
             self._cached_cparts = cparts
             return self._cached_cparts
 
-    def __eq__(self: "S3Path", other: "S3Path") -> bool:
+    def __eq__(self: S3Path, other: S3Path) -> bool:
         """
         Return ``self == other``.
         """
         return self._cparts == other._cparts
 
-    def __lt__(self: "S3Path", other: "S3Path") -> bool:
+    def __lt__(self: S3Path, other: S3Path) -> bool:
         """
         Return ``self < other``.
         """
         return self._cparts < other._cparts
 
-    def __gt__(self: "S3Path", other: "S3Path") -> bool:
+    def __gt__(self: S3Path, other: S3Path) -> bool:
         """
         Return ``self > other``.
         """
         return self._cparts > other._cparts
 
-    def __le__(self: "S3Path", other: "S3Path") -> bool:
+    def __le__(self: S3Path, other: S3Path) -> bool:
         """
         Return ``self <= other``.
         """
         return self._cparts <= other._cparts
 
-    def __ge__(self: "S3Path", other: "S3Path") -> bool:
+    def __ge__(self: S3Path, other: S3Path) -> bool:
         """
         Return ``self >= other``.
         """
         return self._cparts >= other._cparts
 
-    def __hash__(self: "S3Path") -> int:
+    def __hash__(self: S3Path) -> int:
         """
         Return ``hash(self)``
         """

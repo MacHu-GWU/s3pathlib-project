@@ -4,6 +4,8 @@
 Metadata related API.
 """
 
+from __future__ import annotations
+
 import typing as T
 from datetime import datetime
 
@@ -34,8 +36,8 @@ class MetadataAPIMixin:
     """
 
     def head_object(
-        self: "S3Path",
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        self: S3Path,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> dict:
         """
         Call head_object() api, store metadata value.
@@ -46,7 +48,7 @@ class MetadataAPIMixin:
         return dct
 
     @property
-    def response(self) -> T.Union["HeadObjectOutputTypeDef", "PutObjectOutputTypeDef"]:
+    def response(self) -> HeadObjectOutputTypeDef | PutObjectOutputTypeDef:
         """
         The response dictionary from the S3 API, returned by the following 
         ``boto3.client("s3")`` methods:
@@ -61,10 +63,10 @@ class MetadataAPIMixin:
         return self._meta
 
     def _get_meta_value(
-        self: "S3Path",
+        self: S3Path,
         key: str,
         default: T.Any = None,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> T.Any:
         """
         Note:
@@ -76,9 +78,9 @@ class MetadataAPIMixin:
         return self._meta.get(key, default)
 
     def _get_or_pull_meta_value(
-        self: "S3Path",
+        self: S3Path,
         key: str,
-        bsm: T.Optional[T.Union["BotoSesManager", "S3Client"]] = None,
+        bsm: BotoSesManager | S3Client | None = None,
     ) -> T.Any:
         """
         Note:
@@ -91,7 +93,7 @@ class MetadataAPIMixin:
         return self._meta[key]
 
     @FilterableProperty
-    def etag(self: "S3Path") -> T.Optional[str]:
+    def etag(self: S3Path) -> str | None:
         """
         For small file, it is the md5 check sum. For large file, because it is
         created from multi part upload, it is the sum of md5 for each part and
@@ -106,28 +108,28 @@ class MetadataAPIMixin:
             return v[1:-1]
 
     @FilterableProperty
-    def last_modified_at(self: "S3Path") -> datetime:
+    def last_modified_at(self: S3Path) -> datetime:
         """
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
         """
         return self._get_or_pull_meta_value(key="LastModified")
 
     @FilterableProperty
-    def size(self: "S3Path") -> int:
+    def size(self: S3Path) -> int:
         """
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
         """
         return self._get_meta_value(key="ContentLength", default=0)
 
     @property
-    def size_for_human(self: "S3Path") -> str:
+    def size_for_human(self: S3Path) -> str:
         """
         A human-readable string version of the size.
         """
         return utils.repr_data_size(self.size)
 
     @property
-    def _static_version_id(self: "S3Path") -> T.Optional[str]:
+    def _static_version_id(self: S3Path) -> str | None:
         """
         This method use the ``self._meta`` to get the version id. Unlike
         other metadata property methods, this method does not call head_object().
@@ -138,7 +140,7 @@ class MetadataAPIMixin:
             return self._meta.get("VersionId", None)
 
     @FilterableProperty
-    def version_id(self: "S3Path") -> T.Optional[str]:
+    def version_id(self: S3Path) -> str | None:
         """
         Only available if you turned on versioning for the bucket.
 
@@ -147,7 +149,7 @@ class MetadataAPIMixin:
         return self._get_meta_value(key="VersionId", default="null")
 
     @FilterableProperty
-    def expire_at(self: "S3Path") -> datetime:
+    def expire_at(self: S3Path) -> datetime:
         """
         Only available if you turned on TTL.
 
@@ -156,7 +158,7 @@ class MetadataAPIMixin:
         return self._get_meta_value(key="Expires")
 
     @property
-    def metadata(self: "S3Path") -> dict:
+    def metadata(self: S3Path) -> dict:
         """
         Access the metadata of the object.
 
@@ -164,14 +166,14 @@ class MetadataAPIMixin:
         """
         return self._get_or_pull_meta_value(key="Metadata")
 
-    def clear_cache(self: "S3Path") -> None:
+    def clear_cache(self: S3Path) -> None:
         """
         Clear all cache that stores metadata information.
         """
         self._meta = None
 
     @classmethod
-    def _from_content_dict(cls: T.Type["S3Path"], bucket: str, dct: dict) -> "S3Path":
+    def _from_content_dict(cls: type[S3Path], bucket: str, dct: dict) -> S3Path:
         """
         Construct S3Path object from the response["Content"] dictionary data.
 
@@ -212,7 +214,7 @@ class MetadataAPIMixin:
         return p
 
     @classmethod
-    def _from_version_dict(cls: T.Type["S3Path"], bucket: str, dct: dict) -> "S3Path":
+    def _from_version_dict(cls: type[S3Path], bucket: str, dct: dict) -> S3Path:
         p = cls(bucket, dct["Key"])
         p._meta = {
             "Key": dct["Key"],
@@ -228,7 +230,7 @@ class MetadataAPIMixin:
         return p
 
     @classmethod
-    def _from_delete_marker(cls: T.Type["S3Path"], bucket: str, dct: dict) -> "S3Path":
+    def _from_delete_marker(cls: type[S3Path], bucket: str, dct: dict) -> S3Path:
         p = cls(bucket, dct["Key"])
         p._meta = {
             "Key": dct["Key"],
@@ -240,7 +242,7 @@ class MetadataAPIMixin:
         }
         return p
 
-    def update_metadata(self: "S3Path", metadata: dict):  # pragma: no cover
+    def update_metadata(self: S3Path, metadata: dict):  # pragma: no cover
         raise NotImplementedError(
             "You CANNOT only update metadata without changing the content of the "
             "object! You can only do full replace ment via the .write_text() or "
