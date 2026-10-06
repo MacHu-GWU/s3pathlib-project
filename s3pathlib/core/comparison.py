@@ -17,24 +17,26 @@ class ComparisonAPIMixin:
     A mixin class that implements the comparison operator magic methods.
     """
     @property
-    def _cparts(self: S3Path):
+    def _cparts(self: S3Path) -> tuple[str, ...]:
         """
-        Cached comparison parts, for hashing and comparison
+        Cached comparison parts, for hashing and comparison.
+
+        A tuple of the bucket (``""`` for a path without bucket), the parts,
+        and a trailing ``"/"`` for a dir. It is a tuple, like ``_parts``, so
+        the cache can not be changed and is hashable as it is.
         """
         try:
             return self._cached_cparts
         except AttributeError:
-            cparts = list()
-
-            if self._bucket:
-                cparts.append(self._bucket)
+            if self._bucket is None:
+                bucket = ""
             else:
-                cparts.append("")
-
-            cparts.extend(self._parts)
+                bucket = self._bucket
 
             if self._is_dir:
-                cparts.append("/")
+                cparts = (bucket,) + self._parts + ("/",)
+            else:
+                cparts = (bucket,) + self._parts
 
             self._cached_cparts = cparts
             return self._cached_cparts
@@ -76,5 +78,5 @@ class ComparisonAPIMixin:
         try:
             return self._hash
         except AttributeError:
-            self._hash = hash(tuple(self._cparts))
+            self._hash = hash(self._cparts)
             return self._hash

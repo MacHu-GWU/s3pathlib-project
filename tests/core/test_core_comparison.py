@@ -54,6 +54,17 @@ class TestComparisonAPIMixin:
         for p in p_list:
             assert p in p_set
 
+    def test_cparts_is_tuple(self):
+        """
+        The comparison cache is a tuple like ``_parts``: it can not be changed,
+        and the hash is the hash of the cache, so equal paths hash the same.
+        """
+        p1 = S3Path("bucket", "folder/")
+        p2 = S3Path("bucket/folder/")
+        assert p1._cparts == ("bucket", "folder", "/")
+        assert isinstance(p1._cparts, tuple)
+        assert hash(p1) == hash(p2) == hash(("bucket", "folder", "/"))
+
 
 if __name__ == "__main__":
     run_cov_test(__file__, module="s3pathlib.core.comparison", preview=False)
