@@ -84,6 +84,7 @@ Backlog (TODO)
 - ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
 - ``S3Path(...)`` ignores empty arguments (``""`` or a void path) when deciding whether the path is a file or a directory. Before, ``S3Path("bucket", "a", S3Path())`` was neither a file nor a directory, and ``S3Path("bucket", "a/", "")`` became a file.
 - ``S3Path.change`` failed with a bare ``TypeError`` on a dir, a bucket or the void path, even for ``change()`` or ``change(new_bucket=...)``; it now keeps the last part and the type of the path. ``change(new_bucket=..., new_abspath=...)`` ignored ``new_bucket``, and ``new_abspath`` on a relative path raised ``TypeError``; both work now.
+- The ``greater_equal`` and ``less_equal`` filters (e.g. ``S3Path.size.greater_equal(1000)``) did an ``==`` comparison; they now do ``>=`` and ``<=``, the same as the ``>=`` and ``<=`` operators.
 - A pickled ``S3Path`` carried its cached hash. The hash of a ``str`` differs between Python processes, so after loading it in another process (e.g. with ``multiprocessing``), it was equal to the same path but had a different hash, and ``dict`` / ``set`` lookups missed it. Pickle (and ``copy.copy`` / ``copy.deepcopy``) now saves the path and the metadata, but not the caches, and checks the state when loading. Pickle protocols 0 and 1 work too.
 - ``S3Path.is_delete_marker`` called ``head_object`` when no metadata was loaded. That call can never find a delete marker, and it raised ``S3FileNotExist`` for a missing object and also for an object whose latest version is a delete marker; on a relative path it raised ``TypeError``. It now only looks at the metadata loaded by ``list_object_versions`` and never calls the AWS API.
 - The ``ensure_*`` validators showed ``None`` in the error message for a relative path or the void path; they now show the path.
@@ -108,6 +109,8 @@ Backlog (TODO)
 - Document every argument of ``S3Path.change`` and the order they are applied in.
 - Fix the ``S3Path.to_file`` docstring example, which called ``to_dir``.
 - Fix the ``S3Path.key``, ``S3Path.uri`` and ``S3Path.parent`` docstring examples, and the ``-`` docstring, which had the operands swapped.
+- Deleting a filterable property (e.g. ``del p.key``) raises ``AttributeError`` with a clear message, and the messages name the actual class.
+- Document every filter of ``FilterableProperty`` (``s3pathlib.core.filterable_property``) and how to combine them.
 - Document how ``S3Path`` objects compare (``s3pathlib.core.comparison``): equality ignores the object version, and the order is part by part like ``pathlib``, not the key string order of S3 list APIs.
 - Document the six states of an ``S3Path`` (``s3pathlib.core.base``), the full truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` / ``is_dir`` / ``is_file`` (``s3pathlib.core.is_test``), and what ``bucket`` / ``key`` / ``uri`` / ``arn`` / ``console_url`` return for each kind of path and why (``s3pathlib.core.uri``).
 
