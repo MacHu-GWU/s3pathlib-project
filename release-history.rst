@@ -83,6 +83,8 @@ Backlog (TODO)
 - ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
 - ``S3Path(...)`` ignores empty arguments (``""`` or a void path) when deciding whether the path is a file or a directory. Before, ``S3Path("bucket", "a", S3Path())`` was neither a file nor a directory, and ``S3Path("bucket", "a/", "")`` became a file.
 - ``S3Path.change`` failed with a bare ``TypeError`` on a dir, a bucket or the void path, even for ``change()`` or ``change(new_bucket=...)``; it now keeps the last part and the type of the path. ``change(new_bucket=..., new_abspath=...)`` ignored ``new_bucket``, and ``new_abspath`` on a relative path raised ``TypeError``; both work now.
+- ``S3Path.is_delete_marker`` called ``head_object`` when no metadata was loaded. That call can never find a delete marker, and it raised ``S3FileNotExist`` for a missing object and also for an object whose latest version is a delete marker; on a relative path it raised ``TypeError``. It now only looks at the metadata loaded by ``list_object_versions`` and never calls the AWS API.
+- The ``ensure_*`` validators showed ``None`` in the error message for a relative path or the void path; they now show the path.
 - ``S3Path.make_relpath("a", "/")`` is a dir, the same as ``S3Path(S3Path(), "a", "/")``. Before, ``make_relpath`` ignored a trailing ``"/"`` argument and returned a file.
 - ``ensure_relpath`` and ``ensure_not_relpath`` had their error messages swapped.
 - The parent of a single part relative path (e.g. ``S3Path.make_relpath("a").parent``) and ``S3Path(S3Path(), "/")`` are now the void path. Before, they were a "void path that is a dir", for which ``is_void()`` was ``True`` but ``is_relpath()`` was ``False``.
@@ -96,6 +98,7 @@ Backlog (TODO)
 - ``S3Path.create_bucket`` is no longer beta and no longer emits a warning.
 - Encode spaces in object tags as ``%20`` instead of ``+`` when sending the ``Tagging`` parameter, the same as the official AWS SDKs, so S3 cannot read them as a literal plus sign.
 - ``S3Path(...)`` raises ``TypeError`` with a message naming the wrong argument type, instead of a bare ``TypeError``. ``joinpath``, ``/`` and ``make_relpath`` use the same message for an invalid part.
+- ``ensure_not_object``, ``ensure_not_file`` and ``ensure_not_dir`` raise ``S3PathTypeError`` (still a ``TypeError``) with a clear message, instead of a bare ``TypeError``.
 - ``ensure_relpath`` raises ``S3PathIsNotRelpathError`` and ``ensure_not_relpath`` raises ``S3PathTypeError``, instead of a bare ``TypeError`` (both are still ``TypeError``).
 - ``relative_to`` raises ``TypeError`` with a message for an argument that is not an ``S3Path``, instead of ``AttributeError``, and its ``ValueError`` messages say why the path is not under the other one.
 - ``S3Path() / [a, b]`` joins the list at once, the same as ``joinpath(a, b)``.
