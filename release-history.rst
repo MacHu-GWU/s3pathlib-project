@@ -26,6 +26,13 @@ Backlog (TODO)
 - Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11.
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
 - Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``, ``boto-session-manager>=2.0.1,<3.0.0``, ``func-args>=1.0.2``.
+- Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none``, it was not used by the library.
+- Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
+
+**Features and Improvements**
+
+- Add :class:`s3pathlib.exc.S3PathlibError` as the base class of all exceptions raised by ``s3pathlib``, so ``except S3PathlibError`` catches them all.
+- Regroup the exception hierarchy: ``S3BucketNotExist``, ``S3FolderNotExist`` and ``S3FileNotExist`` now inherit from ``S3NotExist``; the ``*AlreadyExist`` exceptions inherit from ``S3AlreadyExist``. Every exception still inherits from the same builtin exception as before (``FileNotFoundError``, ``FileExistsError``, ``PermissionError``, ``TypeError``), so existing ``except`` clauses keep working.
 
 **Minor Improvements**
 

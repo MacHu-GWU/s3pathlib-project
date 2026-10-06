@@ -1,25 +1,30 @@
 # -*- coding: utf-8 -*-
 
 """
-Exception creator and helpers, argument validators, and more.
+Exceptions and argument validators.
+
+Every exception raised by ``s3pathlib`` inherits from :class:`S3PathlibError`.
+Each one also inherits from the matching builtin exception, so
+``except FileNotFoundError`` and similar still work::
+
+    S3PathlibError(Exception)
+    ├── S3NotExist(FileNotFoundError)
+    │   ├── S3BucketNotExist
+    │   ├── S3FolderNotExist
+    │   └── S3FileNotExist
+    ├── S3AlreadyExist(FileExistsError)
+    │   ├── S3BucketAlreadyExist
+    │   ├── S3FolderAlreadyExist
+    │   └── S3FileAlreadyExist
+    ├── S3PermissionDenied(PermissionError)
+    └── S3PathTypeError(TypeError)
+        ├── S3PathIsNotBucketError
+        ├── S3PathIsNotFolderError
+        ├── S3PathIsNotFileError
+        └── S3PathIsNotRelpathError
 """
 
 import typing as T
-
-if T.TYPE_CHECKING:  # pragma: no cover
-    from .core.s3path import S3Path
-
-
-def ensure_one_and_only_one_not_none(**kwargs) -> None:
-    """
-    Ensure only exact one of the keyword argument is not None.
-    """
-    if len(kwargs) == 0:
-        raise ValueError
-    if sum([v is not None for _, v in kwargs.items()]) != 1:
-        raise ValueError(
-            f"one and only one of arguments from " f"{list(kwargs)} can be not None!"
-        )
 
 
 def ensure_all_none(**kwargs) -> None:
@@ -30,6 +35,14 @@ def ensure_all_none(**kwargs) -> None:
         raise ValueError
     if sum([v is not None for _, v in kwargs.items()]) != 0:
         raise ValueError(f"arguments from {list(kwargs)} has to be all None!")
+
+
+class S3PathlibError(Exception):
+    """
+    Base class of all exceptions raised by ``s3pathlib``.
+
+    .. versionadded:: 3.0.0
+    """
 
 
 class _UriRelatedError:
@@ -43,64 +56,70 @@ class _UriRelatedError:
         return cls(cls._tpl.format(uri=uri))
 
 
-class S3NotExist(FileNotFoundError, _UriRelatedError):
+class S3NotExist(S3PathlibError, FileNotFoundError, _UriRelatedError):
     _tpl = "{uri!r} does not exist!"
 
 
-class S3BucketNotExist(FileNotFoundError, _UriRelatedError):
+class S3BucketNotExist(S3NotExist):
     _tpl = "S3 bucket {uri!r} does not exist!"
 
 
-class S3FolderNotExist(FileNotFoundError, _UriRelatedError):
+class S3FolderNotExist(S3NotExist):
     _tpl = "S3 folder {uri!r} does not exist!"
 
 
-class S3FileNotExist(FileNotFoundError, _UriRelatedError):
+class S3FileNotExist(S3NotExist):
     _tpl = "S3 object {uri!r} does not exist!"
 
 
-class S3AlreadyExist(FileExistsError, _UriRelatedError):
+class S3AlreadyExist(S3PathlibError, FileExistsError, _UriRelatedError):
     _tpl = "{uri!r} already exist!"
 
 
-class S3BucketAlreadyExist(FileExistsError, _UriRelatedError):
+class S3BucketAlreadyExist(S3AlreadyExist):
     _tpl = "S3 bucket {uri!r} already exist!"
 
 
-class S3FolderAlreadyExist(FileExistsError, _UriRelatedError):
+class S3FolderAlreadyExist(S3AlreadyExist):
     _tpl = "S3 folder {uri!r} already exist!"
 
 
-class S3FileAlreadyExist(FileExistsError, _UriRelatedError):
+class S3FileAlreadyExist(S3AlreadyExist):
     _tpl = "S3 object {uri!r} already exist!"
 
 
-class S3PermissionDenied(PermissionError):
+class S3PermissionDenied(S3PathlibError, PermissionError):
     pass
 
 
-class _S3PathTypeError(TypeError):
+class S3PathTypeError(S3PathlibError, TypeError):
+    """
+    The S3 path is not the expected type (bucket, folder, file or relpath).
+
+    .. versionadded:: 3.0.0
+    """
+
     _expected_type: str
 
     @classmethod
     def make(
-        cls: T.Type[T.Union[Exception, "_S3PathTypeError"]],
-        s3path: "S3Path",
+        cls: T.Type[T.Union[Exception, "S3PathTypeError"]],
+        uri: str,
     ):
-        return cls(f"{s3path!r} is not a {cls._expected_type}! ")
+        return cls(f"{uri!r} is not a {cls._expected_type}!")
 
 
-class S3PathIsNotBucketError(_S3PathTypeError):
+class S3PathIsNotBucketError(S3PathTypeError):
     _expected_type = "bucket"
 
 
-class S3PathIsNotFolderError(_S3PathTypeError):
+class S3PathIsNotFolderError(S3PathTypeError):
     _expected_type = "dir"
 
 
-class S3PathIsNotFileError(_S3PathTypeError):
+class S3PathIsNotFileError(S3PathTypeError):
     _expected_type = "file"
 
 
-class S3PathIsNotRelpathError(_S3PathTypeError):
+class S3PathIsNotRelpathError(S3PathTypeError):
     _expected_type = "relpath"
