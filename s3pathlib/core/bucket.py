@@ -13,7 +13,7 @@ import typing as T
 from func_args import NOTHING, resolve_kwargs
 
 from ..aws import context
-from ..validate import validate_s3_bucket
+from ..exc import S3ValidationError
 from .resolve_s3_client import resolve_s3_client
 
 
@@ -35,8 +35,15 @@ class BucketAPIMixin:
     ) -> "S3Path":
         """
         Create an S3Path object from a bucket name.
+
+        Only the format is checked (a non-empty name without ``/`` or ``:``),
+        not the bucket naming rules, so a legacy bucket name such as
+        ``My_Bucket`` works.
+
+        :raises S3ValidationError: if it is not a single bucket name.
         """
-        validate_s3_bucket(bucket)
+        if (not bucket) or ("/" in bucket) or (":" in bucket):
+            raise S3ValidationError(f"{bucket!r} is not a bucket name")
         return cls(f"s3://{bucket}/")
 
     def create_bucket(

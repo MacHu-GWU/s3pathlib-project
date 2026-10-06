@@ -14,17 +14,46 @@ from .constants import AwsPartitionEnum
 from .exc import S3ValidationError
 
 
+def _ensure_bucket_part(bucket: str, value: str) -> None:
+    """
+    Format check on the bucket part parsed from an S3 URI or ARN: it must not
+    be empty, and it must not contain ``:``, which no bucket name (not even a
+    legacy one) can have. This is not a bucket naming rules check.
+    """
+    if not bucket:
+        raise S3ValidationError(f"bucket is empty in {value!r}")
+    if ":" in bucket:
+        raise S3ValidationError(
+            f"bucket {bucket!r} in {value!r} contains ':', "
+            f"which is not allowed in any bucket name"
+        )
+
+
 def split_s3_uri(
     s3_uri: str,
 ) -> T.Tuple[str, str]:
     """
-    Split AWS S3 URI, returns bucket and key.
+    Split an AWS S3 URI, returns bucket and key.
 
-    :param s3_uri: example, ``"s3://my-bucket/my-folder/data.json"``
+    Example::
+
+        >>> split_s3_uri("s3://my-bucket/my-folder/data.json")
+        ('my-bucket', 'my-folder/data.json')
+        >>> split_s3_uri("s3://my-bucket")
+        ('my-bucket', '')
+
+    This only checks the format (``s3://`` scheme, non-empty bucket). It does
+    not check bucket naming rules; use
+    :func:`~s3pathlib.validate.validate_s3_uri` for that.
+
+    :param s3_uri: ``s3://{bucket}``, ``s3://{bucket}/`` or ``s3://{bucket}/{key}``.
+
+    :raises S3ValidationError: if it is not an S3 URI.
     """
-    parts = s3_uri.split("/")
-    bucket = parts[2]
-    key = "/".join(parts[3:])
+    if not s3_uri.startswith("s3://"):
+        raise S3ValidationError(f"S3 URI must start with 's3://', got {s3_uri!r}")
+    bucket, _, key = s3_uri[len("s3://") :].partition("/")
+    _ensure_bucket_part(bucket, s3_uri)
     return bucket, key
 
 
@@ -43,12 +72,17 @@ def split_s3_arn(
         ``arn:{partition}:s3:::{bucket}/{key}``, where partition is one of
         :class:`~s3pathlib.constants.AwsPartitionEnum`.
 
+    This only checks the format (partition, ``s3`` service, non-empty bucket).
+    It does not check bucket naming rules; use
+    :func:`~s3pathlib.validate.validate_s3_arn` for that.
+
     :raises S3ValidationError: if it is not an S3 ARN of a supported partition.
     """
     for partition in AwsPartitionEnum:
         prefix = f"arn:{partition}:s3:::"
         if s3_arn.startswith(prefix):
             bucket, _, key = s3_arn[len(prefix) :].partition("/")
+            _ensure_bucket_part(bucket, s3_arn)
             return partition, bucket, key
     partitions = ", ".join(partition.value for partition in AwsPartitionEnum)
     raise S3ValidationError(
@@ -216,22 +250,6 @@ def ensure_s3_dir(s3_key_or_uri: str) -> None:
     """
     if not s3_key_or_uri.endswith("/"):
         raise ValueError("'{}' doesn't represent s3 dir!".format(s3_key_or_uri))
-
-
-def validate_s3_bucket(bucket):
-    """
-    Ref:
-    https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
-    """
-    pass
-
-
-def validate_s3_key(key):
-    """
-    Ref:
-    https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-guidelines
-    """
-    pass
 
 
 MAGNITUDE_OF_DATA = {

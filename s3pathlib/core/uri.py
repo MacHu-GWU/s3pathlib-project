@@ -9,7 +9,6 @@ import typing as T
 
 from .filterable_property import FilterableProperty
 from .. import utils
-from .. import validate
 from ..constants import AwsPartitionEnum
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -253,7 +252,7 @@ class UriAPIMixin:
             'arn:aws-cn:s3:::bucket/folder/file.txt'
 
         :param partition: one of :class:`~s3pathlib.constants.AwsPartitionEnum`,
-            ``aws``, ``aws-cn`` or ``aws-us-gov``.
+            e.g. ``aws``, ``aws-cn`` or ``aws-us-gov``.
 
         :raises ValueError: if the partition is not supported.
         """
@@ -277,10 +276,14 @@ class UriAPIMixin:
 
         >>> p.uri
         's3://bucket/folder/file.txt'
+
+        Only the URI format is checked, not the bucket naming rules, so a
+        legacy bucket name such as ``My_Bucket`` works.
+
+        :raises S3ValidationError: if it is not an S3 URI.
         """
-        validate.validate_s3_uri(uri)
-        bucket, key = utils.split_s3_uri(uri)
-        return cls._from_parts([bucket, key])
+        utils.split_s3_uri(uri)
+        return cls._from_parts([uri])
 
     @classmethod
     def from_s3_arn(cls: T.Type["S3Path"], arn: str) -> "S3Path":
@@ -295,12 +298,12 @@ class UriAPIMixin:
         >>> p.arn
         'arn:aws:s3:::bucket/folder/file.txt'
 
-        The ``aws-cn`` and ``aws-us-gov`` partitions are also supported. The
-        partition is not stored, an S3 path is identified by bucket and key.
+        Every partition in :class:`~s3pathlib.constants.AwsPartitionEnum` is
+        supported. The partition is not stored, an S3 path is identified by
+        bucket and key. Only the ARN format is checked, not the bucket naming
+        rules.
+
+        :raises S3ValidationError: if it is not an S3 ARN of a supported partition.
         """
-        validate.validate_s3_arn(arn)
-        return cls._from_parts(
-            [
-                arn.split(":::", 1)[1],
-            ]
-        )
+        utils.split_s3_arn(arn)
+        return cls._from_parts([arn])

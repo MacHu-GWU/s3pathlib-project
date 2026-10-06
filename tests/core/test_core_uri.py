@@ -3,6 +3,7 @@
 import pytest
 from s3pathlib.core import S3Path
 from s3pathlib.constants import AwsPartitionEnum
+from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
 
 
@@ -180,6 +181,38 @@ class TestUriAPIMixin:
         p = S3Path.from_s3_arn(f"arn:{partition}:s3:::bucket/folder/file.txt")
         assert p == S3Path("s3://bucket/folder/file.txt")
         assert p.get_arn(partition) == f"arn:{partition}:s3:::bucket/folder/file.txt"
+
+    def test_from_s3_uri_and_arn_skip_naming_rules(self):
+        """
+        Only the format is checked, not bucket naming rules, so a legacy
+        bucket (uppercase, underscore), which S3 still serves, can be used.
+        """
+        expected = S3Path("My_Legacy_Bucket", "folder", "file.txt")
+        assert S3Path.from_s3_uri("s3://My_Legacy_Bucket/folder/file.txt") == expected
+        assert S3Path.from_s3_arn("arn:aws:s3:::My_Legacy_Bucket/folder/file.txt") == expected
+
+    @pytest.mark.parametrize(
+        "uri",
+        ["my-bucket/key", "https://my-bucket/key", "s3://", "arn:aws:s3:::bucket/key"],
+    )
+    def test_from_s3_uri_invalid_format(self, uri):
+        """
+        A string that is not an S3 URI is rejected, even if another
+        constructor would accept it (e.g. an ARN).
+        """
+        with pytest.raises(S3ValidationError):
+            S3Path.from_s3_uri(uri)
+
+    @pytest.mark.parametrize(
+        "arn",
+        ["s3://bucket/key", "arn:aws-iso:s3:::bucket/key", "arn:aws:s3:::"],
+    )
+    def test_from_s3_arn_invalid_format(self, arn):
+        """
+        A string that is not an S3 ARN of a supported partition is rejected.
+        """
+        with pytest.raises(S3ValidationError):
+            S3Path.from_s3_arn(arn)
 
 
 if __name__ == "__main__":

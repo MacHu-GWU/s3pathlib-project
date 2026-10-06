@@ -100,6 +100,27 @@ class BaseS3Path(BaseTest):
         with pytest.raises(S3ValidationError):
             S3Path("arn:aws-iso:s3:::bucket/folder/file.txt")
 
+    def _test_format_check(self):
+        # the constructor does not check bucket naming rules:
+        # a legacy bucket (uppercase, underscore) and ':' in the key are fine
+        p = S3Path("My_Legacy_Bucket", "2024-01-01T00:00:00.json")
+        assert p.uri == "s3://My_Legacy_Bucket/2024-01-01T00:00:00.json"
+        p = S3Path("s3://My_Legacy_Bucket/a:b.txt")
+        assert p.uri == "s3://My_Legacy_Bucket/a:b.txt"
+
+        # but it checks the format: a malformed URI / ARN or an empty bucket
+        # is rejected instead of becoming a wrong path
+        for value, message in [
+            ("https://bucket/key", "contains ':'"),
+            ("s3:/bucket/key", "contains ':'"),
+            ("s3://", "bucket is empty"),
+            ("arn:aws:s3:::", "bucket is empty"),
+            ("", "bucket is empty"),
+            ("/", "bucket is empty"),
+        ]:
+            with pytest.raises(S3ValidationError, match=message):
+                S3Path(value)
+
     def _test_type_error(self):
         with pytest.raises(TypeError):
             S3Path(1, "a", "b", "c")
@@ -116,6 +137,7 @@ class BaseS3Path(BaseTest):
         self._test_aws_s3_bucket()
         self._test_void_aws_s3_path()
         self._test_uri_and_arn()
+        self._test_format_check()
         self._test_type_error()
 
 

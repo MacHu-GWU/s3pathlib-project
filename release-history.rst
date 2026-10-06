@@ -31,6 +31,10 @@ Backlog (TODO)
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
 - Remove ``deprecate_v1``, ``deprecate_v2``, ``warn_deprecate`` and ``warn_beta`` from ``s3pathlib.marker``.
 - Remove ``S3BucketValidationError``, ``S3KeyValidationError`` and the key charset constants (``safe_key_charset``, ``req_special_handling_key_charset``, ``to_avoid_key_charset``, ``valid_key_charset``) from ``s3pathlib.validate``. Validators now raise :class:`s3pathlib.exc.S3ValidationError`.
+- ``s3pathlib`` no longer checks bucket naming rules or the key length itself; S3 is the authority and enforces them when you call the API. ``S3Path(...)``, ``S3Path.from_s3_uri``, ``S3Path.from_s3_arn`` and ``S3Path.from_bucket`` only check the format (a well formed URI / ARN and a non-empty bucket). The ``s3pathlib.validate`` functions are now optional tools that the library does not call.
+- ``validate_s3_bucket`` now checks the naming rules for a *new* general purpose bucket, as documented by AWS: it also rejects two adjacent periods, the reserved prefixes ``sthree-`` and ``amzn-s3-demo-``, and the reserved suffixes ``-s3alias``, ``--ol-s3``, ``.mrap``, ``--x-s3`` and ``--table-s3``.
+- ``S3Path(...)`` and ``utils.split_s3_uri`` reject a malformed URI such as ``https://bucket/key`` or ``s3:/bucket/key`` with ``S3ValidationError``, instead of silently parsing it into a wrong bucket and key. An empty bucket (e.g. ``S3Path("")``, ``s3://``) also raises ``S3ValidationError`` instead of ``IndexError``.
+- Remove ``s3pathlib.utils.validate_s3_bucket`` and ``s3pathlib.utils.validate_s3_key``, two placeholders that did nothing. The real validators are in ``s3pathlib.validate``.
 - The low level helpers that were available as ``s3pathlib.api.*`` in 2.x (``is_bucket_exists``, ``upload_dir``, ``paginate_list_objects_v2``, ...) moved to ``s3pathlib.api.better_client.*``.
 
 **Features and Improvements**
@@ -40,20 +44,21 @@ Backlog (TODO)
 - Regroup the exception hierarchy: ``S3BucketNotExist``, ``S3FolderNotExist`` and ``S3FileNotExist`` now inherit from ``S3NotExist``; the ``*AlreadyExist`` exceptions inherit from ``S3AlreadyExist``. Every exception still inherits from the same builtin exception as before (``FileNotFoundError``, ``FileExistsError``, ``PermissionError``, ``TypeError``), so existing ``except`` clauses keep working.
 - Add :class:`s3pathlib.exc.S3ValidationError`, raised by every validator in ``s3pathlib.validate``. It is also a ``ValueError``, so existing ``except ValueError`` clauses keep working.
 - ``validate_s3_uri`` accepts a bucket URI without the trailing slash, e.g. ``s3://bucket``.
-- Support S3 ARNs in the ``aws-cn`` (China) and ``aws-us-gov`` (GovCloud) partitions, in addition to ``aws``:
+- Support S3 ARNs in the ``aws-cn`` (China), ``aws-us-gov`` (GovCloud) and ``aws-eusc`` (European Sovereign Cloud) partitions, in addition to ``aws``:
 
     - Add :class:`s3pathlib.constants.AwsPartitionEnum` listing the supported partitions.
     - Add :func:`s3pathlib.utils.split_s3_arn`, which returns the partition, bucket and key.
     - Add ``S3Path.get_arn(partition)``. ``S3Path.arn`` still returns the ``aws`` partition ARN.
     - ``S3Path(arn)``, ``S3Path.from_s3_arn`` and ``validate_s3_arn`` accept ARNs from all supported partitions.
+- Add the general purpose bucket naming rules to ``s3pathlib.constants`` (``S3_BUCKET_MIN_LENGTH``, ``S3_BUCKET_MAX_LENGTH``, ``S3_BUCKET_RESERVED_PREFIXES``, ``S3_BUCKET_RESERVED_SUFFIXES``) and ``S3_KEY_MAX_BYTES``.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 
 **Bugfixes**
 
-- ``validate_s3_key`` (used by ``S3Path.from_s3_uri`` and ``S3Path.from_s3_arn``) rejected valid keys with non-ASCII characters or characters such as ``~`` and ``%``. It now accepts any UTF-8 key.
+- ``S3Path.list_buckets()`` failed with ``S3ValidationError`` when the account had a legacy bucket (created in us-east-1 before March 2018, with uppercase letters or underscores). It now lists every bucket S3 returns. ``S3Path.from_s3_uri``, ``S3Path.from_s3_arn`` and ``S3Path.from_bucket`` also accept legacy bucket names.
+- ``validate_s3_key`` rejected valid keys with non-ASCII characters or characters such as ``~`` and ``%``. It now accepts any UTF-8 key.
 - ``validate_s3_key`` measured the 1024 limit in characters; it now measures UTF-8 bytes, as S3 does.
 - ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
-- ``validate_s3_bucket`` rejected access point aliases (``...-s3alias``), which S3 accepts wherever a bucket name is used.
 
 **Minor Improvements**
 

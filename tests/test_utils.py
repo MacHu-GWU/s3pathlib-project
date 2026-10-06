@@ -11,11 +11,42 @@ dir_here = os.path.dirname(os.path.abspath(__file__))
 dir_project_root = os.path.dirname(dir_here)
 
 
-def test_split_s3_uri():
-    s3_uri = "s3://my-bucket/my-prefix/my-file.zip"
-    bucket, key = utils.split_s3_uri(s3_uri)
-    assert bucket == "my-bucket"
-    assert key == "my-prefix/my-file.zip"
+@pytest.mark.parametrize(
+    "uri, expected",
+    [
+        ("s3://my-bucket/my-prefix/my-file.zip", ("my-bucket", "my-prefix/my-file.zip")),
+        ("s3://my-bucket/my-prefix/", ("my-bucket", "my-prefix/")),
+        ("s3://my-bucket/", ("my-bucket", "")),
+        ("s3://my-bucket", ("my-bucket", "")),
+        ("s3://My_Legacy_Bucket/a:b.txt", ("My_Legacy_Bucket", "a:b.txt")),
+    ],
+)
+def test_split_s3_uri(uri, expected):
+    """
+    An S3 URI splits into bucket and key. Only the format is checked, so a
+    legacy bucket name and a ``:`` in the key are fine.
+    """
+    assert utils.split_s3_uri(uri) == expected
+
+
+@pytest.mark.parametrize(
+    "uri, message",
+    [
+        ("my-bucket/key", "must start with 's3://'"),
+        ("s3:/my-bucket/key", "must start with 's3://'"),
+        ("https://my-bucket/key", "must start with 's3://'"),
+        ("s3://", "bucket is empty"),
+        ("s3:///key", "bucket is empty"),
+        ("s3://a:b/key", "contains ':'"),
+    ],
+)
+def test_split_s3_uri_invalid(uri, message):
+    """
+    A string that is not a well formed S3 URI is rejected instead of being
+    split into a wrong bucket and key.
+    """
+    with pytest.raises(S3ValidationError, match=message):
+        utils.split_s3_uri(uri)
 
 
 @pytest.mark.parametrize(
@@ -26,6 +57,8 @@ def test_split_s3_uri():
         ("arn:aws:s3:::bucket/folder/", ("aws", "bucket", "folder/")),
         ("arn:aws-cn:s3:::bucket/folder/file.txt", ("aws-cn", "bucket", "folder/file.txt")),
         ("arn:aws-us-gov:s3:::bucket/file.txt", ("aws-us-gov", "bucket", "file.txt")),
+        ("arn:aws-eusc:s3:::bucket/file.txt", ("aws-eusc", "bucket", "file.txt")),
+        ("arn:aws:s3:::My_Legacy_Bucket/a:b.txt", ("aws", "My_Legacy_Bucket", "a:b.txt")),
     ],
 )
 def test_split_s3_arn(arn, expected):
@@ -51,7 +84,24 @@ def test_split_s3_arn_invalid(arn):
     Anything that is not an S3 ARN of a supported partition is rejected, and
     the message lists the supported partitions.
     """
-    with pytest.raises(S3ValidationError, match="aws, aws-cn, aws-us-gov"):
+    with pytest.raises(S3ValidationError, match="aws, aws-cn, aws-us-gov, aws-eusc"):
+        utils.split_s3_arn(arn)
+
+
+@pytest.mark.parametrize(
+    "arn, message",
+    [
+        ("arn:aws:s3:::", "bucket is empty"),
+        ("arn:aws:s3:::/key", "bucket is empty"),
+        ("arn:aws:s3:::a:b/key", "contains ':'"),
+    ],
+)
+def test_split_s3_arn_bad_bucket_part(arn, message):
+    """
+    A well formed ARN prefix with an empty or impossible bucket part is
+    rejected.
+    """
+    with pytest.raises(S3ValidationError, match=message):
         utils.split_s3_arn(arn)
 
 

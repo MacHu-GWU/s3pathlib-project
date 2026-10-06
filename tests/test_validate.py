@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
+The validators are optional tools that check S3 naming rules; the library
+itself does not call them (see the ``s3pathlib.validate`` module docstring).
+
 Each validator is tested in the same order:
 
 1. valid inputs, including the boundaries;
@@ -37,14 +40,14 @@ KEY_1025_BYTES = "中" * 341 + "ab"
         pytest.param("999.1.1.1", id="ip-like-out-of-range"),
         pytest.param("1.2.3.4.5", id="ip-like-5-parts"),
         pytest.param("www.example.com.data", id="four-labels-not-numeric"),
-        pytest.param("my-ap-hrzrlukc5m36ft7okagglf3gmwlu-s3alias", id="access-point-alias"),
-        pytest.param("mybucket--usw2-az1--x-s3", id="directory-bucket"),
+        pytest.param("my-bucket-111122223333-us-west-2-an", id="account-regional-namespace"),
     ],
 )
 def test_validate_s3_bucket_valid(bucket):
     """
-    Names that S3 APIs accept as a bucket pass, including names that only
-    look like an IP address, access point aliases and directory buckets.
+    Names that follow the new general purpose bucket naming rules pass,
+    including names that only look like an IP address and account regional
+    namespace names (``-an`` suffix).
     """
     validate_s3_bucket(bucket)
 
@@ -60,14 +63,24 @@ def test_validate_s3_bucket_valid(bucket):
         pytest.param("-my-bucket", "begin and end", id="starts-with-hyphen"),
         pytest.param(".my-bucket", "begin and end", id="starts-with-dot"),
         pytest.param("my-bucket-", "begin and end", id="ends-with-hyphen"),
+        pytest.param("my..bucket", "two adjacent periods", id="adjacent-periods"),
         pytest.param("192.168.5.4", "IP address", id="ip-address"),
-        pytest.param("xn--my-bucket", "xn--", id="xn-prefix"),
+        pytest.param("xn--my-bucket", "prefix 'xn--'", id="prefix-xn"),
+        pytest.param("sthree-my-bucket", "prefix 'sthree-'", id="prefix-sthree"),
+        pytest.param("amzn-s3-demo-bucket", "prefix 'amzn-s3-demo-'", id="prefix-amzn-s3-demo"),
+        pytest.param("my-ap-hrzrlukc5m36ft7okagglf3gmwlu-s3alias", "suffix '-s3alias'", id="suffix-access-point-alias"),
+        pytest.param("my-olap-abcdefgh--ol-s3", "suffix '--ol-s3'", id="suffix-object-lambda"),
+        pytest.param("mfzwi23gnjvgw.mrap", "suffix '.mrap'", id="suffix-multi-region-access-point"),
+        pytest.param("mybucket--usw2-az1--x-s3", "suffix '--x-s3'", id="suffix-directory-bucket"),
+        pytest.param("my-table-bucket--table-s3", "suffix '--table-s3'", id="suffix-table-bucket"),
     ],
 )
 def test_validate_s3_bucket_invalid(bucket, message):
     """
-    Each bucket naming rule rejects its violation with a message that names
-    the rule.
+    Each naming rule for a new general purpose bucket rejects its violation
+    with a message that names the rule. Access point aliases, directory
+    buckets etc. are rejected on purpose: they are valid names to *access*,
+    but not names you can create a general purpose bucket with.
     """
     with pytest.raises(S3ValidationError, match=message):
         validate_s3_bucket(bucket)
@@ -180,17 +193,19 @@ def test_validate_s3_uri_valid(uri):
 @pytest.mark.parametrize(
     "uri, message",
     [
-        pytest.param("my-bucket/key", "must starts with 's3://'", id="no-scheme"),
-        pytest.param("s3:/my-bucket/key", "must starts with 's3://'", id="bad-scheme"),
-        pytest.param("s3://", "between 3 and 63", id="empty-bucket"),
+        pytest.param("my-bucket/key", "must start with 's3://'", id="no-scheme"),
+        pytest.param("s3:/my-bucket/key", "must start with 's3://'", id="bad-scheme"),
+        pytest.param("https://my-bucket/key", "must start with 's3://'", id="other-scheme"),
+        pytest.param("s3://", "bucket is empty", id="empty-bucket"),
         pytest.param("s3://My_Bucket/key", "invalid char found", id="bad-bucket"),
         pytest.param("s3://my-bucket/" + "a" * 1025, "at most 1024 bytes", id="bad-key"),
     ],
 )
 def test_validate_s3_uri_invalid(uri, message):
     """
-    The scheme is checked here; the bucket and key are delegated to
-    ``validate_s3_bucket`` and ``validate_s3_key``, so their messages surface.
+    The format is checked first (by ``utils.split_s3_uri``); then the bucket
+    and key are delegated to ``validate_s3_bucket`` and ``validate_s3_key``,
+    so their messages surface.
     """
     with pytest.raises(S3ValidationError, match=message):
         validate_s3_uri(uri)
@@ -209,6 +224,7 @@ def test_validate_s3_uri_invalid(uri, message):
         pytest.param("arn:aws:s3:::my-bucket/数据.csv", id="non-ascii-key"),
         pytest.param("arn:aws-cn:s3:::my-bucket/folder/file.txt", id="china-partition"),
         pytest.param("arn:aws-us-gov:s3:::my-bucket/folder/file.txt", id="us-gov-partition"),
+        pytest.param("arn:aws-eusc:s3:::my-bucket/folder/file.txt", id="eusc-partition"),
     ],
 )
 def test_validate_s3_arn_valid(arn):
@@ -226,6 +242,7 @@ def test_validate_s3_arn_valid(arn):
         pytest.param("s3://my-bucket", "partition is one of", id="uri-not-arn"),
         pytest.param("arn:aws-iso:s3:::my-bucket", "partition is one of", id="unsupported-partition"),
         pytest.param("arn:aws:iam::my-bucket", "partition is one of", id="not-s3-service"),
+        pytest.param("arn:aws:s3:::", "bucket is empty", id="empty-bucket"),
         pytest.param("arn:aws:s3:::b", "between 3 and 63", id="bad-bucket"),
         pytest.param("arn:aws:s3:::my-bucket/" + "a" * 1025, "at most 1024 bytes", id="bad-key"),
     ],

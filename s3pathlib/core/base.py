@@ -48,6 +48,12 @@ class BaseS3Path:
     3. The final argument defines the type whether is a file (object) or
         a directory
 
+    The first argument can also be an S3 URI (``s3://...``) or an S3 ARN
+    (``arn:{partition}:s3:::...``). The constructor only checks the format
+    (well formed URI / ARN, non-empty bucket); it does not check bucket naming
+    rules, S3 does that when you call the API. Use :mod:`s3pathlib.validate`
+    if you want to check a name yourself.
+
     First let's create a S3 object path from string::
 
         # first argument becomes the bucket
@@ -132,18 +138,21 @@ class BaseS3Path:
         arg = args[0]
 
         if isinstance(arg, str):
-            # handle S3 URI and ARN
+            # Only check the format here, not the bucket naming rules:
+            # S3 is the authority on names (e.g. legacy buckets with uppercase
+            # letters are still valid). See ``s3pathlib.validate``.
+            value = arg
             if arg.startswith("s3://"):
-                arg = arg[5:]
+                utils.split_s3_uri(arg)
+                arg = arg[len("s3://") :]
             elif arg.startswith("arn:"):
-                # validates the partition, then keeps "{bucket}/{key}" as is
                 utils.split_s3_arn(arg)
                 arg = arg.split(":::", 1)[1]
-            else:
-                pass
 
-            utils.validate_s3_bucket(arg)
             parts = utils.split_parts(arg)
+            # catches "", "/", and malformed URIs such as "https://..." or
+            # "s3:/...", whose first part contains ":"
+            utils._ensure_bucket_part(parts[0] if parts else "", value)
             _bucket = parts[0]
             _parts.extend(parts[1:])
         elif isinstance(arg, BaseS3Path):
@@ -155,7 +164,6 @@ class BaseS3Path:
         # resolve self._parts
         for arg in args[1:]:
             if isinstance(arg, str):
-                utils.validate_s3_key(arg)
                 _parts.extend(utils.split_parts(arg))
             elif isinstance(arg, BaseS3Path):
                 if arg._bucket is None:

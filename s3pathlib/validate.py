@@ -1,12 +1,24 @@
 # -*- coding: utf-8 -*-
 
 """
-Validate S3 bucket names, keys, URIs and ARNs.
+Optional tools to check S3 bucket names, keys, URIs and ARNs.
 
-The validators check whether a value can be used to address S3 in an API call,
-not whether it can be used to create a new bucket. For example, an access
-point alias (ends with ``-s3alias``) and a directory bucket name (ends with
-``--x-s3``) are both accepted, because S3 APIs accept them as bucket names.
+``s3pathlib`` itself never calls these validators. Checking is split in two:
+
+- **Format**: whether a string is a well formed S3 URI or ARN that can be
+  split into bucket and key. Only the client can check this, because S3 APIs
+  receive the bucket and key separately. ``s3pathlib`` always checks the format
+  when it parses a string (``S3Path(...)``, ``S3Path.from_s3_uri``,
+  :func:`~s3pathlib.utils.split_s3_uri`, ...).
+- **Naming rules**: bucket naming rules and the key length limit. S3 is the
+  authority on these and enforces them when you call the API. A copy of the
+  rules on the client gets out of date and would reject valid names, such as
+  legacy buckets created before March 2018 (uppercase letters, underscores),
+  access point aliases and directory buckets. So ``s3pathlib`` does not check
+  them when it reads from or sends to S3.
+
+Call these validators yourself when you want an early, clear error, for
+example to check a bucket name typed by a user before creating the bucket.
 
 Every validator raises :class:`~s3pathlib.exc.S3ValidationError`, which is
 also a ``ValueError``.
@@ -15,7 +27,12 @@ also a ``ValueError``.
 import string
 
 from .constants import S3_KEY_MAX_BYTES
+from .constants import S3_BUCKET_MIN_LENGTH
+from .constants import S3_BUCKET_MAX_LENGTH
+from .constants import S3_BUCKET_RESERVED_PREFIXES
+from .constants import S3_BUCKET_RESERVED_SUFFIXES
 from .exc import S3ValidationError
+from .utils import split_s3_uri
 from .utils import split_s3_arn
 
 valid_bucket_charset: set = set(string.ascii_lowercase + string.digits + ".-")
@@ -40,23 +57,35 @@ def _is_ip_address_like(bucket: str) -> bool:
 
 def validate_s3_bucket(bucket: str) -> None:
     """
-    Validate an S3 bucket name.
+    Check a name against the naming rules for a **new general purpose bucket**.
 
     Rules checked:
 
     - 3 to 63 characters long.
-    - Only lowercase letters, numbers, dots (``.``) and hyphens (``-``).
+    - Only lowercase letters, numbers, periods (``.``) and hyphens (``-``).
     - Begins and ends with a letter or number.
+    - No two adjacent periods.
     - Not formatted as an IPv4 address (e.g. ``192.168.5.4``).
-    - Does not start with ``xn--``.
+    - Does not start with a reserved prefix: ``xn--``, ``sthree-``,
+      ``amzn-s3-demo-``.
+    - Does not end with a reserved suffix: ``-s3alias``, ``--ol-s3``,
+      ``.mrap``, ``--x-s3``, ``--table-s3``.
 
-    Ref: `Bucket naming rules <https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html>`_
+    Names that S3 accepts for an *existing* bucket can still fail this check:
+    legacy buckets created in us-east-1 before March 1, 2018, access point
+    aliases, directory buckets and S3 Tables buckets. That is expected.
 
-    :raises S3ValidationError: if the bucket name is not valid.
+    The ``-an`` suffix is not checked: it is valid for buckets created in an
+    account regional namespace.
+
+    Ref: `General purpose bucket naming rules <https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html>`_
+
+    :raises S3ValidationError: if the name breaks a rule.
     """
-    if not (3 <= len(bucket) <= 63):
+    if not (S3_BUCKET_MIN_LENGTH <= len(bucket) <= S3_BUCKET_MAX_LENGTH):
         raise S3ValidationError(
-            "Bucket names must be between 3 and 63 characters long."
+            f"Bucket names must be between {S3_BUCKET_MIN_LENGTH} and "
+            f"{S3_BUCKET_MAX_LENGTH} characters long."
         )
 
     invalid_chars = set(bucket).difference(valid_bucket_charset)
@@ -73,19 +102,31 @@ def validate_s3_bucket(bucket: str) -> None:
             "Bucket names must begin and end with a letter or number."
         )
 
+    if ".." in bucket:
+        raise S3ValidationError("Bucket names must not contain two adjacent periods.")
+
     if _is_ip_address_like(bucket):
         raise S3ValidationError(
             "Bucket names must not be formatted as an IP address "
             "(for example, 192.168.5.4)."
         )
 
-    if bucket.startswith("xn--"):
-        raise S3ValidationError("Bucket names must not start with the prefix xn--.")
+    for prefix in S3_BUCKET_RESERVED_PREFIXES:
+        if bucket.startswith(prefix):
+            raise S3ValidationError(
+                f"Bucket names must not start with the reserved prefix {prefix!r}."
+            )
+
+    for suffix in S3_BUCKET_RESERVED_SUFFIXES:
+        if bucket.endswith(suffix):
+            raise S3ValidationError(
+                f"Bucket names must not end with the reserved suffix {suffix!r}."
+            )
 
 
 def validate_s3_key(key: str) -> None:
     """
-    Validate an S3 object key (or a prefix).
+    Check an S3 object key (or a prefix).
 
     S3 accepts any UTF-8 character in a key, so only these rules are checked:
 
@@ -112,33 +153,30 @@ def validate_s3_key(key: str) -> None:
 
 def validate_s3_uri(uri: str) -> None:
     """
-    Validate an S3 URI: ``s3://{bucket}``, ``s3://{bucket}/`` or
+    Check an S3 URI: ``s3://{bucket}``, ``s3://{bucket}/`` or
     ``s3://{bucket}/{key}``.
 
-    The bucket and key parts are checked by :func:`validate_s3_bucket` and
-    :func:`validate_s3_key`.
+    The format is checked by :func:`~s3pathlib.utils.split_s3_uri`, then the
+    bucket and key by :func:`validate_s3_bucket` and :func:`validate_s3_key`.
 
     :raises S3ValidationError: if the URI is not valid.
     """
-    if not uri.startswith("s3://"):
-        raise S3ValidationError("S3 URI must starts with 's3://'")
-
-    bucket, _, key = uri[len("s3://") :].partition("/")
+    bucket, key = split_s3_uri(uri)
     validate_s3_bucket(bucket)
     validate_s3_key(key)
 
 
 def validate_s3_arn(arn: str) -> None:
     """
-    Validate an S3 ARN:
+    Check an S3 ARN:
 
     - bucket: ``arn:{partition}:s3:::{bucket}``
     - object: ``arn:{partition}:s3:::{bucket}/{key}``
     - directory: ``arn:{partition}:s3:::{bucket}/{prefix}/``
 
-    ``partition`` is one of :class:`~s3pathlib.constants.AwsPartitionEnum`:
-    ``aws``, ``aws-cn`` or ``aws-us-gov``. The bucket and key parts are
-    checked by :func:`validate_s3_bucket` and :func:`validate_s3_key`.
+    ``partition`` is one of :class:`~s3pathlib.constants.AwsPartitionEnum`.
+    The format is checked by :func:`~s3pathlib.utils.split_s3_arn`, then the
+    bucket and key by :func:`validate_s3_bucket` and :func:`validate_s3_key`.
 
     :raises S3ValidationError: if the ARN is not valid.
     """
