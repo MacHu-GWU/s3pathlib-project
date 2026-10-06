@@ -30,8 +30,6 @@ class UriAPIMixin:
 
             >>> S3Path("bucket/folder/file.txt").bucket
             'bucket'
-
-        .. versionadded:: 1.0.1
         """
         return self._bucket
 
@@ -60,8 +58,6 @@ class UriAPIMixin:
             # an empty S3Path
             >>> S3Path().key
             ''
-
-        .. versionadded:: 1.0.1
         """
         if len(self._parts):
             return "{}{}".format("/".join(self._parts), "/" if self._is_dir else "")
@@ -98,8 +94,6 @@ class UriAPIMixin:
             # relative path doesn't have uri
             >>> S3Path("bucket/folder/file.txt").relative_to(S3Path("bucket")).uri
             None
-
-        .. versionadded:: 1.0.1
         """
         if self._bucket is None:
             return None
@@ -115,12 +109,6 @@ class UriAPIMixin:
     def console_url(self: "S3Path") -> T.Optional[str]:
         """
         Return an url that can inspect the object, directory details in AWS Console.
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 2.0.1
-
-            now take the version id into consideration.
         """
         uri: str = self.uri
         if uri is None:
@@ -135,8 +123,6 @@ class UriAPIMixin:
     def get_regional_console_url(self: "S3Path", region: str) -> T.Optional[str]:
         """
         Return an url that can inspect the object, directory details in AWS Console.
-
-        .. versionadded:: 2.3.1
         """
         uri: str = self.uri
         if uri is None:
@@ -154,12 +140,6 @@ class UriAPIMixin:
         """
         Return a Gov Cloud url that can inspect the object, directory details
         in AWS Console.
-
-        .. versionadded:: 1.0.5
-
-        .. versionchanged:: 2.0.1
-
-            now take the version id into consideration.
         """
         uri: str = self.uri
         if uri is None:
@@ -178,8 +158,6 @@ class UriAPIMixin:
         """
         Return a Gov Cloud url that can inspect the object, directory details
         in AWS Console.
-
-        .. versionadded:: 2.3.1
         """
         uri: str = self.uri
         if uri is None:
@@ -197,8 +175,6 @@ class UriAPIMixin:
     def s3_select_console_url(self: "S3Path") -> T.Optional[str]:
         """
         Return an AWS US Gov Cloud S3 Console url that can inspect data with s3 select.
-
-        .. versionadded:: 1.0.12
         """
         if self.is_file():
             return utils.make_s3_select_console_url(
@@ -214,8 +190,6 @@ class UriAPIMixin:
     ) -> T.Optional[str]:
         """
         Return an AWS US Gov Cloud S3 Console url that can inspect data with s3 select.
-
-        .. versionadded:: 2.3.1
         """
         if self.is_file():
             return utils.make_s3_select_console_url(
@@ -231,8 +205,6 @@ class UriAPIMixin:
     def s3_select_us_gov_cloud_console_url(self: "S3Path") -> T.Optional[str]:
         """
         Return an AWS S3 Console url that can inspect data with s3 select.
-
-        .. versionadded:: 1.0.12
         """
         if self.is_file():
             return utils.make_s3_select_console_url(
@@ -248,8 +220,6 @@ class UriAPIMixin:
     ) -> T.Optional[str]:
         """
         Return an AWS S3 Console url that can inspect data with s3 select.
-
-        .. versionadded:: 2.3.1
         """
         if self.is_file():
             return utils.make_s3_select_console_url(
@@ -267,8 +237,6 @@ class UriAPIMixin:
         Return the AWS S3 resource ARN in the ``aws`` partition.
         Use :meth:`get_arn` for the ``aws-cn`` or ``aws-us-gov`` partition.
         See `ARN definition here <https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html>`_
-
-        .. versionadded:: 1.0.1
         """
         return self.get_arn()
 
@@ -288,8 +256,6 @@ class UriAPIMixin:
             ``aws``, ``aws-cn`` or ``aws-us-gov``.
 
         :raises ValueError: if the partition is not supported.
-
-        .. versionadded:: 3.0.0
         """
         partition = AwsPartitionEnum(partition)
         if self._bucket is None:
@@ -331,10 +297,6 @@ class UriAPIMixin:
 
         The ``aws-cn`` and ``aws-us-gov`` partitions are also supported. The
         partition is not stored, an S3 path is identified by bucket and key.
-
-        .. versionchanged:: 3.0.0
-
-            Support the ``aws-cn`` and ``aws-us-gov`` partitions.
         """
         validate.validate_s3_arn(arn)
         return cls._from_parts(

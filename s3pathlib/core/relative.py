@@ -37,8 +37,6 @@ class RelativePathAPIMixin:
 
         :param parts:
 
-        .. versionadded:: 1.0.1
-
         **中文文档**
 
         相对路径的概念是 p1 + p2 = p3, 其中 p1 和 p3 都是实际存在的路径, 而 p2 则是
@@ -98,8 +96,6 @@ class RelativePathAPIMixin:
         :param other: other :class:`S3Path` instance.
 
         :return: a relative path object, which is a special version of S3Path
-
-        .. versionadded:: 1.0.1
         """
         if (
             (self._bucket != other._bucket)
@@ -138,8 +134,6 @@ class RelativePathAPIMixin:
 
         A long full path relating to its parent directory is a relative path.
         A :meth:`void <is_void>` path also a special relative path.
-
-        .. versionadded:: 1.0.1
         """
         if self._bucket is None:
             if len(self._parts) == 0:
@@ -156,16 +150,12 @@ class RelativePathAPIMixin:
         """
         A syntax sugar. Basically ``s3path1 - s3path2`` is equal to
         ``s3path2.relative_to(s3path1)``
-
-        .. versionadded:: 1.0.11
         """
         return self.relative_to(other)
 
     def ensure_relpath(self: "S3Path") -> None:
         """
         A validator method that ensure it represents a S3 relative path.
-
-        .. versionadded:: 1.2.1
         """
         if self.is_relpath() is not True:
             raise TypeError(f"{self} IS a s3 relative path!")
@@ -175,8 +165,6 @@ class RelativePathAPIMixin:
         A validator method that ensure it represents a S3 relative path.
 
         Can be used if you want to raise error if it is not a relative path.
-
-        .. versionadded:: 1.0.1
         """
         if self.is_relpath() is True:
             raise TypeError(f"{self} is not a valid s3 relative path!")

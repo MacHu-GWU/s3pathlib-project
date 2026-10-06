@@ -112,8 +112,6 @@ def delete_dir(
         everything in an S3 bucket.
 
     :return: number of deleted objects
-
-    .. versionadded:: 2.0.1
     """
     if prefix == "": # pragma: no cover
         if skip_prompt is False:
@@ -188,8 +186,6 @@ def delete_object_versions(
         everything in an S3 bucket.
 
     :return: number of deleted objects
-
-    .. versionadded:: 2.0.1
     """
     if prefix == "": # pragma: no cover
         if skip_prompt is False:

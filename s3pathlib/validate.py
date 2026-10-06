@@ -53,11 +53,6 @@ def validate_s3_bucket(bucket: str) -> None:
     Ref: `Bucket naming rules <https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html>`_
 
     :raises S3ValidationError: if the bucket name is not valid.
-
-    .. versionchanged:: 3.0.0
-
-        Raise :class:`~s3pathlib.exc.S3ValidationError` (still a ``ValueError``).
-        Accept access point aliases that end with ``-s3alias``.
     """
     if not (3 <= len(bucket) <= 63):
         raise S3ValidationError(
@@ -102,12 +97,6 @@ def validate_s3_key(key: str) -> None:
     Ref: `Object key naming <https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html>`_
 
     :raises S3ValidationError: if the key is not valid.
-
-    .. versionchanged:: 3.0.0
-
-        Accept every UTF-8 character (e.g. non-ASCII text, ``~``, ``%``), and
-        measure the length limit in UTF-8 bytes instead of characters.
-        Raise :class:`~s3pathlib.exc.S3ValidationError` (still a ``ValueError``).
     """
     try:
         n_bytes = len(key.encode("utf-8"))
@@ -130,10 +119,6 @@ def validate_s3_uri(uri: str) -> None:
     :func:`validate_s3_key`.
 
     :raises S3ValidationError: if the URI is not valid.
-
-    .. versionchanged:: 3.0.0
-
-        Accept a bucket URI without the trailing slash, e.g. ``s3://bucket``.
     """
     if not uri.startswith("s3://"):
         raise S3ValidationError("S3 URI must starts with 's3://'")
@@ -156,10 +141,6 @@ def validate_s3_arn(arn: str) -> None:
     checked by :func:`validate_s3_bucket` and :func:`validate_s3_key`.
 
     :raises S3ValidationError: if the ARN is not valid.
-
-    .. versionchanged:: 3.0.0
-
-        Support the ``aws-cn`` and ``aws-us-gov`` partitions.
     """
     _, bucket, key = split_s3_arn(arn)
     validate_s3_bucket(bucket)

@@ -35,8 +35,6 @@ class JoinPathAPIMixin:
             S3Path('s3://bucket/data/folder/file.txt')
 
         :param others: many string or relative path
-
-        .. versionadded:: 1.1.1
         """
         args = [
             self,
@@ -80,8 +78,6 @@ class JoinPathAPIMixin:
             # relative path also work
             >>> S3Path("new-bucket") / (S3Path("bucket/file.txt").relative_to(S3Path("bucket")))
             S3Path('s3://new-bucket/file.txt')
-
-        .. versionadded:: 1.0.11
         """
         if self.is_void():
             raise TypeError("You cannot do ``VoidS3Path / other``!")

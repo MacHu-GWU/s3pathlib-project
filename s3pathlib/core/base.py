@@ -88,12 +88,6 @@ class BaseS3Path:
         S3Path('s3://bucket/folder/file.txt')
         >>> S3Path("arn:aws:s3:::bucket/folder/file.txt"),
         S3Path('s3://bucket/folder/file.txt')
-
-    .. versionadded:: 1.0.1
-
-    .. versionchanged:: 2.0.1
-
-        You can create S3Path from s3 uri or arn directly.
     """
 
     __slots__ = (
@@ -222,7 +216,5 @@ class BaseS3Path:
         """
         Provides sequence-like access to the components in the filesystem path.
         It doesn't include the bucket, because bucket is considered as "drive".
-
-        .. versionadded:: 1.0.1
         """
         return self._parts

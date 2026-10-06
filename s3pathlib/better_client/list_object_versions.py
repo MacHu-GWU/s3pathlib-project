@@ -5,8 +5,6 @@ Improve the list_object_versions_ and ListObjectVersions_ API.
 
 .. _list_object_versions: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/list_object_versions.html
 .. _ListObjectVersions: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectVersions.html
-
-.. versionadded:: 2.0.1
 """
 
 import typing as T
@@ -30,24 +28,18 @@ if T.TYPE_CHECKING:  # pragma: no cover
 class ObjectVersionTypeDefIterproxy(IterProxy["ObjectVersionTypeDef"]):
     """
     An iterproxy that yields the "Versions" part of the ListObjectVersions_ response.
-
-    .. versionadded:: 2.0.1
     """
 
 
 class DeleteMarkerEntryTypeDefIterproxy(IterProxy["DeleteMarkerEntryTypeDef"]):
     """
     An iterproxy that yields the "DeleteMarkers" part of the ListObjectVersions_ response.
-
-    .. versionadded:: 2.0.1
     """
 
 
 class CommonPrefixTypeDefIterproxy(IterProxy["CommonPrefixTypeDef"]):
     """
     An iterproxy that yields the "CommonPrefixes" part of the ListObjectVersions_ response.
-
-    .. versionadded:: 2.0.1
     """
 
 
@@ -57,8 +49,6 @@ class ListObjectVersionsOutputTypeDefIterproxy(
     """
     An iterproxy that yields the original ListObjectVersions_ response.
     It has two utility methods to get the contents and common prefixes.
-
-    .. versionadded:: 2.0.1
     """
 
     def _yield_versions(self) -> T.Iterator["ObjectVersionTypeDef"]:
@@ -69,8 +59,6 @@ class ListObjectVersionsOutputTypeDefIterproxy(
     def versions(self) -> ObjectVersionTypeDefIterproxy:
         """
         Iterate object versions.
-
-        .. versionadded:: 2.0.1
         """
         return ObjectVersionTypeDefIterproxy(self._yield_versions())
 
@@ -82,8 +70,6 @@ class ListObjectVersionsOutputTypeDefIterproxy(
     def delete_markers(self) -> DeleteMarkerEntryTypeDefIterproxy:
         """
         Iterate delete markers.
-
-        .. versionadded:: 2.0.1
         """
         return DeleteMarkerEntryTypeDefIterproxy(self._yield_delete_markers())
 
@@ -95,8 +81,6 @@ class ListObjectVersionsOutputTypeDefIterproxy(
     def common_prefixes(self) -> CommonPrefixTypeDefIterproxy:
         """
         Iterate folders.
-
-        .. versionadded:: 2.0.1
         """
         return CommonPrefixTypeDefIterproxy(self._yield_common_prefixes())
 
@@ -122,8 +106,6 @@ class ListObjectVersionsOutputTypeDefIterproxy(
     ]:
         """
         Return the full list of object versions, delete markers and folders.
-
-        .. versionadded:: 2.0.1
         """
         versions = list()
         delete_markers = list()
@@ -183,8 +165,6 @@ def paginate_list_object_versions(
     :param expected_bucket_owner: See ListObjectVersions_.
 
     :return: a :class:`ListObjectVersionsOutputTypeDefIterproxy` object.
-
-    .. versionadded:: 2.0.1
     """
     # validate arguments
     if batch_size < 1 or batch_size > 1000:  # pragma: no cover

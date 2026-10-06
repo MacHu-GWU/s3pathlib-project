@@ -21,8 +21,6 @@ def split_s3_uri(
     Split AWS S3 URI, returns bucket and key.
 
     :param s3_uri: example, ``"s3://my-bucket/my-folder/data.json"``
-
-    .. versionadded:: 1.0.1
     """
     parts = s3_uri.split("/")
     bucket = parts[2]
@@ -46,8 +44,6 @@ def split_s3_arn(
         :class:`~s3pathlib.constants.AwsPartitionEnum`.
 
     :raises S3ValidationError: if it is not an S3 ARN of a supported partition.
-
-    .. versionadded:: 3.0.0
     """
     for partition in AwsPartitionEnum:
         prefix = f"arn:{partition}:s3:::"
@@ -70,8 +66,6 @@ def join_s3_uri(
 
     :param bucket: example, ``"my-bucket"``
     :param key: example, ``"my-folder/data.json"`` or ``"my-folder/"``
-
-    .. versionadded:: 1.0.1
     """
     return "s3://{}/{}".format(bucket, key)
 
@@ -86,8 +80,6 @@ def split_parts(key: str) -> T.List[str]:
         ["a", "b", "c"]
         >>> split_parts("//a//b//c//")
         ["a", "b", "c"]
-
-    .. versionadded:: 1.0.1
     """
     return [part for part in key.split("/") if part]
 
@@ -110,8 +102,6 @@ def smart_join_s3_key(
         a/b/c/
         >>> smart_join_s3_key(parts=["/a/", "b/", "/c"], is_dir=False)
         a/b/c
-
-    .. versionadded:: 1.0.1
     """
     new_parts = list()
     for part in parts:
@@ -142,14 +132,6 @@ def make_s3_console_url(
 
         >>> make_s3_console_url(s3_uri="s3://my-bucket/my-folder/data.json")
         https://s3.console.aws.amazon.com/s3/object/my-bucket?prefix=my-folder/data.json
-
-    .. versionadded:: 1.0.1
-
-    .. versionchanged:: 2.0.1
-
-        add ``version_id`` parameter.
-
-    .. versionchanged:: 2.2.2
     """
     if s3_uri is None:
         if not ((bucket is not None) and (prefix is not None)):
@@ -223,8 +205,6 @@ def ensure_s3_object(
 ) -> None:
     """
     Raise exception if the string is not in valid format for a AWS S3 object
-
-    .. versionadded:: 1.0.1
     """
     if s3_key_or_uri.endswith("/"):
         raise ValueError("'{}' doesn't represent s3 object!".format(s3_key_or_uri))
@@ -233,8 +213,6 @@ def ensure_s3_object(
 def ensure_s3_dir(s3_key_or_uri: str) -> None:
     """
     Raise exception if the string is not in valid format for a AWS S3 directory
-
-    .. versionadded:: 1.0.1
     """
     if not s3_key_or_uri.endswith("/"):
         raise ValueError("'{}' doesn't represent s3 dir!".format(s3_key_or_uri))
@@ -289,8 +267,6 @@ def repr_data_size(
         1000 ** 6    EB    exabyte
         1000 ** 7    ZB    zettabyte
         1000 ** 8    YB    yottabyte
-
-    .. versionadded:: 1.0.1
     """
     if size_in_bytes < 1024:
         return "%s B" % size_in_bytes
@@ -321,8 +297,6 @@ def parse_data_size(s) -> int:  # pragma: no cover
 
         >>> parse_data_size("2,512.4 MB")
         2634442342
-
-    .. versionadded:: 1.0.5
     """
     s = s.strip()
 
@@ -365,8 +339,6 @@ def hash_binary(
     :param hash_meth: callable hash method, example: hashlib.md5
 
     :return: hash value in hex digits.
-
-    .. versionadded:: 1.0.1
     """
     m = hash_meth()
     m.update(b)
@@ -382,8 +354,6 @@ def md5_binary(
     :param b: binary object
 
     :return: hash value in hex digits.
-
-    .. versionadded:: 1.0.1
     """
     return hash_binary(b, hashlib.md5)
 
@@ -397,8 +367,6 @@ def sha256_binary(
     :param b: binary object
 
     :return: hash value in hex digits.
-
-    .. versionadded:: 1.0.1
     """
     return hash_binary(b, hashlib.sha256)
 
@@ -422,8 +390,6 @@ def hash_file(
         each time, avoid high memory usage.
 
     :return: hash value in hex digits.
-
-    .. versionadded:: 1.0.1
     """
     if nbytes < 0:
         raise ValueError("nbytes cannot smaller than 0")
@@ -472,8 +438,6 @@ def grouper_list(
 
     :param l: an iterable object
     :param n: number of item per list
-
-    .. versionadded:: 1.0.1
     """
     chunk = list()
     counter = 0

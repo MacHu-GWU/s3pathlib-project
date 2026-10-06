@@ -47,8 +47,6 @@ class IsTestAPIMixin:
 
         A logical S3 directory that never physically exists. An S3
         :meth:`bucket <is_bucket>` is also a special dir, which is the root dir.
-
-        .. versionadded:: 1.0.1
         """
         if self._is_dir is None:
             return False
@@ -62,8 +60,6 @@ class IsTestAPIMixin:
         **Definition**
 
         A S3 object.
-
-        .. versionadded:: 1.0.1
         """
         if self._is_dir is None:
             return False
@@ -78,8 +74,6 @@ class IsTestAPIMixin:
 
         A S3 bucket, the root folder S3 path is equivalent to a S3 bucket.
         A S3 bucket are always :meth:`is_dir() is True <is_dir>`
-
-        .. versionadded:: 1.0.1
         """
         return (
             (self._bucket is not None)
@@ -91,8 +85,6 @@ class IsTestAPIMixin:
         """
         Test if it is a delete-marker. A delete-marker is just a version of
         an object without content.
-
-        .. versionadded:: 2.0.1
         """
         if self.is_file():
             if (self.version_id is not None) and (IS_DELETE_MARKER in self._meta):
@@ -105,8 +97,6 @@ class IsTestAPIMixin:
     def ensure_object(self: "S3Path") -> None:
         """
         A validator method that ensure it represents a S3 object.
-
-        .. versionadded:: 1.0.1
         """
         if self.is_file() is not True:
             raise S3PathIsNotFileError.make(self.uri)
@@ -114,16 +104,12 @@ class IsTestAPIMixin:
     def ensure_file(self: "S3Path") -> None:
         """
         A validator method that ensure it represents a S3 object.
-
-        .. versionadded:: 1.2.1
         """
         return self.ensure_object()
 
     def ensure_not_object(self: "S3Path") -> None:
         """
         A validator method that ensure it IS NOT a S3 object.
-
-        .. versionadded:: 1.2.1
         """
         if self.is_file() is True:
             raise TypeError(f"S3 URI: {self} IS an s3 object!")
@@ -131,16 +117,12 @@ class IsTestAPIMixin:
     def ensure_not_file(self: "S3Path") -> None:
         """
         A validator method that ensure it IS NOT a S3 object.
-
-        .. versionadded:: 1.2.1
         """
         self.ensure_not_object()
 
     def ensure_dir(self: "S3Path") -> None:
         """
         A validator method that ensure it represents a S3 dir.
-
-        .. versionadded:: 1.0.1
         """
         if self.is_dir() is not True:
             raise S3PathIsNotFolderError.make(self.uri)
@@ -148,8 +130,6 @@ class IsTestAPIMixin:
     def ensure_not_dir(self: "S3Path") -> None:
         """
         A validator method that ensure it IS NOT a S3 dir.
-
-        .. versionadded:: 1.2.1
         """
         if self.is_dir() is True:
             raise TypeError(f"{self} IS an s3 directory!")
@@ -157,8 +137,6 @@ class IsTestAPIMixin:
     def ensure_bucket(self: "S3Path") -> None:
         """
         A validator method that ensure it represents a S3 bucket.
-
-        .. versionadded:: 2.1.1
         """
         if self.is_bucket() is not True:
             raise S3PathIsNotBucketError.make(self.uri)

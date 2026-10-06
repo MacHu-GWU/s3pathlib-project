@@ -41,8 +41,6 @@ def ensure_all_none(**kwargs) -> None:
 class S3PathlibError(Exception):
     """
     Base class of all exceptions raised by ``s3pathlib``.
-
-    .. versionadded:: 3.0.0
     """
 
 
@@ -96,16 +94,12 @@ class S3PermissionDenied(S3PathlibError, PermissionError):
 class S3ValidationError(S3PathlibError, ValueError):
     """
     A bucket name, key, URI or ARN is not valid.
-
-    .. versionadded:: 3.0.0
     """
 
 
 class S3PathTypeError(S3PathlibError, TypeError):
     """
     The S3 path is not the expected type (bucket, folder, file or relpath).
-
-    .. versionadded:: 3.0.0
     """
 
     _expected_type: str

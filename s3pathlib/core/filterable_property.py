@@ -95,8 +95,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``FilterableType.attribute_name == ``other``
-
-        .. versionadded:: 1.0.3
         """
         return self.__eq__(other)
 
@@ -104,8 +102,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``FilterableType.attribute_name != ``other``
-
-        .. versionadded:: 1.0.4
         """
         return self.__ne__(other)
 
@@ -113,8 +109,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``FilterableType.attribute_name > ``other``
-
-        .. versionadded:: 1.0.4
         """
         return self.__gt__(other)
 
@@ -122,8 +116,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``FilterableType.attribute_name < ``other``
-
-        .. versionadded:: 1.0.4
         """
         return self.__lt__(other)
 
@@ -131,8 +123,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``FilterableType.attribute_name >= ``other``
-
-        .. versionadded:: 1.0.4
         """
         return self.__eq__(other)
 
@@ -140,8 +130,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``FilterableType.attribute_name <= ``other``
-
-        .. versionadded:: 1.0.4
         """
         return self.__eq__(other)
 
@@ -149,8 +137,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``lower <= FilterableType.attribute_name <= upper``
-
-        .. versionadded:: 1.0.3
         """
 
         def filter_(obj):
@@ -163,8 +149,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         Return a filter function that returns True
         only if ``FilterableType.attribute_name.startswith(other)``.
         The attribute has to be a string attribute.
-
-        .. versionadded:: 1.0.3
         """
 
         def filter_(obj):
@@ -177,8 +161,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         Return a filter function that returns True
         only if ``FilterableType.attribute_name.endswith(other)``.
         The attribute has to be a string attribute.
-
-        .. versionadded:: 1.0.3
         """
 
         def filter_(obj):
@@ -190,8 +172,6 @@ class FilterableProperty(T.Generic[FilterableType]):
         """
         Return a filter function that returns True
         only if ``other in FilterableType.attribute_name``
-
-        .. versionadded:: 1.0.3
         """
 
         def filter_(obj):

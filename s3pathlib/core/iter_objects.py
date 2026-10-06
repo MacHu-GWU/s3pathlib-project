@@ -37,8 +37,6 @@ class S3PathIterProxy(IterProxy["S3Path"]):
 
     It is a special variation of :class:`s3pathlib.iterproxy.IterProxy`,
     See :class:`s3pathlib.iterproxy.IterProxy` for more details.
-
-    .. versionadded:: 1.0.3
     """
 
     def __next__(self) -> "S3Path":
@@ -139,13 +137,6 @@ class IterObjectsAPIMixin:
         :param recursive: if True, it won't include files in sub folders.
         :param bsm: See bsm_.
 
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 2.0.1
-
-            Remove ``include_folder`` argument. Support all list_objects_v2
-            arguments.
-
         TODO: add unix glob liked syntax for pattern matching
         """
         s3_client = resolve_s3_client(context, bsm)
@@ -218,12 +209,6 @@ class IterObjectsAPIMixin:
         :param request_payer: See ListObjectsV2_.
         :param expected_bucket_owner: See ListObjectsV2_.
         :param bsm: See bsm_.
-
-        .. versionadded:: 1.0.6
-
-        .. versionchanged:: 2.0.1
-
-            Support all list_objects_v2 arguments.
         """
         s3_client = resolve_s3_client(context, bsm)
         bucket = self.bucket
@@ -288,8 +273,6 @@ class IterObjectsAPIMixin:
 
         :return: a tuple, first value is number of objects,
             second value is total size in bytes
-
-        .. versionadded:: 1.0.1
         """
         self.ensure_dir()
         s3_client = resolve_s3_client(context, bsm)
@@ -333,8 +316,6 @@ class IterObjectsAPIMixin:
         :param bsm: See bsm_.
 
         :return: an integer represents the number of objects
-
-        .. versionadded:: 1.0.1
         """
         self.ensure_dir()
         s3_client = resolve_s3_client(context, bsm)

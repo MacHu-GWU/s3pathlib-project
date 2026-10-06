@@ -40,8 +40,6 @@ class AttributeAPIMixin:
 
             >>> S3Path("my-bucket", "my-file.json").parent.uri
             s3://my-bucket/
-
-        .. versionadded:: 1.0.1
         """
         if len(self._parts) == 0:
             return self
@@ -62,8 +60,6 @@ class AttributeAPIMixin:
 
             >>> S3Path("my-bucket", "my-folder", "my-file.json").parents
             s3://my-bucket/my-folder/
-
-        .. versionadded:: 1.0.6
         """
         if self.is_void():
             raise ValueError(f"void S3path doesn't support .parents method!")
@@ -106,8 +102,6 @@ class AttributeAPIMixin:
             # the 'self' and 'other' has to be concrete S3Path
             >>> S3Path().is_parent_of(S3Path())
             TypeError: both S3Path(), S3Path() has to be a concrete S3Path!
-
-        .. versionadded:: 1.0.2
         """
         if self._bucket is None or other._bucket is None:
             raise TypeError(f"both {self}, {other} has to be a concrete S3Path!")
@@ -135,8 +129,6 @@ class AttributeAPIMixin:
 
             >>> S3Path("bucket/folder/").is_prefix_of(S3Path("bucket/folder/"))
             True
-
-        .. versionadded:: 1.0.2
         """
         if self._bucket is None or other._bucket is None:
             raise TypeError(f"both {self}, {other} has to be a concrete S3Path!")
@@ -174,8 +166,6 @@ class AttributeAPIMixin:
             # relative path
             >>> S3Path.make_relpath("folder", "file.txt").basename
             None
-
-        .. versionadded:: 1.0.1
         """
         if len(self._parts):
             return self._parts[-1]
@@ -195,8 +185,6 @@ class AttributeAPIMixin:
             # root dir name is ''
             >>> S3Path("bucket", "folder").dirname
             ''
-
-        .. versionadded:: 1.0.1
         """
         return self.parent.basename
 
@@ -210,8 +198,6 @@ class AttributeAPIMixin:
 
             >>> S3Path("bucket", "folder", "file.txt").fname
             'file'
-
-        .. versionadded:: 1.0.1
         """
         if self.is_dir():
             raise TypeError
@@ -234,8 +220,6 @@ class AttributeAPIMixin:
 
             >>> S3Path("bucket", "folder", "file.txt").fname
             '.txt'
-
-        .. versionadded:: 1.0.1
         """
         if self.is_dir():
             raise TypeError
@@ -275,8 +259,6 @@ class AttributeAPIMixin:
             # relative path
             >>> S3Path.make_relpath("folder", "file.txt").abspath
             TypeError: relative path doesn't have absolute path!
-
-        .. versionadded:: 1.0.1
         """
         if self._bucket is None:
             raise TypeError("relative path doesn't have absolute path!")
@@ -315,8 +297,6 @@ class AttributeAPIMixin:
             # relative path
             >>> S3Path.make_relpath("folder", "file.txt").dirpath
             TypeError: relative path doesn't have absolute path!
-
-        .. versionadded:: 1.0.2
         """
         return self.parent.abspath
 

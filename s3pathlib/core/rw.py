@@ -94,17 +94,6 @@ class ReadAndWriteAPIMixin:
         :param bsm: See bsm_.
 
         :return: the binary data.
-
-        .. versionadded:: 1.0.3
-
-        .. versionchanged:: 1.1.2
-
-            automatically store metadata in cache.
-            
-        .. versionchanged:: 2.0.1
-        
-            add ``version_id`` parameter, and now support full list of get_object_
-            arguments.
         """
         s3_client = resolve_s3_client(context, bsm)
         response = s3_client.get_object(
@@ -204,17 +193,6 @@ class ReadAndWriteAPIMixin:
         :param bsm: See bsm_.
 
         :return: the string data.
-
-        .. versionadded:: 1.0.3
-
-        .. versionchanged:: 1.1.2
-
-            automatically store metadata in cache.
-
-        .. versionchanged:: 2.0.1
-
-            add ``version_id`` parameter, and now support full list of get_object_
-            arguments.
         """
         data = self.read_bytes(
             version_id=version_id,
@@ -329,12 +307,6 @@ class ReadAndWriteAPIMixin:
         :return: A new :class:`~s3pathlib.core.s3path.S3Path` object with the
             same bucket and key, but the new metadata representing the object
             you just put.
-
-        .. versionadded:: 1.0.3
-
-        .. versionchanged:: 1.1.1
-
-            add ``metadata`` and ``tags`` parameters.
         """
         s3_client = resolve_s3_client(context, bsm)
         if metadata is not NOTHING:
@@ -483,12 +455,6 @@ class ReadAndWriteAPIMixin:
         :return: A new :class:`~s3pathlib.core.s3path.S3Path` object with the
             same bucket and key, but the new metadata representing the object
             you just put.
-
-        .. versionadded:: 1.0.3
-
-        .. versionchanged:: 1.1.1
-
-            add ``metadata`` and ``tags`` parameters.
         """
         body = data.encode(encoding, errors=errors)
         return self.write_bytes(
@@ -618,12 +584,6 @@ class ReadAndWriteAPIMixin:
         :param object_lock_legal_hold_status: See put_object_.
         :param expected_bucket_owner: See put_object_.
         :param bsm: See bsm_.
-
-        .. versionadded:: 1.0.6
-
-        .. versionchanged:: 1.2.1
-
-            add ``metadata`` and ``tags`` parameters.
         """
         self.ensure_object()
         kwargs = dict(
@@ -688,8 +648,6 @@ class ReadAndWriteAPIMixin:
         :param exist_ok: If True, it won't raise error when the S3 folder already exists.
         :param parents: If True, all parent folders will be created.
         :param bsm: See bsm_.
-
-        .. versionadded:: 1.0.6
         """
         self.ensure_dir()
 

@@ -11,8 +11,6 @@ S3_KEY_MAX_BYTES = 1024
 class AwsPartitionEnum(enum.StrEnum):
     """
     AWS partitions supported in S3 ARNs, e.g. ``arn:aws-cn:s3:::my-bucket``.
-
-    .. versionadded:: 3.0.0
     """
 
     aws = "aws"

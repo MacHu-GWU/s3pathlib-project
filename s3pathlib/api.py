@@ -7,11 +7,6 @@ Usage::
 
     from s3pathlib.api import S3Path
     from s3pathlib.api import context
-
-.. versionadded:: 3.0.0
-
-    Import public names from ``s3pathlib.api`` instead of ``s3pathlib``.
-    ``from s3pathlib import ...`` will be removed.
 """
 
 from iterproxy import and_

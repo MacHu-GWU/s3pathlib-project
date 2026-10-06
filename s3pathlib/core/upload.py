@@ -48,8 +48,6 @@ class UploadAPIMixin:
             you want to upload
         :param overwrite: if False, non of the file will be upload / overwritten
             if any of target s3 location already taken.
-
-        .. versionadded:: 1.0.1
         """
         self.ensure_object()
         if overwrite is False:
@@ -93,8 +91,6 @@ class UploadAPIMixin:
             if any of target s3 location already taken.
 
         :return: number of files uploaded
-
-        .. versionadded:: 1.0.1
         """
         self.ensure_dir()
         s3_client = resolve_s3_client(context, bsm)

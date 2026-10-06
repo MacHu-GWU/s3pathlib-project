@@ -41,8 +41,6 @@ def upload_dir(
         if any of target s3 location already taken.
 
     :return: number of files uploaded
-
-    .. versionadded:: 1.0.1
     """
     # preprocess input arguments
     if prefix.endswith("/"):

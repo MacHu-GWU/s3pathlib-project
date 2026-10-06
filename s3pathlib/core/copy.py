@@ -81,16 +81,6 @@ class CopyAPIMixin:
             set ``overwrite`` to False if you want to put a new version.
 
         :return: number of object are copied, 0 or 1.
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 1.3.1
-
-            add ``metadata`` and ``tags`` argument
-
-        .. versionchanged:: 2.0.1
-
-            add ``version_id`` argument
         """
         # preprocess input arguments
         self.ensure_object()
@@ -204,8 +194,6 @@ class CopyAPIMixin:
             the latest version of the object.
 
         :return: number of objects are copied
-
-        .. versionadded:: 1.0.1
 
         TODO: add an argument ``copy_all_history`` to copy all object and all
             history if the source bucket is versioning enabled.
@@ -323,16 +311,6 @@ class CopyAPIMixin:
             able to put a new version to an existing file, but this if
             ``overwrite`` is True, then it won't allow you to do that. You should
             set ``overwrite`` to False if you want to put a new version.
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 1.3.1
-
-            add ``metadata`` and ``tags`` argument
-
-        .. versionchanged:: 2.0.1
-
-            add ``version_id`` argument
         """
         if self.is_dir():
             return self.copy_dir(
@@ -470,12 +448,6 @@ class CopyAPIMixin:
             able to put a new version to an existing file, but this if
             ``overwrite`` is True, then it won't allow you to do that. You should
             set ``overwrite`` to False if you want to put a new version.
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 1.3.1
-
-            add ``metadata`` and ``tags`` argument
         """
         count = self.copy_to(
             dst=dst,

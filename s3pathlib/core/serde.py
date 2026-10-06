@@ -18,8 +18,6 @@ class SerdeAPIMixin:
     def to_dict(self: "S3Path") -> dict:
         """
         Serialize to Python dict
-
-        .. versionadded:: 1.0.1
         """
         return {
             "bucket": self._bucket,
@@ -31,8 +29,6 @@ class SerdeAPIMixin:
     def from_dict(cls: "S3Path", dct: dict) -> "S3Path":
         """
         Deserialize from Python dict
-
-        .. versionadded:: 1.0.2
         """
         return cls._from_parsed_parts(
             bucket=dct["bucket"],

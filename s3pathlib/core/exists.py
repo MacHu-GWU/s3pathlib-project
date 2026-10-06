@@ -47,12 +47,6 @@ class ExistsAPIMixin:
             >>> S3Path("bucket/file.txt").exists()
             >>> S3Path("bucket/folder/").exists()
             >>> S3Path("bucket/file.txt").exists(version_id="v123456")
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 2.0.1
-
-            Add ``version_id`` parameter.
         """
         if self.is_bucket():
             s3_client = resolve_s3_client(context, bsm)
@@ -95,12 +89,6 @@ class ExistsAPIMixin:
     ) -> None:
         """
         A validator method ensure that it doesn't exists.
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 2.0.1
-
-            Add ``version_id`` parameter.
         """
         if self.exists(version_id=version_id, bsm=bsm):
             raise exc.S3AlreadyExist(

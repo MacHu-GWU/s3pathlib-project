@@ -31,8 +31,6 @@ class MutateAPIMixin:
             True
             >>> p1 is p2
             False
-
-        .. versionadded:: 1.0.1
         """
         return self._from_parsed_parts(
             bucket=self._bucket,
@@ -75,8 +73,6 @@ class MutateAPIMixin:
         :param new_basename:
         :param new_fname:
         :param new_ext:
-
-        .. versionadded:: 1.0.2
         """
         if new_bucket is None:
             new_bucket = self.bucket

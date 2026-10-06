@@ -91,10 +91,6 @@ class DeleteAPIMixin:
                 - if ``version_id`` is given, then it will return the ``S3Path``
                     representing the deleted version.
             - if it's a directory, then it will return the deleted folder itself.
-
-        .. versionadded:: 2.0.1
-
-            Use this method to replace ``delete_if_exists``, which is removed in 3.0.0.
         """
         s3_client = resolve_s3_client(context, bsm)
         bucket = self.bucket

@@ -40,12 +40,6 @@ class TaggingAPIMixin:
         Get s3 object tags in key value pairs dict.
 
         :return: ``(version_id, tags)``, tags is in string key value pairs dict.
-
-        .. versionadded:: 1.1.1
-
-        .. versionchanged:: 2.0.1
-
-            Add ``version_id``, ``expected_bucket_owner``, ``request_payer`` parameter.
         """
         self.ensure_object()
         s3_client = resolve_s3_client(context, bsm)
@@ -78,12 +72,6 @@ class TaggingAPIMixin:
         :param tags: the s3 object tags in string key value pairs dict.
 
         :return: ``(version_id, tags)``, tags is in string key value pairs dict.
-
-        .. versionadded:: 1.1.1
-
-        .. versionchanged:: 2.0.1
-
-            Add ``version_id``, ``expected_bucket_owner``, ``request_payer`` parameter.
         """
         self.ensure_object()
         s3_client = resolve_s3_client(context, bsm)
@@ -119,8 +107,6 @@ class TaggingAPIMixin:
 
         :return: ``(version_id, tags)``, tags is the latest, merged object tags
             in string key value pairs dict.
-
-        .. versionadded:: 1.1.1
         """
         self.ensure_object()
         s3_client = resolve_s3_client(context, bsm)

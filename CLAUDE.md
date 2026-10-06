@@ -19,6 +19,10 @@ from .abc import xyz
 
 Order: `import typing as T` first, then standard library, then third-party, then s3pathlib's own relative imports.
 
+## Docstrings
+
+3.0.0 is the baseline; its public API is listed in `release-history.rst`. Only use `.. versionadded::` / `.. versionchanged::` for changes after 3.0.0.
+
 ## Tests
 
 - Tests live in `tests/`, mirroring the source tree. Directories stay the same; file names get the full path as a prefix, e.g. `s3pathlib/core/copy.py` is tested by `tests/core/test_core_copy.py`.

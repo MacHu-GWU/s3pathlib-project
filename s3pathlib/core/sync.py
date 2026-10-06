@@ -62,8 +62,6 @@ class SyncAPIMixin:
         :param delete:
         :param verbose:
 
-        .. versionadded:: 1.2.1
-
         TODO: add support for all aws s3 sync supported arguments
         """
         args = [

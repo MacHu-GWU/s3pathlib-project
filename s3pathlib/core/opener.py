@@ -183,20 +183,6 @@ class OpenerAPIMixin:
         See smart_open_ for more info.
         Also see https://github.com/RaRe-Technologies/smart_open/blob/develop/howto.md#how-to-access-s3-anonymously
         for S3 related info.
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 1.2.1
-
-            add ``metadata`` and ``tags`` parameters
-
-        .. versionchanged:: 2.0.1
-
-            add ``version_id`` parameter
-
-        .. versionchanged:: 2.1.1
-
-            add full list of get_object, put_object, create_multipart_upload arguments
         """
         s3_client = resolve_s3_client(context, bsm)
         if transport_params is None:

@@ -57,8 +57,6 @@ class MetadataAPIMixin:
         It's particularly useful when you need to access specific response data
         after you called ``S3Path.head_object(...)``, ``S3Path.write_bytes(...)``
         or ``S3Path.write_text(...)`` method.
-
-        .. versionadded:: 2.2.1
         """
         return self._meta
 
@@ -100,8 +98,6 @@ class MetadataAPIMixin:
         md5 of the sum.
 
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
-
-        .. versionadded:: 1.0.1
         """
         v = self._get_meta_value(key="ETag", default=None)
         if v is None:
@@ -113,8 +109,6 @@ class MetadataAPIMixin:
     def last_modified_at(self: "S3Path") -> datetime:
         """
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
-
-        .. versionadded:: 1.0.1
         """
         return self._get_or_pull_meta_value(key="LastModified")
 
@@ -122,8 +116,6 @@ class MetadataAPIMixin:
     def size(self: "S3Path") -> int:
         """
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
-
-        .. versionadded:: 1.0.1
         """
         return self._get_meta_value(key="ContentLength", default=0)
 
@@ -131,8 +123,6 @@ class MetadataAPIMixin:
     def size_for_human(self: "S3Path") -> str:
         """
         A human-readable string version of the size.
-
-        .. versionadded:: 1.0.1
         """
         return utils.repr_data_size(self.size)
 
@@ -153,12 +143,6 @@ class MetadataAPIMixin:
         Only available if you turned on versioning for the bucket.
 
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
-
-        .. versionadded:: 1.0.1
-
-        .. versionchanged:: 2.0.1
-
-            return 'null' if it is not a version enabled bucket
         """
         return self._get_meta_value(key="VersionId", default="null")
 
@@ -168,8 +152,6 @@ class MetadataAPIMixin:
         Only available if you turned on TTL.
 
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
-
-        .. versionadded:: 1.0.1
         """
         return self._get_meta_value(key="Expires")
 
@@ -179,16 +161,12 @@ class MetadataAPIMixin:
         Access the metadata of the object.
 
         Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html
-
-        .. versionadded:: 1.0.1
         """
         return self._get_or_pull_meta_value(key="Metadata")
 
     def clear_cache(self: "S3Path") -> None:
         """
         Clear all cache that stores metadata information.
-
-        .. versionadded:: 1.0.1
         """
         self._meta = None
 

@@ -24,11 +24,6 @@ Example::
             "Use S3Path.new_method instead."
         )
         def old_method(self): ...
-
-.. versionchanged:: 3.0.0
-
-    Replace ``deprecate_v1``, ``deprecate_v2``, ``warn_deprecate`` and
-    ``warn_beta`` with the standard ``deprecated`` decorator.
 """
 
 import sys
