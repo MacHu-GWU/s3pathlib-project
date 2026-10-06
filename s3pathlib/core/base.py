@@ -8,13 +8,6 @@ from __future__ import annotations
 
 import typing as T
 
-try:
-    import botocore.exceptions
-except ImportError:  # pragma: no cover
-    pass
-except:  # pragma: no cover
-    raise
-
 from .filterable_property import FilterableProperty
 from .. import utils
 
@@ -24,7 +17,7 @@ if T.TYPE_CHECKING:  # pragma: no cover
 
 class BaseS3Path:
     """
-    Similar to ``pathlib.Path``. An objective oriented programming interface
+    Similar to ``pathlib.Path``. An object-oriented programming interface
     for AWS S3 object or logical directory.
 
     You can use this class in different way.
@@ -48,7 +41,8 @@ class BaseS3Path:
     1. The first argument defines the S3 bucket
     2. The rest of arguments defines the path parts of the S3 key
     3. The final argument defines the type whether is a file (object) or
-        a directory
+        a directory. Empty arguments (``""`` or a void path) are ignored, so
+        the last non-empty argument decides the type.
 
     The first argument can also be an S3 URI (``s3://...``) or an S3 ARN
     (``arn:{partition}:s3:::...``). The constructor only checks the format
@@ -94,7 +88,7 @@ class BaseS3Path:
 
         >>> S3Path("s3://bucket/folder/file.txt")
         S3Path('s3://bucket/folder/file.txt')
-        >>> S3Path("arn:aws:s3:::bucket/folder/file.txt"),
+        >>> S3Path("arn:aws:s3:::bucket/folder/file.txt")
         S3Path('s3://bucket/folder/file.txt')
     """
 
@@ -120,7 +114,6 @@ class BaseS3Path:
     def _from_parts(
         cls: type[S3Path],
         args: list[str | S3Path],
-        init: bool = True,
     ) -> S3Path:
         """
         Low level implementation of the constructor.
@@ -157,36 +150,40 @@ class BaseS3Path:
             utils._ensure_bucket_part(parts[0] if parts else "", value)
             _bucket = parts[0]
             _parts.extend(parts[1:])
+            _is_dir = arg.endswith("/")
         elif isinstance(arg, BaseS3Path):
             _bucket = arg._bucket
             _parts.extend(arg._parts)
+            _is_dir = arg._is_dir
         else:
-            raise TypeError
+            raise TypeError(
+                "the first argument has to be a str or an S3Path, "
+                f"got {type(arg).__name__}: {arg!r}"
+            )
 
-        # resolve self._parts
+        # resolve self._parts and self._is_dir:
+        # the last non-empty argument decides whether it is a directory,
+        # empty arguments ("" or a void path) are ignored
         for arg in args[1:]:
             if isinstance(arg, str):
-                _parts.extend(utils.split_parts(arg))
+                if arg:
+                    _parts.extend(utils.split_parts(arg))
+                    _is_dir = arg.endswith("/")
             elif isinstance(arg, BaseS3Path):
-                if arg._bucket is None:
-                    _parts.extend(arg._parts)
-                else:
+                if arg._bucket is not None:
                     raise TypeError(
                         "from the second arguments, it has to be raw string "
                         "(as a part) or a relative S3Path (without bucket)! "
                         f"this is invalid: {arg}."
                     )
+                if arg._parts:
+                    _parts.extend(arg._parts)
+                    _is_dir = arg._is_dir
             else:
-                raise TypeError
-
-        # resolve self._is_dir
-        # inspect the last argument
-        if isinstance(arg, str):
-            _is_dir = arg.endswith("/")
-        elif isinstance(arg, BaseS3Path):
-            _is_dir = arg._is_dir
-        else:  # pragma: no cover
-            raise TypeError
+                raise TypeError(
+                    "from the second arguments, it has to be a str or a "
+                    f"relative S3Path, got {type(arg).__name__}: {arg!r}"
+                )
 
         if (_bucket is not None) and len(_parts) == 0:  # bucket root
             _is_dir = True
@@ -195,36 +192,34 @@ class BaseS3Path:
             bucket=_bucket,
             parts=_parts,
             is_dir=_is_dir,
-            init=init,
         )
 
     @classmethod
     def _from_parsed_parts(
         cls: type[S3Path],
         bucket: str | None,
-        parts: list[str],
+        parts: T.Iterable[str],
         is_dir: bool | None,
-        init: bool = True,
     ) -> S3Path:
+        """
+        Build the object from already parsed parts, without any parsing.
+
+        ``parts`` is copied into a tuple, so the path never shares a mutable
+        list with the caller and can not be changed after it is built.
+        """
         self = object.__new__(cls)
         self._bucket = bucket
-        self._parts = parts
+        self._parts = tuple(parts)
         self._is_dir = is_dir
         self._meta = None
-        if init:
-            self._init()
         return self
-
-    def _init(self: S3Path) -> None:
-        """
-        Additional instance initialization
-        """
-        pass
 
     @FilterableProperty
     def parts(self: S3Path) -> list[str]:
         """
         Provides sequence-like access to the components in the filesystem path.
         It doesn't include the bucket, because bucket is considered as "drive".
+
+        It returns a new list each time, changing it does not change the path.
         """
-        return self._parts
+        return list(self._parts)

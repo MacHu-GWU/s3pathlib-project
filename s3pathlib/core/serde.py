@@ -23,7 +23,7 @@ class SerdeAPIMixin:
         """
         return {
             "bucket": self._bucket,
-            "parts": self._parts,
+            "parts": list(self._parts),
             "is_dir": self._is_dir,
         }
 

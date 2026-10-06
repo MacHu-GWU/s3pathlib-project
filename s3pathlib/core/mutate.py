@@ -91,13 +91,13 @@ class MutateAPIMixin:
             return p
 
         if (new_dirpath is None) and (new_dirname is not None):
-            dir_parts = self.parent.parent._parts + [new_dirname]
+            dir_parts = self.parent.parent.parts + [new_dirname]
         elif (new_dirpath is not None) and (new_dirname is None):
             dir_parts = [
                 new_dirpath,
             ]
         elif (new_dirpath is None) and (new_dirname is None):
-            dir_parts = self.parent._parts
+            dir_parts = self.parent.parts
         else:
             raise ValueError("Cannot having both 'new_dirpath' and 'new_dirname'!")
 

@@ -71,32 +71,32 @@ class AttributeAPIMixin(BaseTest):
     def _test_parent(self):
         p = S3Path("bucket", "folder", "file.txt").parent
         assert p._bucket == "bucket"
-        assert p._parts == ["folder"]
+        assert p.parts == ["folder"]
         assert p._is_dir is True
 
         p = S3Path("bucket", "folder", "subfolder/").parent
         assert p._bucket == "bucket"
-        assert p._parts == ["folder"]
+        assert p.parts == ["folder"]
         assert p._is_dir is True
 
         p = S3Path("bucket", "folder").parent
         assert p._bucket == "bucket"
-        assert p._parts == []
+        assert p.parts == []
         assert p._is_dir is True
 
         p = S3Path("bucket", "file.txt").parent
         assert p._bucket == "bucket"
-        assert p._parts == []
+        assert p.parts == []
         assert p._is_dir is True
 
         p = S3Path("bucket").parent
         assert p._bucket == "bucket"
-        assert p._parts == []
+        assert p.parts == []
         assert p._is_dir is True
 
         p = S3Path().parent
         assert p._bucket == None
-        assert p._parts == []
+        assert p.parts == []
         assert p._is_dir is None
 
     def _test_parents(self):

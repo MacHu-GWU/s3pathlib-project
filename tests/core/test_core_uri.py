@@ -97,42 +97,42 @@ class TestUriAPIMixin:
     def test_from_s3_uri(self):
         p = S3Path.from_s3_uri("s3://bucket/")
         assert p._bucket == "bucket"
-        assert p._parts == []
+        assert p.parts == []
         assert p._is_dir is True
 
         p = S3Path.from_s3_uri("s3://bucket/folder/")
         assert p._bucket == "bucket"
-        assert p._parts == [
+        assert p.parts == [
             "folder",
         ]
         assert p._is_dir is True
 
         p = S3Path.from_s3_uri("s3://bucket/folder/file.txt")
         assert p._bucket == "bucket"
-        assert p._parts == ["folder", "file.txt"]
+        assert p.parts == ["folder", "file.txt"]
         assert p._is_dir is False
 
     def test_from_s3_arn(self):
         p = S3Path.from_s3_arn("arn:aws:s3:::bucket")
         assert p._bucket == "bucket"
-        assert p._parts == []
+        assert p.parts == []
         assert p._is_dir is True
 
         p = S3Path.from_s3_arn("arn:aws:s3:::bucket/")
         assert p._bucket == "bucket"
-        assert p._parts == []
+        assert p.parts == []
         assert p._is_dir is True
 
         p = S3Path.from_s3_arn("arn:aws:s3:::bucket/folder/")
         assert p._bucket == "bucket"
-        assert p._parts == [
+        assert p.parts == [
             "folder",
         ]
         assert p._is_dir is True
 
         p = S3Path.from_s3_arn("arn:aws:s3:::bucket/folder/file.txt")
         assert p._bucket == "bucket"
-        assert p._parts == ["folder", "file.txt"]
+        assert p.parts == ["folder", "file.txt"]
         assert p._is_dir is False
 
     @pytest.mark.parametrize(

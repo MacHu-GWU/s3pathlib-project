@@ -18,7 +18,7 @@ class TestRelativePathAPIMixin:
         ]
         for p in p_list:
             assert p._bucket is None
-            assert p._parts == ["a", "b", "c"]
+            assert p.parts == ["a", "b", "c"]
             assert p._is_dir is False
 
         # these s3path are equivalent
@@ -28,7 +28,7 @@ class TestRelativePathAPIMixin:
         ]
         for p in p_list:
             assert p._bucket is None
-            assert p._parts == []
+            assert p.parts == []
             assert p._is_dir is None
 
     def test_mixed_s3path_parts(self):
@@ -41,7 +41,7 @@ class TestRelativePathAPIMixin:
             ),
         )
         assert p._bucket == "bucket"
-        assert p._parts == ["folder", "relpath", "file.txt"]
+        assert p.parts == ["folder", "relpath", "file.txt"]
         assert p._is_dir is False
 
         # join with relpath
@@ -56,7 +56,7 @@ class TestRelativePathAPIMixin:
             ),
         )
         assert p._bucket == "bucket"
-        assert p._parts == ["folder", "relpath"]
+        assert p.parts == ["folder", "relpath"]
         assert p._is_dir is True
 
         p = S3Path(
@@ -68,7 +68,7 @@ class TestRelativePathAPIMixin:
             ),
         )
         assert p._bucket == "bucket"
-        assert p._parts == ["folder", "relpath", "file.txt"]
+        assert p.parts == ["folder", "relpath", "file.txt"]
         assert p._is_dir is False
 
         # multiple relpath
@@ -97,31 +97,31 @@ class TestRelativePathAPIMixin:
             ),
         )
         assert p._bucket == "bucket"
-        assert p._parts == ["folder", "relpath1", "relpath2", "file.txt"]
+        assert p.parts == ["folder", "relpath1", "relpath2", "file.txt"]
         assert p._is_dir is False
 
     def test_relative_to(self):
         # if self is file, then relative path is also a file
         p = S3Path("bucket", "a", "b", "c").relative_to(S3Path("bucket", "a"))
         assert p.is_relpath()
-        assert p._parts == ["b", "c"]
+        assert p.parts == ["b", "c"]
         assert p._is_dir is False
 
         # if self is dir, then relative path is also a dir
         p = S3Path("bucket", "a", "b", "c/").relative_to(S3Path("bucket", "a"))
         assert p.is_relpath()
-        assert p._parts == ["b", "c"]
+        assert p.parts == ["b", "c"]
         assert p._is_dir is True
 
         # relpath to bucket root
         p = S3Path("bucket", "a", "b").relative_to(S3Path("bucket"))
         assert p.is_relpath()
-        assert p._parts == ["a", "b"]
+        assert p.parts == ["a", "b"]
         assert p._is_dir is False
 
         p = S3Path("bucket", "a", "b/").relative_to(S3Path("bucket"))
         assert p.is_relpath()
-        assert p._parts == ["a", "b"]
+        assert p.parts == ["a", "b"]
         assert p._is_dir is True
 
         # relative to self
@@ -132,7 +132,7 @@ class TestRelativePathAPIMixin:
         ]
         for p in p_list:
             assert p._bucket is None
-            assert p._parts == []
+            assert p.parts == []
             assert p._is_dir is None
 
         # exceptions

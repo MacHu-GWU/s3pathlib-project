@@ -46,12 +46,12 @@ class TestMutateAPIMixin:
         p1 = S3Path.make_relpath("a/b/c.jpg")
         p2 = p1.change(new_basename="d.png")
         assert p2._bucket is None
-        assert p2._parts == ["a", "b", "d.png"]
+        assert p2.parts == ["a", "b", "d.png"]
         assert p2._is_dir is False
 
         p2 = p1.change(new_basename="d/")
         assert p2._bucket is None
-        assert p2._parts == ["a", "b", "d"]
+        assert p2.parts == ["a", "b", "d"]
         assert p2._is_dir is True
 
         with pytest.raises(ValueError):
