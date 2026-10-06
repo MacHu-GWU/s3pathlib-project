@@ -3,7 +3,6 @@
 import pytest
 
 from s3pathlib.core import S3Path
-from s3pathlib.exc import ensure_all_none
 from s3pathlib.exc import S3PathlibError
 from s3pathlib.exc import S3NotExist
 from s3pathlib.exc import S3BucketNotExist
@@ -21,68 +20,6 @@ from s3pathlib.exc import S3PathIsNotFolderError
 from s3pathlib.exc import S3PathIsNotFileError
 from s3pathlib.exc import S3PathIsNotRelpathError
 from s3pathlib.tests import run_cov_test
-
-
-# ------------------------------------------------------------------------------
-# ensure_all_none
-# ------------------------------------------------------------------------------
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        dict(a=None),
-        dict(a=None, b=None, c=None),
-    ],
-)
-def test_ensure_all_none_all_none(kwargs):
-    """
-    Passes silently when every argument is None.
-    """
-    assert ensure_all_none(**kwargs) is None
-
-
-def test_ensure_all_none_no_kwargs():
-    """
-    Calling with no arguments is a programming error, not a vacuous pass.
-    """
-    with pytest.raises(ValueError):
-        ensure_all_none()
-
-
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        dict(a=1, b=None),
-        dict(a=None, b="x"),
-        dict(a=1, b=2),
-    ],
-)
-def test_ensure_all_none_not_none(kwargs):
-    """
-    Raises when any argument, in any position, is not None.
-    """
-    with pytest.raises(ValueError):
-        ensure_all_none(**kwargs)
-
-
-@pytest.mark.parametrize("value", [0, "", False, [], {}])
-def test_ensure_all_none_falsy_counts_as_not_none(value):
-    """
-    Falsy values are still "provided"; the check must use ``is not None``,
-    not truthiness.
-    """
-    with pytest.raises(ValueError):
-        ensure_all_none(a=None, b=value)
-
-
-def test_ensure_all_none_message_lists_arg_names():
-    """
-    The error message names the arguments so the caller knows what to fix.
-    """
-    with pytest.raises(ValueError) as e:
-        ensure_all_none(new_dirname="d", new_ext=None)
-    assert (
-        str(e.value) == "arguments from ['new_dirname', 'new_ext'] has to be all None!"
-    )
 
 
 # ------------------------------------------------------------------------------

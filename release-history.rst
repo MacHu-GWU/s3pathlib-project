@@ -26,7 +26,7 @@ Backlog (TODO)
 - Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11.
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
 - Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``, ``boto-session-manager>=2.0.1,<3.0.0``, ``func-args>=1.0.2``.
-- Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none``, it was not used by the library.
+- Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none`` and ``s3pathlib.exc.ensure_all_none``; the library no longer uses them.
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
 - Remove ``deprecate_v1``, ``deprecate_v2``, ``warn_deprecate`` and ``warn_beta`` from ``s3pathlib.marker``.
@@ -44,6 +44,7 @@ Backlog (TODO)
 
     - ``S3Path("bucket").to_file()`` raises ``S3PathIsNotFileError`` (a ``TypeError``). Before, it returned a "bucket that is a file", for which ``is_file()`` was ``True`` and ``is_bucket()`` was ``False``.
     - ``S3Path.from_dict`` raises ``S3ValidationError`` for data that is not a valid state, e.g. an empty bucket, a part containing ``/``, or a bucket root with ``is_dir=False``. Before, it built a broken path such as ``s3:///a``.
+- ``S3Path.change`` rejects arguments that used to silently give a wrong path, with ``ValueError``: ``new_ext`` that is not empty and does not start with ``.`` (``new_ext="png"`` gave ``c.jpg`` -> ``cpng``), ``new_fname`` or ``new_ext`` containing ``/``, an empty ``new_basename`` (it turned the path into its parent dir as a file), and ``new_dirname`` on a path without parent dir (it added a dir). ``new_fname`` / ``new_ext`` on a dir raise ``ValueError`` with a message instead of a bare ``TypeError``.
 - ``relative_to`` (and ``-``) is now the exact inverse of ``/``: ``base / target.relative_to(base) == target``. When both paths have the same parts but one is a file and the other a dir (e.g. ``S3Path("b", "a/").relative_to(S3Path("b", "a"))``), it raises ``ValueError``. Before, it returned the void path, and ``base / void`` was not ``target``.
 
 **Features and Improvements**
@@ -81,6 +82,7 @@ Backlog (TODO)
 - ``validate_s3_key`` measured the 1024 limit in characters; it now measures UTF-8 bytes, as S3 does.
 - ``validate_s3_bucket`` rejected valid names such as ``1.2.3`` as IP addresses when Python runs with ``-O``.
 - ``S3Path(...)`` ignores empty arguments (``""`` or a void path) when deciding whether the path is a file or a directory. Before, ``S3Path("bucket", "a", S3Path())`` was neither a file nor a directory, and ``S3Path("bucket", "a/", "")`` became a file.
+- ``S3Path.change`` failed with a bare ``TypeError`` on a dir, a bucket or the void path, even for ``change()`` or ``change(new_bucket=...)``; it now keeps the last part and the type of the path. ``change(new_bucket=..., new_abspath=...)`` ignored ``new_bucket``, and ``new_abspath`` on a relative path raised ``TypeError``; both work now.
 - ``S3Path.make_relpath("a", "/")`` is a dir, the same as ``S3Path(S3Path(), "a", "/")``. Before, ``make_relpath`` ignored a trailing ``"/"`` argument and returned a file.
 - ``ensure_relpath`` and ``ensure_not_relpath`` had their error messages swapped.
 - The parent of a single part relative path (e.g. ``S3Path.make_relpath("a").parent``) and ``S3Path(S3Path(), "/")`` are now the void path. Before, they were a "void path that is a dir", for which ``is_void()`` was ``True`` but ``is_relpath()`` was ``False``.
@@ -98,6 +100,8 @@ Backlog (TODO)
 - ``relative_to`` raises ``TypeError`` with a message for an argument that is not an ``S3Path``, instead of ``AttributeError``, and its ``ValueError`` messages say why the path is not under the other one.
 - ``S3Path() / [a, b]`` joins the list at once, the same as ``joinpath(a, b)``.
 - ``S3Path.get_arn``, ``S3Path.get_console_url`` and ``utils.make_s3_console_url`` raise ``S3ValidationError`` (still a ``ValueError``) for an unsupported partition, with a message listing the supported ones. An empty region (``""``) also raises ``S3ValidationError`` instead of building a URL whose host starts with ``.``.
+- Document every argument of ``S3Path.change`` and the order they are applied in.
+- Fix the ``S3Path.to_file`` docstring example, which called ``to_dir``.
 - Fix the ``S3Path.key``, ``S3Path.uri`` and ``S3Path.parent`` docstring examples, and the ``-`` docstring, which had the operands swapped.
 - Document how ``S3Path`` objects compare (``s3pathlib.core.comparison``): equality ignores the object version, and the order is part by part like ``pathlib``, not the key string order of S3 list APIs.
 - Document the six states of an ``S3Path`` (``s3pathlib.core.base``), the full truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` / ``is_dir`` / ``is_file`` (``s3pathlib.core.is_test``), and what ``bucket`` / ``key`` / ``uri`` / ``arn`` / ``console_url`` return for each kind of path and why (``s3pathlib.core.uri``).

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Exceptions and argument validators.
+Exceptions.
 
 Every exception raised by ``s3pathlib`` inherits from :class:`S3PathlibError`.
 Each one also inherits from the matching builtin exception, so
@@ -26,16 +26,6 @@ Each one also inherits from the matching builtin exception, so
 """
 
 from __future__ import annotations
-
-
-def ensure_all_none(**kwargs) -> None:
-    """
-    Ensure all the keyword arguments are None.
-    """
-    if len(kwargs) == 0:
-        raise ValueError
-    if sum([v is not None for _, v in kwargs.items()]) != 0:
-        raise ValueError(f"arguments from {list(kwargs)} has to be all None!")
 
 
 class S3PathlibError(Exception):
