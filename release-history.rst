@@ -49,6 +49,7 @@ Backlog (TODO)
 - ``relative_to`` (and ``-``) is now the exact inverse of ``/``: ``base / target.relative_to(base) == target``. When both paths have the same parts but one is a file and the other a dir (e.g. ``S3Path("b", "a/").relative_to(S3Path("b", "a"))``), it raises ``ValueError``. Before, it returned the void path, and ``base / void`` was not ``target``.
 - ``s3pathlib.context`` is renamed to ``s3_context`` (``from s3pathlib.api import s3_context``), and its class ``Context`` to ``S3Context``. ``context`` was too generic and is shadowed by the ``context`` argument of AWS Lambda handlers (``def lambda_handler(event, context)``). The old names ``context`` and ``Context`` are removed.
 - ``s3_context`` only holds the default S3 client. Remove ``attach_boto_session``, ``attach_sts_client``, ``boto_ses``, ``sts_client``, ``aws_account_id`` and ``aws_region``. Replace ``context.attach_boto_session(boto_ses)`` with ``s3_context.attach_s3_client(boto_ses.client("s3"))``. For the account id, call ``boto_ses.client("sts").get_caller_identity()["Account"]``; for the region, read ``s3_client.meta.region_name``.
+- ``better_client.is_bucket_exists`` (and ``S3Path("bucket").exists()``, which uses it) raises ``S3PermissionDenied`` (a ``PermissionError``) when S3 returns 403, i.e. the bucket exists but belongs to another AWS account, or you lack the ``s3:ListBucket`` permission. Before, it raised the ``botocore.exceptions.ClientError`` as is; the ``ClientError`` is now the ``__cause__``.
 
 **Features and Improvements**
 
@@ -102,6 +103,7 @@ Backlog (TODO)
 - Comparing an ``S3Path`` with another type (e.g. ``p == "s3://bucket/key"``, ``p != None``, or ``p in ["a", p]``) raised ``AttributeError``. Now ``==`` returns ``False`` and ``<`` / ``<=`` / ``>`` / ``>=`` raise ``TypeError``, the same as ``pathlib``.
 - ``S3Path.parts`` returned the internal list, so changing it changed the path but not its cached hash, which broke ``==`` and ``hash``. It now returns a copy.
 - When the default boto session could not be created at import time (e.g. ``AWS_PROFILE`` names an unknown profile), the error was silently ignored and every later API call failed with ``AttributeError: 'NoneType' object has no attribute 'client'``, even after fixing the environment. The error (e.g. ``ProfileNotFound``) is now raised by the first API call, and the next call works once the environment is fixed.
+- ``better_client.is_bucket_exists`` recognized "not found" by looking for ``Not Found`` in the error message; it now checks the error code ``404``, as the message of a ``HEAD`` response is not reliable.
 
 **Minor Improvements**
 
