@@ -136,6 +136,7 @@ Backlog (TODO)
 - Disable unit tests that run against real AWS; only the moto-mocked tests run by default.
 - Add the idempotent mise tasks ``setup-aws-ci`` and ``teardown-aws-ci``, which create / delete the test S3 buckets, the test IAM user (its policy is built in code, replacing ``.github/workflows/iam-policy.json``) and its GitHub Actions secrets. The AWS profiles used by the tasks and by the tests against real AWS are defined in ``mise.toml``.
 - The test helper ``s3pathlib.tests.mock.BaseTest`` no longer uses ``boto_session_manager``: ``cls.bsm`` is replaced by ``cls.boto_ses``, ``cls.aws_account_id`` and ``cls.aws_region``, and the S3 client is ``self.s3_client`` (``s3_context.s3_client``).
+- Add ``s3pathlib.tests.mock_aws``, the new base class for tests that call AWS. Every test module runs against moto (``TestMock``) and, when ``S3PATHLIB_TEST_REAL_AWS=true`` (``mise run cov-aws``), against real AWS (``TestRealAws``); ``@mock_only`` / ``@real_aws_only`` mark tests that only work in one mode. Each test gets its own S3 folder, and the real AWS folder of a test class is emptied when it starts. ``mise run setup-aws-ci`` also adds a lifecycle rule that expires the unit test objects after one day. Shared helpers moved to ``s3pathlib.tests.aws_helpers``.
 
 
 2.3.6 (2025-08-12)

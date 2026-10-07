@@ -3,7 +3,8 @@
 """
 Create the AWS test environment of s3pathlib (idempotent).
 
-1. Create the two test buckets if missing, and enable versioning on the second.
+1. Create the two test buckets if missing, enable versioning on the second,
+   and make the unit test objects expire after one day (lifecycle rule).
 2. Create the test IAM user with its inline policy and an access key.
 3. Store the access key in the GitHub Actions secrets.
 4. Print the ``~/.aws`` profile to paste, for running the tests locally.
@@ -30,7 +31,9 @@ from aws_ci import GITHUB_SECRET_ACCESS_KEY_ID
 from aws_ci import GITHUB_SECRET_SECRET_ACCESS_KEY
 from aws_ci import IAM_POLICY_NAME
 from aws_ci import IAM_USER_NAME
+from aws_ci import UNIT_TEST_PREFIX
 from aws_ci import build_iam_policy
+from aws_ci import build_lifecycle_configuration
 from aws_ci import delete_github_secrets
 from aws_ci import delete_iam_user
 from aws_ci import get_bucket
@@ -85,6 +88,13 @@ def ensure_bucket(s3_client, bucket: str, versioning: bool):
             print("  versioning is off")
         else:
             print(f"  WARNING: versioning is {status}, expected off")
+
+    # replaces the whole lifecycle configuration; these buckets only hold tests
+    s3_client.put_bucket_lifecycle_configuration(
+        Bucket=bucket,
+        LifecycleConfiguration=build_lifecycle_configuration(),
+    )
+    print(f"  lifecycle: objects under {UNIT_TEST_PREFIX} expire after 1 day")
 
 
 def create_iam_user(iam_client, aws_account_id: str) -> dict:

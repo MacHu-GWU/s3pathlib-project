@@ -53,6 +53,11 @@ AWS_REGION = "us-east-1"
 IAM_USER_NAME = "project-s3pathlib-test"
 IAM_POLICY_NAME = "s3pathlib-unit-test"
 
+# Keep in sync with ``get_root_prefix`` in ``s3pathlib/tests/mock_aws.py``:
+# every object the unit tests write is under this prefix.
+UNIT_TEST_PREFIX = "projects/s3pathlib/unittest/"
+LIFECYCLE_RULE_ID = "expire-unit-test-objects"
+
 # ------------------------------------------------------------------------------
 # GitHub Actions secrets (read by .github/workflows/main.yml)
 # ------------------------------------------------------------------------------
@@ -80,6 +85,26 @@ def get_bucket_with_versioning(aws_account_id: str) -> str:
     The test bucket with versioning enabled.
     """
     return get_bucket_name(aws_account_id, "s3pathlib-test-versioning-on")
+
+
+def build_lifecycle_configuration() -> dict:
+    """
+    The lifecycle configuration of both test buckets: everything the unit
+    tests leave behind expires after one day, including old object versions
+    and unfinished multipart uploads, so that the buckets do not grow forever.
+    """
+    return {
+        "Rules": [
+            {
+                "ID": LIFECYCLE_RULE_ID,
+                "Filter": {"Prefix": UNIT_TEST_PREFIX},
+                "Status": "Enabled",
+                "Expiration": {"Days": 1},
+                "NoncurrentVersionExpiration": {"NoncurrentDays": 1},
+                "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1},
+            }
+        ]
+    }
 
 
 def build_iam_policy(aws_account_id: str) -> dict:

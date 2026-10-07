@@ -53,6 +53,11 @@ description = "🧪📊 Run unit tests with code coverage using pytest (generate
 run = ".venv/bin/pytest tests -s --tb=native --cov=s3pathlib --cov-report term-missing --cov-report html:htmlcov"
 depends = ["inst"]
 
+[tasks.cov-aws]
+description = "🧪☁️ Run unit tests with code coverage against moto AND real AWS (sets S3PATHLIB_TEST_REAL_AWS=true; needs the test AWS profile)"
+run = "S3PATHLIB_TEST_REAL_AWS=true .venv/bin/pytest tests -s --tb=native --cov=s3pathlib --cov-report term-missing --cov-report html:htmlcov"
+depends = ["inst"]
+
 [tasks.view-cov]
 description = "👀📊 Open code coverage HTML report in browser (requires 'cov' task to run first)"
 run = "open htmlcov/index.html"
