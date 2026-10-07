@@ -131,6 +131,7 @@ Backlog (TODO)
 - Document the six states of an ``S3Path`` (``s3pathlib.core.base``), the full truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` / ``is_dir`` / ``is_file`` (``s3pathlib.core.is_test``), and what ``bucket`` / ``key`` / ``uri`` / ``arn`` / ``console_url`` return for each kind of path and why (``s3pathlib.core.uri``).
 - ``s3_context.attach_s3_client(None)`` raises ``TypeError``. Any other object is accepted as the client (e.g. a stub in tests).
 - ``S3FileNotExist`` raised by ``better_client.head_object`` names the version when ``version_id`` is given, and keeps the ``ClientError`` as its ``__cause__``.
+- Document that ``better_client.update_bucket_tagging`` and ``better_client.update_object_tagging`` merge like ``dict.update`` and are not atomic, which version ``update_object_tagging`` updates, and which boto3 errors they raise as is (e.g. ``MethodNotAllowed`` for a delete marker). Tag values with spaces, ``+`` and non-ASCII characters are tested against real AWS.
 
 **Miscellaneous**
 
@@ -143,6 +144,8 @@ Backlog (TODO)
 - Add the idempotent mise tasks ``setup-aws-ci`` and ``teardown-aws-ci``, which create / delete the test S3 buckets, the test IAM user (its policy is built in code, replacing ``.github/workflows/iam-policy.json``) and its GitHub Actions secrets. The AWS profiles used by the tasks and by the tests against real AWS are defined in ``mise.toml``.
 - The test helper ``s3pathlib.tests.mock.BaseTest`` no longer uses ``boto_session_manager``: ``cls.bsm`` is replaced by ``cls.boto_ses``, ``cls.aws_account_id`` and ``cls.aws_region``, and the S3 client is ``self.s3_client`` (``s3_context.s3_client``).
 - Add ``s3pathlib.tests.mock_aws``, the new base class for tests that call AWS. Every test module runs against moto (``TestMock``) and, when ``S3PATHLIB_TEST_REAL_AWS=true`` (``mise run cov-aws``), against real AWS (``TestRealAws``); ``@mock_only`` / ``@real_aws_only`` mark tests that only work in one mode. Each test gets its own S3 folder, and the real AWS folder of a test class is emptied when it starts. ``mise run setup-aws-ci`` also adds a lifecycle rule that expires the unit test objects after one day. Shared helpers moved to ``s3pathlib.tests.aws_helpers``.
+- ``mise run setup-aws-ci`` updates the inline policy of an existing test IAM user (without touching its access key), and the policy allows bucket tagging on temporary buckets.
+
 
 
 2.3.6 (2025-08-12)

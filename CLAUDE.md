@@ -27,6 +27,14 @@ Python 3.11+ syntax: `X | None`, `A | B`, `list[str]`, `dict[str, int]`, `type[X
 
 3.0.0 is the baseline; its public API is listed in `release-history.rst`. Only use `.. versionadded::` / `.. versionchanged::` for changes after 3.0.0.
 
+## Errors
+
+Raise AWS errors as is when they are usable; convert them only when they are not.
+
+- Raise as is: errors of AWS calls with a response body (get, list, tagging, copy, delete, ...). boto3 gives named, documented errors (`NoSuchKey`, `NoSuchBucket`, `AccessDenied`) that users and AI already know how to catch.
+- Use `s3pathlib.exc`: for s3pathlib's own rules and features (wrong path type, `overwrite=False`, `ignore_not_found`), and for HEAD calls (`head_bucket`, `head_object`), whose errors are a bare `"404"` / `"403"` that `s3_client.exceptions.*` cannot catch. Always `raise ... from e`.
+- Recognize an AWS error by `e.response["Error"]["Code"]` or a modeled exception, never by the message text.
+
 ## Tests
 
 - Tests live in `tests/`, mirroring the source tree. Directories stay the same; file names get the full path as a prefix, e.g. `s3pathlib/core/copy.py` is tested by `tests/core/test_core_copy.py`.

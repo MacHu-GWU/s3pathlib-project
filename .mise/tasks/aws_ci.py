@@ -112,9 +112,10 @@ def build_iam_policy(aws_account_id: str) -> dict:
     The inline policy of the test IAM user.
 
     - Full access to the two test buckets and their objects.
-    - Create / delete / inspect any bucket: ``tests/core/test_core_bucket.py``
-      creates and deletes buckets with random names, in several regions, and
-      calls ``list_buckets``.
+    - Create / delete / inspect / tag any bucket: tests create and delete
+      temporary buckets with random names, in several regions (e.g.
+      ``tests/core/test_core_bucket.py``, and the bucket tagging tests, which
+      must not change the shared test buckets), and call ``list_buckets``.
     - ``sts:GetCallerIdentity``: the tests read the account id to find the
       bucket names.
     """
@@ -145,6 +146,8 @@ def build_iam_policy(aws_account_id: str) -> dict:
                     "s3:GetBucketLocation",
                     "s3:GetBucketVersioning",
                     "s3:PutBucketVersioning",
+                    "s3:GetBucketTagging",
+                    "s3:PutBucketTagging",
                 ],
                 "Resource": "*",
             },

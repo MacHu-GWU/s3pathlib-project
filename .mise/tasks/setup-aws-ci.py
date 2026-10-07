@@ -9,8 +9,9 @@ Create the AWS test environment of s3pathlib (idempotent).
 3. Store the access key in the GitHub Actions secrets.
 4. Print the ``~/.aws`` profile to paste, for running the tests locally.
 
-If the IAM user already exists, steps 2-4 are skipped entirely: the secret
-access key can only be read when it is created. Pass ``--force`` to delete the
+If the IAM user already exists, only its inline policy is updated, and the
+access key steps are skipped: the secret access key can only be read when it is
+created. Pass ``--force`` to delete the
 user and the secrets first and create them again, e.g. when a previous run
 created the user but failed to set the GitHub secrets.
 
@@ -97,14 +98,10 @@ def ensure_bucket(s3_client, bucket: str, versioning: bool):
     print(f"  lifecycle: objects under {UNIT_TEST_PREFIX} expire after 1 day")
 
 
-def create_iam_user(iam_client, aws_account_id: str) -> dict:
+def put_iam_policy(iam_client, aws_account_id: str):
     """
-    Create the IAM user, put its inline policy, and return a new access key.
+    Put (create or replace) the inline policy of the IAM user. Idempotent.
     """
-    print(f"Create IAM user {IAM_USER_NAME} ({get_iam_user_console_url(IAM_USER_NAME)}):")
-    iam_client.create_user(UserName=IAM_USER_NAME)
-    print("  created user")
-
     policy = build_iam_policy(aws_account_id)
     iam_client.put_user_policy(
         UserName=IAM_USER_NAME,
@@ -113,6 +110,17 @@ def create_iam_user(iam_client, aws_account_id: str) -> dict:
     )
     print(f"  put inline policy {IAM_POLICY_NAME}:")
     print_json(policy)
+
+
+def create_iam_user(iam_client, aws_account_id: str) -> dict:
+    """
+    Create the IAM user, put its inline policy, and return a new access key.
+    """
+    print(f"Create IAM user {IAM_USER_NAME} ({get_iam_user_console_url(IAM_USER_NAME)}):")
+    iam_client.create_user(UserName=IAM_USER_NAME)
+    print("  created user")
+
+    put_iam_policy(iam_client, aws_account_id)
 
     res = iam_client.create_access_key(UserName=IAM_USER_NAME)
     access_key = res["AccessKey"]
@@ -166,9 +174,12 @@ def main():
         else:
             print(f"IAM user {IAM_USER_NAME} already exists, skip creating it.")
             print(f"  {get_iam_user_console_url(IAM_USER_NAME)}")
+            # the policy is not a secret: keep it up to date
+            put_iam_policy(iam_client, aws_account_id)
             print(
-                "The GitHub secrets and the local profile are not touched. "
-                "Run with --force to recreate the user and its access key."
+                "The access key, the GitHub secrets and the local profile are "
+                "not touched. Run with --force to recreate the user and its "
+                "access key."
             )
             return
 
