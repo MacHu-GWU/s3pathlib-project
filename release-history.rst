@@ -110,6 +110,8 @@ Backlog (TODO)
 - ``better_client.head_object`` recognized "not found" by looking for ``Not Found`` in the error message; it now checks the error code. With moto, a missing bucket raised ``NoSuchBucket`` instead of meaning "not found" as on AWS; both now behave the same.
 - ``better_client.paginate_list_objects_v2`` with ``delimiter`` returned more than ``limit`` entries, because ``limit`` only counted the objects, not the folders (common prefixes): ``limit=3`` could return 8 entries. ``limit`` now counts both, the same as S3's ``MaxKeys``. This also applies to ``S3Path.iterdir(limit=...)`` and ``S3Path.iter_objects(recursive=False, limit=...)``.
 - ``better_client.paginate_list_objects_v2`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
+- ``better_client.paginate_list_object_versions`` returned more than ``limit`` entries whenever there were delete markers or folders, because ``limit`` only counted the versions: ``limit=3`` could return 4 entries. ``limit`` now counts versions, delete markers and common prefixes together, the same as S3's ``MaxKeys``. This also applies to ``S3Path.list_object_versions(limit=...)`` and ``better_client.delete_object_versions(limit=...)``.
+- ``better_client.paginate_list_object_versions`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
 
 **Minor Improvements**
 
@@ -136,6 +138,7 @@ Backlog (TODO)
 - ``S3FileNotExist`` raised by ``better_client.head_object`` names the version when ``version_id`` is given, and keeps the ``ClientError`` as its ``__cause__``.
 - Document that ``better_client.update_bucket_tagging`` and ``better_client.update_object_tagging`` merge like ``dict.update`` and are not atomic, which version ``update_object_tagging`` updates, and which boto3 errors they raise as is (e.g. ``MethodNotAllowed`` for a delete marker). Tag values with spaces, ``+`` and non-ASCII characters are tested against real AWS.
 - Document that the result of ``better_client.paginate_list_objects_v2`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix, not a folder. Fix the ``is_content_an_object`` truth table: a key ending with ``/`` that has data is an object.
+- Document that the result of ``better_client.paginate_list_object_versions`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix. Fix its docstring, which named the wrong return type. ``better_client.list_object_versions.CommonPrefixTypeDefIterproxy`` is now the same class as in ``better_client.list_objects``.
 
 **Miscellaneous**
 
