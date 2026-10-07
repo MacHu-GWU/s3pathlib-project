@@ -30,6 +30,10 @@ prefix = "projects/s3pathlib/unittest/{runtime}/{os}/py{major}{minor}".format(
 
 
 def get_bucket_name(bsm: BotoSesManager, name: str) -> str:
+    """
+    Keep in sync with ``get_bucket_name`` in ``.mise/tasks/aws_ci.py``, which
+    creates the buckets on real AWS.
+    """
     return f"{bsm.aws_account_id}-{bsm.aws_region}-{name}"
 
 
@@ -135,7 +139,14 @@ class BaseTest:
                     "AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI"
                 ]
             else:
-                kwargs["profile_name"] = "project_s3pathlib"
+                # the profile name is defined in mise.toml
+                env_name = "S3PATHLIB_TEST_AWS_PROFILE"
+                if env_name not in os.environ:
+                    raise RuntimeError(
+                        f"Environment variable {env_name} is not set; "
+                        "run the tests with mise, which sets it from mise.toml"
+                    )
+                kwargs["profile_name"] = os.environ[env_name]
         else:
             raise NotImplementedError("use_mock must be True or False!")
 

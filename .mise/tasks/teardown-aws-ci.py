@@ -1,0 +1,54 @@
+# -*- coding: utf-8 -*-
+
+"""
+Delete the test IAM user of s3pathlib and its GitHub Actions secrets
+(idempotent). The test buckets are kept.
+
+Usage::
+
+    mise run teardown-aws-ci
+
+See ``aws_ci.py`` for the resources and the profiles.
+"""
+
+from aws_ci import ENV_TEST_AWS_PROFILE
+from aws_ci import IAM_USER_NAME
+from aws_ci import delete_github_secrets
+from aws_ci import delete_iam_user
+from aws_ci import get_aws_config_path
+from aws_ci import get_aws_credentials_path
+from aws_ci import get_bucket
+from aws_ci import get_bucket_console_url
+from aws_ci import get_bucket_with_versioning
+from aws_ci import get_dev_boto_session
+from aws_ci import get_env
+from aws_ci import print_caller_identity
+
+
+def main():
+    test_profile = get_env(ENV_TEST_AWS_PROFILE)
+    boto_ses = get_dev_boto_session()
+    aws_account_id = print_caller_identity(boto_ses)
+    print()
+
+    delete_github_secrets()
+    print()
+    delete_iam_user(boto_ses.client("iam"), IAM_USER_NAME)
+    print()
+
+    print("The test buckets are kept:")
+    for bucket in [
+        get_bucket(aws_account_id),
+        get_bucket_with_versioning(aws_account_id),
+    ]:
+        print(f"  {get_bucket_console_url(bucket)}")
+    print()
+    print(f"The access key in the local profile {test_profile!r} no longer works.")
+    print("Remove the profile, or run 'mise run setup-aws-ci' to get a new key:")
+    print(f"  {get_aws_config_path().as_uri()}")
+    print(f"  {get_aws_credentials_path().as_uri()}")
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()

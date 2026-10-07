@@ -128,6 +128,7 @@ Backlog (TODO)
 - Switch the build backend from poetry to setuptools, and manage the development environment with mise and uv.
 - Add ``s3pathlib.paths`` to centralize project paths, and simplify the test helpers in ``s3pathlib.tests``.
 - Disable unit tests that run against real AWS; only the moto-mocked tests run by default.
+- Add the idempotent mise tasks ``setup-aws-ci`` and ``teardown-aws-ci``, which create / delete the test S3 buckets, the test IAM user (its policy is built in code, replacing ``.github/workflows/iam-policy.json``) and its GitHub Actions secrets. The AWS profiles used by the tasks and by the tests against real AWS are defined in ``mise.toml``.
 
 
 2.3.6 (2025-08-12)

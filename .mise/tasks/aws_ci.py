@@ -1,0 +1,340 @@
+# -*- coding: utf-8 -*-
+
+"""
+Shared settings and helpers for the AWS test environment of s3pathlib.
+
+The unit tests can run against real AWS (``use_mock = False``). They need:
+
+- two S3 buckets: a regular one and one with versioning enabled;
+- an IAM user that can only touch those buckets (plus create and delete
+  temporary buckets for ``tests/core/test_core_bucket.py``);
+- the access key of that user, in two places:
+
+    - the ``~/.aws`` profile named by ``S3PATHLIB_TEST_AWS_PROFILE``, for
+      running the tests locally;
+    - the GitHub Actions secrets ``AWS_ACCESS_KEY_ID_FOR_GITHUB_CI`` and
+      ``AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI``, for running them in CI.
+
+The bootstrap scripts (``setup-aws-ci.py``, ``teardown-aws-ci.py``) run with
+the more powerful profile named by ``S3PATHLIB_DEV_AWS_PROFILE``, which must be
+able to create buckets and IAM users.
+
+Both profile names are defined in the ``[env]`` section of ``mise.toml``,
+the single source of truth.
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+try:
+    import boto3
+    import botocore.exceptions
+    from github import Auth
+    from github import Github
+except ImportError:
+    print("Error: boto3 or PyGithub not installed. Run: uv sync --all-extras")
+    sys.exit(1)
+
+from utils import get_github_repo_info
+
+# ------------------------------------------------------------------------------
+# Environment variable names (values are set in mise.toml)
+# ------------------------------------------------------------------------------
+ENV_DEV_AWS_PROFILE = "S3PATHLIB_DEV_AWS_PROFILE"
+ENV_TEST_AWS_PROFILE = "S3PATHLIB_TEST_AWS_PROFILE"
+ENV_GITHUB_TOKEN = "GITHUB_TOKEN"
+
+# ------------------------------------------------------------------------------
+# AWS resources
+# ------------------------------------------------------------------------------
+AWS_REGION = "us-east-1"
+IAM_USER_NAME = "project-s3pathlib-test"
+IAM_POLICY_NAME = "s3pathlib-unit-test"
+
+# ------------------------------------------------------------------------------
+# GitHub Actions secrets (read by .github/workflows/main.yml)
+# ------------------------------------------------------------------------------
+GITHUB_SECRET_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID_FOR_GITHUB_CI"
+GITHUB_SECRET_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI"
+
+
+def get_bucket_name(aws_account_id: str, name: str) -> str:
+    """
+    Keep in sync with ``get_bucket_name`` in ``s3pathlib/tests/mock.py``,
+    which the tests use to find the buckets.
+    """
+    return f"{aws_account_id}-{AWS_REGION}-{name}"
+
+
+def get_bucket(aws_account_id: str) -> str:
+    """
+    The regular test bucket (versioning off).
+    """
+    return get_bucket_name(aws_account_id, "s3pathlib-test")
+
+
+def get_bucket_with_versioning(aws_account_id: str) -> str:
+    """
+    The test bucket with versioning enabled.
+    """
+    return get_bucket_name(aws_account_id, "s3pathlib-test-versioning-on")
+
+
+def build_iam_policy(aws_account_id: str) -> dict:
+    """
+    The inline policy of the test IAM user.
+
+    - Full access to the two test buckets and their objects.
+    - Create / delete / inspect any bucket: ``tests/core/test_core_bucket.py``
+      creates and deletes buckets with random names, in several regions, and
+      calls ``list_buckets``.
+    - ``sts:GetCallerIdentity``: the tests read the account id to find the
+      bucket names.
+    """
+    bucket_resources = list()
+    for bucket in [
+        get_bucket(aws_account_id),
+        get_bucket_with_versioning(aws_account_id),
+    ]:
+        bucket_resources.append(f"arn:aws:s3:::{bucket}")
+        bucket_resources.append(f"arn:aws:s3:::{bucket}/*")
+    return {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "FullAccessToTestBuckets",
+                "Effect": "Allow",
+                "Action": "s3:*",
+                "Resource": bucket_resources,
+            },
+            {
+                "Sid": "ManageTemporaryBuckets",
+                "Effect": "Allow",
+                "Action": [
+                    "s3:ListAllMyBuckets",
+                    "s3:CreateBucket",
+                    "s3:DeleteBucket",
+                    "s3:ListBucket",
+                    "s3:GetBucketLocation",
+                    "s3:GetBucketVersioning",
+                    "s3:PutBucketVersioning",
+                ],
+                "Resource": "*",
+            },
+            {
+                "Sid": "GetCallerIdentity",
+                "Effect": "Allow",
+                "Action": "sts:GetCallerIdentity",
+                "Resource": "*",
+            },
+        ],
+    }
+
+
+# ------------------------------------------------------------------------------
+# Console URLs, printed so that the user can check the result
+# ------------------------------------------------------------------------------
+def get_iam_user_console_url(user_name: str) -> str:
+    return f"https://console.aws.amazon.com/iam/home#/users/details/{user_name}"
+
+
+def get_bucket_console_url(bucket: str) -> str:
+    return (
+        f"https://{AWS_REGION}.console.aws.amazon.com/s3/buckets/{bucket}"
+        f"?region={AWS_REGION}"
+    )
+
+
+def get_github_secrets_url() -> str:
+    owner, repo_name = get_github_repo_info()
+    return f"https://github.com/{owner}/{repo_name}/settings/secrets/actions"
+
+
+# ------------------------------------------------------------------------------
+# ~/.aws files
+# ------------------------------------------------------------------------------
+def get_aws_config_path() -> Path:
+    """
+    The file botocore reads profiles from (``AWS_CONFIG_FILE`` overrides it).
+    """
+    if "AWS_CONFIG_FILE" in os.environ:
+        return Path(os.environ["AWS_CONFIG_FILE"]).expanduser().absolute()
+    else:
+        return Path.home().joinpath(".aws", "config")
+
+
+def get_aws_credentials_path() -> Path:
+    """
+    The file botocore reads keys from (``AWS_SHARED_CREDENTIALS_FILE``
+    overrides it).
+    """
+    if "AWS_SHARED_CREDENTIALS_FILE" in os.environ:
+        path = os.environ["AWS_SHARED_CREDENTIALS_FILE"]
+        return Path(path).expanduser().absolute()
+    else:
+        return Path.home().joinpath(".aws", "credentials")
+
+
+def print_profile_snippet(
+    profile: str,
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+):
+    """
+    Print what to paste into ``~/.aws/config`` and ``~/.aws/credentials`` to
+    define ``profile``.
+    """
+    path_config = get_aws_config_path()
+    path_credentials = get_aws_credentials_path()
+    print(f"Paste this into {path_config} ({path_config.as_uri()}):")
+    print()
+    print(f"[profile {profile}]")
+    print(f"region = {AWS_REGION}")
+    print("output = json")
+    print()
+    print(f"Paste this into {path_credentials} ({path_credentials.as_uri()}):")
+    print()
+    print(f"[{profile}]")
+    print(f"aws_access_key_id = {aws_access_key_id}")
+    print(f"aws_secret_access_key = {aws_secret_access_key}")
+    print()
+
+
+# ------------------------------------------------------------------------------
+# Clients
+# ------------------------------------------------------------------------------
+def get_env(name: str) -> str:
+    if name not in os.environ:
+        print(f"Error: environment variable {name} is not set.")
+        print("Run this script with 'mise run ...', which sets it from mise.toml.")
+        sys.exit(1)
+    return os.environ[name]
+
+
+def get_dev_boto_session() -> boto3.session.Session:
+    """
+    The boto session of the powerful profile that creates the AWS resources.
+    Exit with instructions when the profile is not defined.
+    """
+    profile = get_env(ENV_DEV_AWS_PROFILE)
+    try:
+        boto_ses = boto3.session.Session(profile_name=profile, region_name=AWS_REGION)
+        problem = None
+        if boto_ses.get_credentials() is None:
+            problem = "has no credentials"
+    except botocore.exceptions.ProfileNotFound:
+        problem = "not found"
+    if problem is not None:
+        print(f"Error: AWS profile {profile!r} {problem}.")
+        print(
+            "Create an IAM user that can create S3 buckets and IAM users "
+            "(e.g. with the AdministratorAccess policy), create an access key "
+            "for it, and define the profile:"
+        )
+        print()
+        print_profile_snippet(
+            profile=profile,
+            aws_access_key_id="...",
+            aws_secret_access_key="...",
+        )
+        sys.exit(1)
+    return boto_ses
+
+
+def print_caller_identity(boto_ses: boto3.session.Session) -> str:
+    """
+    Print who is running the script, and return the AWS account id.
+    """
+    res = boto_ses.client("sts").get_caller_identity()
+    print(f"AWS profile: {boto_ses.profile_name}")
+    print(f"AWS account: {res['Account']}")
+    print(f"Caller: {res['Arn']}")
+    return res["Account"]
+
+
+def get_github_repo():
+    token = get_env(ENV_GITHUB_TOKEN)
+    owner, repo_name = get_github_repo_info()
+    gh = Github(auth=Auth.Token(token))
+    return gh.get_repo(f"{owner}/{repo_name}")
+
+
+# ------------------------------------------------------------------------------
+# Teardown steps (also used by ``setup-aws-ci.py --force``)
+# ------------------------------------------------------------------------------
+def delete_github_secrets():
+    """
+    Delete the two GitHub Actions secrets. Missing secrets are skipped.
+    """
+    print(f"Delete GitHub Actions secrets ({get_github_secrets_url()}):")
+    repo = get_github_repo()
+    for name in [GITHUB_SECRET_ACCESS_KEY_ID, GITHUB_SECRET_SECRET_ACCESS_KEY]:
+        deleted = repo.delete_secret(name)
+        if deleted:
+            print(f"  deleted secret {name}")
+        else:
+            print(f"  secret {name} does not exist, skip")
+
+
+def is_iam_user_exists(iam_client, user_name: str) -> bool:
+    try:
+        iam_client.get_user(UserName=user_name)
+        return True
+    except iam_client.exceptions.NoSuchEntityException:
+        return False
+
+
+def delete_iam_user(iam_client, user_name: str):
+    """
+    Delete the IAM user and everything attached to it (IAM refuses to delete a
+    user that still has access keys, policies, groups or a login profile).
+    A missing user is skipped.
+    """
+    print(f"Delete IAM user {user_name} ({get_iam_user_console_url(user_name)}):")
+    if is_iam_user_exists(iam_client, user_name) is False:
+        print("  user does not exist, skip")
+        return
+
+    res = iam_client.list_access_keys(UserName=user_name)
+    for key in res["AccessKeyMetadata"]:
+        iam_client.delete_access_key(
+            UserName=user_name,
+            AccessKeyId=key["AccessKeyId"],
+        )
+        print(f"  deleted access key {key['AccessKeyId']}")
+
+    res = iam_client.list_user_policies(UserName=user_name)
+    for policy_name in res["PolicyNames"]:
+        iam_client.delete_user_policy(UserName=user_name, PolicyName=policy_name)
+        print(f"  deleted inline policy {policy_name}")
+
+    res = iam_client.list_attached_user_policies(UserName=user_name)
+    for policy in res["AttachedPolicies"]:
+        iam_client.detach_user_policy(
+            UserName=user_name,
+            PolicyArn=policy["PolicyArn"],
+        )
+        print(f"  detached managed policy {policy['PolicyArn']}")
+
+    res = iam_client.list_groups_for_user(UserName=user_name)
+    for group in res["Groups"]:
+        iam_client.remove_user_from_group(
+            UserName=user_name,
+            GroupName=group["GroupName"],
+        )
+        print(f"  removed from group {group['GroupName']}")
+
+    try:
+        iam_client.delete_login_profile(UserName=user_name)
+        print("  deleted console password")
+    except iam_client.exceptions.NoSuchEntityException:
+        pass
+
+    iam_client.delete_user(UserName=user_name)
+    print(f"  deleted user {user_name}")
+
+
+def print_json(data: dict):
+    print(json.dumps(data, indent=4))

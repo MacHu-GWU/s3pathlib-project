@@ -4,6 +4,11 @@ GITHUB_TOKEN = "{{ exec(command='uvx --from home-secret-toml hst get github.acco
 CODECOV_TOKEN = "{{ exec(command='uvx --from home-secret-toml hst get codecov_io.accounts.sh.users.sh.secrets.dev.value') }}"
 READTHEDOCS_TOKEN = "{{ exec(command='uvx --from home-secret-toml hst get readthedocs.accounts.sh.users.sh.secrets.dev.value') }}"
 PYPI_TOKEN = "{{ exec(command='uvx --from home-secret-toml hst get pypi.accounts.sh.token') }}"
+# AWS profiles for the unit tests that run against real AWS (see .mise/tasks/aws_ci.py)
+# - dev: powerful profile that creates the test buckets and the test IAM user
+# - test: profile of the test IAM user, used by s3pathlib/tests/mock.py
+S3PATHLIB_DEV_AWS_PROFILE = "project_s3pathlib_dev"
+S3PATHLIB_TEST_AWS_PROFILE = "project_s3pathlib_test"
 
 [tools]
 python = "3.12"
@@ -92,6 +97,16 @@ run = ".venv/bin/python .mise/tasks/release.py"
 depends = ["inst"]
 
 # CI/CD Setup
+[tasks.setup-aws-ci]
+description = "☁️ Create the test S3 buckets and IAM user, set its access key as GitHub Actions secrets (idempotent; pass -- --force to recreate the user)"
+run = ".venv/bin/python .mise/tasks/setup-aws-ci.py"
+depends = ["inst"]
+
+[tasks.teardown-aws-ci]
+description = "🗑️ Delete the test IAM user and its GitHub Actions secrets (idempotent; keeps the S3 buckets)"
+run = ".venv/bin/python .mise/tasks/teardown-aws-ci.py"
+depends = ["inst"]
+
 [tasks.setup-codecov]
 description = "⚙️ Setup Codecov upload token on GitHub Actions secrets using PyGithub and httpx"
 run = ".venv/bin/python .mise/tasks/setup-codecov.py"
