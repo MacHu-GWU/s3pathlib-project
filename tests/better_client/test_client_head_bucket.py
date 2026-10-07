@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from s3pathlib.api import s3_context
 from s3pathlib.better_client.head_bucket import is_bucket_exists
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.mock import BaseTest
@@ -10,7 +11,7 @@ class BetterHeadBucket(BaseTest):
 
     @classmethod
     def custom_setup_class(cls):
-        cls.bsm.s3_client.create_bucket(Bucket="this-bucket-exists")
+        s3_context.s3_client.create_bucket(Bucket="this-bucket-exists")
 
     def test(self):
         assert is_bucket_exists(self.s3_client, "this-bucket-exists") is True

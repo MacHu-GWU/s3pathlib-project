@@ -21,7 +21,7 @@ from .. import exc
 from ..metadata import warn_upper_case_in_metadata_key
 from ..type import TagType, MetadataType
 from ..tag import encode_url_query
-from ..aws import context
+from ..aws import s3_context
 
 from .resolve_s3_client import resolve_s3_client
 
@@ -97,7 +97,7 @@ class ReadAndWriteAPIMixin:
 
         :return: the binary data.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         response = s3_client.get_object(
             **resolve_kwargs(
                 Bucket=self.bucket,
@@ -310,7 +310,7 @@ class ReadAndWriteAPIMixin:
             same bucket and key, but the new metadata representing the object
             you just put.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         if metadata is not NOTHING:
             warn_upper_case_in_metadata_key(metadata)
         response = s3_client.put_object(

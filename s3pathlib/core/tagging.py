@@ -15,7 +15,7 @@ from func_args import NOTHING, resolve_kwargs
 
 from .resolve_s3_client import resolve_s3_client
 from ..better_client.tagging import update_object_tagging
-from ..aws import context
+from ..aws import s3_context
 from ..type import TagType
 from ..tag import parse_tags, encode_tag_set
 
@@ -44,7 +44,7 @@ class TaggingAPIMixin:
         :return: ``(version_id, tags)``, tags is in string key value pairs dict.
         """
         self.ensure_object()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         res = s3_client.get_object_tagging(
             **resolve_kwargs(
                 Bucket=self.bucket,
@@ -76,7 +76,7 @@ class TaggingAPIMixin:
         :return: ``(version_id, tags)``, tags is in string key value pairs dict.
         """
         self.ensure_object()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         res = s3_client.put_object_tagging(
             **resolve_kwargs(
                 Bucket=self.bucket,
@@ -111,7 +111,7 @@ class TaggingAPIMixin:
             in string key value pairs dict.
         """
         self.ensure_object()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         return update_object_tagging(
             s3_client=s3_client,
             bucket=self.bucket,

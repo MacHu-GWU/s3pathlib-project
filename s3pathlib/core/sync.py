@@ -10,9 +10,9 @@ import typing as T
 
 import subprocess
 
+import boto3
 from boto_session_manager.api import BotoSesManager
 
-from ..aws import context
 from ..type import PathType
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -120,7 +120,10 @@ class SyncAPIMixin:
             args.append("--delete")
 
         if bsm is None:  # pragma: no cover
-            with BotoSesManager(botocore_session=context.boto_ses._session).awscli():
+            # TODO (#38): use the credentials of s3_context.s3_client; for now
+            # the CLI uses the default credentials, not the attached client
+            boto_ses = boto3.session.Session()
+            with BotoSesManager(botocore_session=boto_ses._session).awscli():
                 if verbose:
                     print(" ".join(args))
                 response = subprocess.run(args)

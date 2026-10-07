@@ -13,7 +13,7 @@ import typing as T
 
 from func_args import NOTHING
 
-from ..aws import context
+from ..aws import s3_context
 from ..better_client.list_object_versions import paginate_list_object_versions
 from .iter_objects import S3PathIterProxy
 from .resolve_s3_client import resolve_s3_client
@@ -49,7 +49,7 @@ class IterObjectVersionsAPIMixin:
         :param expected_bucket_owner: See ListObjectVersions_.
         :param bsm: See bsm_.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         bucket = self.bucket
 
         def _iter_s3path() -> T.Iterable[S3Path]:

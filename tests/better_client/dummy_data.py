@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from s3pathlib.api import s3_context
 from s3pathlib.utils import smart_join_s3_key
 from s3pathlib.tests.mock import BaseTest
 from s3pathlib.paths import path_enum
@@ -38,7 +39,7 @@ class DummyData(BaseTest):
         - ``/{prefix}/never_exists`` (not exists, just for testing)
         - ``/{prefix}/never_exists/`` (not exists, just for testing)
         """
-        s3_client = cls.bsm.s3_client
+        s3_client = s3_context.s3_client
 
         cls.prefix_dummy_data = smart_join_s3_key(
             parts=[cls.get_prefix(), "dummy_data"],
@@ -120,7 +121,7 @@ class DummyData(BaseTest):
             is_dir=True,
         )
         upload_dir(
-            s3_client=cls.bsm.s3_client,
+            s3_client=s3_context.s3_client,
             bucket=cls.get_bucket(),
             prefix=cls.prefix_test_list_objects,
             local_dir=f"{path_enum.dir_test_list_objects_folder}",
@@ -139,7 +140,7 @@ class DummyData(BaseTest):
             is_dir=True,
         )
         upload_dir(
-            s3_client=cls.bsm.s3_client,
+            s3_client=s3_context.s3_client,
             bucket=cls.get_bucket(),
             prefix=cls.prefix_test_upload_dir,
             local_dir=f"{path_enum.dir_test_upload_dir_folder}",

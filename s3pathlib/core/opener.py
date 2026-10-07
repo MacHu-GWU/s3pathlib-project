@@ -19,7 +19,7 @@ import smart_open
 from func_args import NOTHING, resolve_kwargs
 
 from ..metadata import warn_upper_case_in_metadata_key
-from ..aws import context
+from ..aws import s3_context
 from ..type import MetadataType, TagType
 from ..tag import encode_url_query
 
@@ -186,7 +186,7 @@ class OpenerAPIMixin:
         Also see https://github.com/RaRe-Technologies/smart_open/blob/develop/howto.md#how-to-access-s3-anonymously
         for S3 related info.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         if transport_params is None:
             transport_params = dict()
         else:

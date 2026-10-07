@@ -3,6 +3,7 @@
 import hashlib
 from datetime import datetime
 
+from s3pathlib.api import s3_context
 from s3pathlib.core import S3Path
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.mock import BaseTest
@@ -16,7 +17,7 @@ class MetadataAPIMixin(BaseTest):
     @classmethod
     def custom_setup_class(cls):
         cls.p = S3Path(cls.get_s3dir_root(), "file.txt")
-        cls.bsm.s3_client.put_object(
+        s3_context.s3_client.put_object(
             Bucket=cls.p.bucket,
             Key=cls.p.key,
             Body="Hello World!",

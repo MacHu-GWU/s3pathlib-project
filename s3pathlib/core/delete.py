@@ -13,7 +13,7 @@ import typing as T
 from func_args import NOTHING
 
 from .resolve_s3_client import resolve_s3_client
-from ..aws import context
+from ..aws import s3_context
 from ..better_client.delete_object import (
     delete_object,
     delete_dir,
@@ -94,7 +94,7 @@ class DeleteAPIMixin:
                     representing the deleted version.
             - if it's a directory, then it will return the deleted folder itself.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         bucket = self.bucket
         if self.is_file():
             if is_hard_delete:

@@ -17,7 +17,7 @@ from ..type import TagType, MetadataType
 from ..tag import encode_url_query
 
 from .resolve_s3_client import resolve_s3_client
-from ..aws import context
+from ..aws import s3_context
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
@@ -94,7 +94,7 @@ class CopyAPIMixin:
             dst.ensure_not_exists(bsm=bsm)
 
         # prepare API kwargs
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
 
         kwargs = dict(
             Bucket=dst.bucket,

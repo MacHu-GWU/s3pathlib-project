@@ -9,10 +9,12 @@ import s3pathlib.api
 import s3pathlib.better_client.api
 from s3pathlib.tests import run_cov_test
 
-# Names users could import from the top level package in 2.x.
+# Names users could import from the top level package in 2.x. ``context`` was
+# renamed to ``s3_context`` in 3.0 (the old name is removed, see
+# ``tests/test_aws.py``).
 TOP_LEVEL_NAMES = [
     "S3Path",
-    "context",
+    "s3_context",
     "utils",
     "ContentTypeEnum",
     "validate_s3_bucket",

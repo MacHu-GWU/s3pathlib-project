@@ -12,7 +12,7 @@ from datetime import datetime
 from .. import utils
 from ..constants import IS_DELETE_MARKER
 from ..better_client.head_object import head_object
-from ..aws import context
+from ..aws import s3_context
 
 from .resolve_s3_client import resolve_s3_client
 from .filterable_property import FilterableProperty
@@ -42,7 +42,7 @@ class MetadataAPIMixin:
         """
         Call head_object() api, store metadata value.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         dct = head_object(s3_client, self.bucket, self.key)
         self._meta = dct
         return dct

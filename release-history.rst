@@ -47,6 +47,8 @@ Backlog (TODO)
 - ``S3Path.change`` rejects arguments that used to silently give a wrong path, with ``ValueError``: ``new_ext`` that is not empty and does not start with ``.`` (``new_ext="png"`` gave ``c.jpg`` -> ``cpng``), ``new_fname`` or ``new_ext`` containing ``/``, an empty ``new_basename`` (it turned the path into its parent dir as a file), and ``new_dirname`` on a path without parent dir (it added a dir). ``new_fname`` / ``new_ext`` on a dir raise ``ValueError`` with a message instead of a bare ``TypeError``.
 - ``S3Path.fname`` and ``S3Path.ext`` raise ``S3PathIsNotFileError`` (a ``TypeError``) on anything that is not a file. Before, they raised a bare ``TypeError`` on a dir or a bucket, and a bare ``ValueError`` on the void path.
 - ``relative_to`` (and ``-``) is now the exact inverse of ``/``: ``base / target.relative_to(base) == target``. When both paths have the same parts but one is a file and the other a dir (e.g. ``S3Path("b", "a/").relative_to(S3Path("b", "a"))``), it raises ``ValueError``. Before, it returned the void path, and ``base / void`` was not ``target``.
+- ``s3pathlib.context`` is renamed to ``s3_context`` (``from s3pathlib.api import s3_context``), and its class ``Context`` to ``S3Context``. ``context`` was too generic and is shadowed by the ``context`` argument of AWS Lambda handlers (``def lambda_handler(event, context)``). The old names ``context`` and ``Context`` are removed.
+- ``s3_context`` only holds the default S3 client. Remove ``attach_boto_session``, ``attach_sts_client``, ``boto_ses``, ``sts_client``, ``aws_account_id`` and ``aws_region``. Replace ``context.attach_boto_session(boto_ses)`` with ``s3_context.attach_s3_client(boto_ses.client("s3"))``. For the account id, call ``boto_ses.client("sts").get_caller_identity()["Account"]``; for the region, read ``s3_client.meta.region_name``.
 
 **Features and Improvements**
 
@@ -72,6 +74,8 @@ Backlog (TODO)
 - Add ``s3pathlib.api.S3PathDict``, a ``TypedDict`` for the dict returned by ``S3Path.to_dict`` and accepted by ``S3Path.from_dict``.
 - ``S3Path() / x`` works and gives ``x`` as a relative path, the same as ``S3Path().joinpath(x)``. The void path is the identity of joining paths. Before, it raised ``TypeError``.
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
+- ``s3_context`` is thread safe: the default S3 client is created at most once, under a lock, and ``attach_s3_client`` replaces the client in one step.
+- ``s3_context`` creates the default S3 client when it is first used instead of when ``s3pathlib`` is imported, so importing ``s3pathlib`` has no side effect, and environment variables such as ``AWS_PROFILE`` set after the import are honored.
 
 **Bugfixes**
 
@@ -97,6 +101,7 @@ Backlog (TODO)
 - The parent of a single part relative path (e.g. ``S3Path.make_relpath("a").parent``) and ``S3Path(S3Path(), "/")`` are now the void path. Before, they were a "void path that is a dir", for which ``is_void()`` was ``True`` but ``is_relpath()`` was ``False``.
 - Comparing an ``S3Path`` with another type (e.g. ``p == "s3://bucket/key"``, ``p != None``, or ``p in ["a", p]``) raised ``AttributeError``. Now ``==`` returns ``False`` and ``<`` / ``<=`` / ``>`` / ``>=`` raise ``TypeError``, the same as ``pathlib``.
 - ``S3Path.parts`` returned the internal list, so changing it changed the path but not its cached hash, which broke ``==`` and ``hash``. It now returns a copy.
+- When the default boto session could not be created at import time (e.g. ``AWS_PROFILE`` names an unknown profile), the error was silently ignored and every later API call failed with ``AttributeError: 'NoneType' object has no attribute 'client'``, even after fixing the environment. The error (e.g. ``ProfileNotFound``) is now raised by the first API call, and the next call works once the environment is fixed.
 
 **Minor Improvements**
 
@@ -119,6 +124,7 @@ Backlog (TODO)
 - Document every filter of ``FilterableProperty`` (``s3pathlib.core.filterable_property``) and how to combine them.
 - Document how ``S3Path`` objects compare (``s3pathlib.core.comparison``): equality ignores the object version, and the order is part by part like ``pathlib``, not the key string order of S3 list APIs.
 - Document the six states of an ``S3Path`` (``s3pathlib.core.base``), the full truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` / ``is_dir`` / ``is_file`` (``s3pathlib.core.is_test``), and what ``bucket`` / ``key`` / ``uri`` / ``arn`` / ``console_url`` return for each kind of path and why (``s3pathlib.core.uri``).
+- ``s3_context.attach_s3_client(None)`` raises ``TypeError``. Any other object is accepted as the client (e.g. a stub in tests).
 
 **Miscellaneous**
 
@@ -129,6 +135,7 @@ Backlog (TODO)
 - Add ``s3pathlib.paths`` to centralize project paths, and simplify the test helpers in ``s3pathlib.tests``.
 - Disable unit tests that run against real AWS; only the moto-mocked tests run by default.
 - Add the idempotent mise tasks ``setup-aws-ci`` and ``teardown-aws-ci``, which create / delete the test S3 buckets, the test IAM user (its policy is built in code, replacing ``.github/workflows/iam-policy.json``) and its GitHub Actions secrets. The AWS profiles used by the tasks and by the tests against real AWS are defined in ``mise.toml``.
+- The test helper ``s3pathlib.tests.mock.BaseTest`` no longer uses ``boto_session_manager``: ``cls.bsm`` is replaced by ``cls.boto_ses``, ``cls.aws_account_id`` and ``cls.aws_region``, and the S3 client is ``self.s3_client`` (``s3_context.s3_client``).
 
 
 2.3.6 (2025-08-12)

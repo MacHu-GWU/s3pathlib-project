@@ -14,7 +14,7 @@ from func_args import NOTHING, resolve_kwargs
 from .resolve_s3_client import resolve_s3_client
 from ..better_client.upload import upload_dir
 from ..type import PathType
-from ..aws import context
+from ..aws import s3_context
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
@@ -55,7 +55,7 @@ class UploadAPIMixin:
         if overwrite is False:
             self.ensure_not_exists(bsm=bsm)
         p = Path(path)
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         return s3_client.upload_file(
             Filename=p.abspath,
             Bucket=self.bucket,
@@ -95,7 +95,7 @@ class UploadAPIMixin:
         :return: number of files uploaded
         """
         self.ensure_dir()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         return upload_dir(
             s3_client=s3_client,
             bucket=self.bucket,

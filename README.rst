@@ -87,15 +87,15 @@ Quick Start
 
 .. code-block:: python
 
-    # s3pathlib maintains a "context" object that holds the AWS authentication information
-    # you just need to build your own boto session object and attach to it
+    # s3pathlib uses the default credentials, like boto3.client("s3");
+    # to use your own, attach an S3 client to "s3_context"
     >>> import boto3
-    >>> from s3pathlib import context
-    >>> context.attach_boto_session(
+    >>> from s3pathlib.api import s3_context
+    >>> s3_context.attach_s3_client(
     ...     boto3.session.Session(
     ...         region_name="us-east-1",
     ...         profile_name="my_aws_profile",
-    ...     )
+    ...     ).client("s3")
     ... )
 
     >>> p = S3Path("bucket", "folder", "file.txt")

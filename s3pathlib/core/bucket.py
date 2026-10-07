@@ -14,7 +14,7 @@ import typing as T
 
 from func_args import NOTHING, resolve_kwargs
 
-from ..aws import context
+from ..aws import s3_context
 from ..exc import S3ValidationError
 from .resolve_s3_client import resolve_s3_client
 
@@ -69,7 +69,7 @@ class BucketAPIMixin:
             create_bucket_configuration = NOTHING
         else:
             create_bucket_configuration = dict(LocationConstraint=region)
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         response = s3_client.create_bucket(
             **resolve_kwargs(
                 Bucket=self.bucket,
@@ -95,7 +95,7 @@ class BucketAPIMixin:
         Delete an S3 bucket.
         """
         self.ensure_bucket()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         response = s3_client.delete_bucket(
             **resolve_kwargs(
                 Bucket=self.bucket,
@@ -114,7 +114,7 @@ class BucketAPIMixin:
         Get the versioning state of an S3 bucket.
         """
         self.ensure_bucket()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         response = s3_client.get_bucket_versioning(
             **resolve_kwargs(
                 Bucket=self.bucket,
@@ -156,7 +156,7 @@ class BucketAPIMixin:
         Enable or suspend S3 bucket versioning.
         """
         self.ensure_bucket()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         if enable_versioning:
             enable_versioning = "Enabled"
         else:
@@ -189,7 +189,7 @@ class BucketAPIMixin:
         """
         List all S3 buckets.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         response = s3_client.list_buckets()
         s3bucket_list = list()
         for dct in response.get("Buckets", []):

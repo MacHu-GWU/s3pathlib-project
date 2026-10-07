@@ -12,7 +12,7 @@ from func_args import NOTHING
 from .. import exc
 from ..better_client.head_bucket import is_bucket_exists
 from ..better_client.head_object import head_object
-from ..aws import context
+from ..aws import s3_context
 
 from .resolve_s3_client import resolve_s3_client
 
@@ -51,10 +51,10 @@ class ExistsAPIMixin:
             >>> S3Path("bucket/file.txt").exists(version_id="v123456")
         """
         if self.is_bucket():
-            s3_client = resolve_s3_client(context, bsm)
+            s3_client = resolve_s3_client(s3_context, bsm)
             return is_bucket_exists(s3_client, self.bucket)
         elif self.is_file():
-            s3_client = resolve_s3_client(context, bsm)
+            s3_client = resolve_s3_client(s3_context, bsm)
             dct = head_object(
                 s3_client=s3_client,
                 bucket=self.bucket,

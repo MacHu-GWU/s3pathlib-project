@@ -6,14 +6,14 @@ The public API of ``s3pathlib``.
 Usage::
 
     from s3pathlib.api import S3Path
-    from s3pathlib.api import context
+    from s3pathlib.api import s3_context
 """
 from iterproxy import and_
 from iterproxy import or_
 from iterproxy import not_
 
 from . import utils
-from .aws import context
+from .aws import s3_context
 from .core import S3Path
 from .core.serde import S3PathDict
 from .content_type import ContentTypeEnum

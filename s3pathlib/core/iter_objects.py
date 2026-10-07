@@ -15,7 +15,7 @@ from iterproxy import IterProxy
 from func_args import NOTHING
 
 from .. import utils
-from ..aws import context
+from ..aws import s3_context
 from ..better_client.list_objects import (
     paginate_list_objects_v2,
     is_content_an_object,
@@ -141,7 +141,7 @@ class IterObjectsAPIMixin:
 
         TODO: add unix glob liked syntax for pattern matching
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         bucket = self.bucket
 
         def _iter_s3path() -> T.Iterable[S3Path]:
@@ -212,7 +212,7 @@ class IterObjectsAPIMixin:
         :param expected_bucket_owner: See ListObjectsV2_.
         :param bsm: See bsm_.
         """
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         bucket = self.bucket
 
         def _iter_s3path() -> T.Iterable[S3Path]:
@@ -277,7 +277,7 @@ class IterObjectsAPIMixin:
             second value is total size in bytes
         """
         self.ensure_dir()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         count, size = calculate_total_size(
             s3_client=s3_client,
             bucket=self.bucket,
@@ -320,7 +320,7 @@ class IterObjectsAPIMixin:
         :return: an integer represents the number of objects
         """
         self.ensure_dir()
-        s3_client = resolve_s3_client(context, bsm)
+        s3_client = resolve_s3_client(s3_context, bsm)
         return count_objects(
             s3_client=s3_client,
             bucket=self.bucket,
