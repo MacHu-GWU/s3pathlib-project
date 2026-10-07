@@ -16,7 +16,7 @@ from func_args import NOTHING, resolve_kwargs
 
 from .. import exc
 
-if T.TYPE_CHECKING: # pragma: no cover
+if T.TYPE_CHECKING:  # pragma: no cover
     from mypy_boto3_s3 import S3Client
     from mypy_boto3_s3.type_defs import HeadObjectOutputTypeDef
 
@@ -40,15 +40,22 @@ def head_object(
     ignore_not_found: bool = False,
 ) -> dict | HeadObjectOutputTypeDef | None:
     """
-    Wrapper of head_object_.
+    Wrapper of head_object_ that turns "not found" into ``S3FileNotExist`` (or
+    ``None``) and "no permission" into ``S3PermissionDenied``.
 
-    Example:
+    Example::
 
-        >>> response = head_object(s3_client, "my-bucket", "file.txt")
+        >>> response = head_object(s3_client, "my-bucket", "file.txt", ignore_not_found=True)
         >>> if response is None:
         ...     print("Object not found")
         ... else:
-        ...     print(response["LastModified"])
+        ...     print(response["ContentLength"])
+        5
+
+    The object does not exist when S3 answers 404 (the key, or the bucket, does
+    not exist; or the latest version is a delete marker) or 405 (``version_id``
+    is a delete marker). A ``HEAD`` response has no body, so S3 cannot tell a
+    missing key from a missing bucket.
 
     :param s3_client: See head_object_
     :param bucket: See head_object_
@@ -68,7 +75,19 @@ def head_object(
     :param ignore_not_found: Default is ``False``; if ``True``, return ``None``
         when object is not found instead of raising an error.
 
-    :return: See head_object_
+    :return: See head_object_, or ``None`` if the object does not exist and
+        ``ignore_not_found`` is ``True``.
+
+    :raises S3FileNotExist: if the object does not exist and
+        ``ignore_not_found`` is ``False``. The ``ClientError`` is its
+        ``__cause__``.
+    :raises S3PermissionDenied: if S3 answers 403: you cannot read the object,
+        or the bucket belongs to another AWS account. Without the
+        ``s3:ListBucket`` permission, S3 also answers 403 for a missing key.
+        Raised even if ``ignore_not_found`` is ``True``.
+    :raises botocore.exceptions.ClientError: for any other error, e.g. 400 for
+        a malformed ``version_id``, 412 when ``if_match`` does not match, 304
+        when ``if_none_match`` matches.
     """
     try:
         dct = s3_client.head_object(
@@ -91,12 +110,33 @@ def head_object(
         )
         return dct
     except botocore.exceptions.ClientError as e:
-        if "Not Found" in str(e):
+        # a HEAD response has no body, so the code is the HTTP status
+        code = e.response["Error"]["Code"]
+        # - "404": the key or the bucket does not exist, or the latest version
+        #   is a delete marker
+        # - "405": version_id is a delete marker
+        # - "NoSuchBucket": what moto raises for a missing bucket (real S3
+        #   answers "404"); handled the same, so code tested with moto behaves
+        #   as on AWS
+        if code in ["404", "405", "NoSuchBucket"]:
             if ignore_not_found:
                 return None
             else:
-                raise exc.S3FileNotExist.make(f"s3://{bucket}/{key}")
-        else:  # pragma: no cover
+                uri = f"s3://{bucket}/{key}"
+                if version_id is NOTHING:
+                    raise exc.S3FileNotExist.make(uri) from e
+                else:
+                    raise exc.S3FileNotExist(
+                        f"S3 object {uri!r} version {version_id!r} does not exist!"
+                    ) from e
+        elif code == "403":
+            raise exc.S3PermissionDenied(
+                f"no permission to read S3 object 's3://{bucket}/{key}': the "
+                "bucket belongs to another AWS account, or you lack the "
+                "s3:GetObject permission (without s3:ListBucket, S3 also "
+                "answers 403 for a missing key)"
+            ) from e
+        else:
             raise e
 
 
@@ -109,6 +149,10 @@ def is_object_exists(
     """
     Check if an object exists. If you want to use the head_object_ API response
     immediately when the object exists, use :func:`head_object` instead.
+
+    It follows the same rules as :func:`head_object`: a missing bucket and a
+    delete marker mean ``False``, and no permission raises
+    ``S3PermissionDenied``.
 
     Example::
 
