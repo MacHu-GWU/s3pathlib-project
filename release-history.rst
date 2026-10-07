@@ -51,6 +51,7 @@ Backlog (TODO)
 - ``s3_context`` only holds the default S3 client. Remove ``attach_boto_session``, ``attach_sts_client``, ``boto_ses``, ``sts_client``, ``aws_account_id`` and ``aws_region``. Replace ``context.attach_boto_session(boto_ses)`` with ``s3_context.attach_s3_client(boto_ses.client("s3"))``. For the account id, call ``boto_ses.client("sts").get_caller_identity()["Account"]``; for the region, read ``s3_client.meta.region_name``.
 - ``better_client.is_bucket_exists`` (and ``S3Path("bucket").exists()``, which uses it) raises ``S3PermissionDenied`` (a ``PermissionError``) when S3 returns 403, i.e. the bucket exists but belongs to another AWS account, or you lack the ``s3:ListBucket`` permission. Before, it raised the ``botocore.exceptions.ClientError`` as is; the ``ClientError`` is now the ``__cause__``.
 - ``better_client.head_object`` and ``better_client.is_object_exists`` (and the ``S3Path`` methods built on them, such as ``exists()`` on a file and the metadata properties) raise ``S3PermissionDenied`` when S3 returns 403, even with ``ignore_not_found=True``: no permission is not "not found". Before, they raised the ``botocore.exceptions.ClientError`` as is; it is now the ``__cause__``.
+- Rename the misspelled ``ListObjectsV2OutputTypeDefIterproxy.common_prefixs()`` and ``contents_and_common_prefixs()`` (returned by ``better_client.paginate_list_objects_v2``) to ``common_prefixes()`` and ``contents_and_common_prefixes()``, the same names as in ``better_client.list_object_versions``.
 
 **Features and Improvements**
 
@@ -107,6 +108,8 @@ Backlog (TODO)
 - ``better_client.is_bucket_exists`` recognized "not found" by looking for ``Not Found`` in the error message; it now checks the error code ``404``, as the message of a ``HEAD`` response is not reliable.
 - ``better_client.head_object`` with a ``version_id`` that is a delete marker raised ``ClientError`` (S3 answers 405); it now means the object does not exist, the same as when the latest version is a delete marker. So ``is_object_exists(..., version_id=<delete marker>)`` returns ``False``.
 - ``better_client.head_object`` recognized "not found" by looking for ``Not Found`` in the error message; it now checks the error code. With moto, a missing bucket raised ``NoSuchBucket`` instead of meaning "not found" as on AWS; both now behave the same.
+- ``better_client.paginate_list_objects_v2`` with ``delimiter`` returned more than ``limit`` entries, because ``limit`` only counted the objects, not the folders (common prefixes): ``limit=3`` could return 8 entries. ``limit`` now counts both, the same as S3's ``MaxKeys``. This also applies to ``S3Path.iterdir(limit=...)`` and ``S3Path.iter_objects(recursive=False, limit=...)``.
+- ``better_client.paginate_list_objects_v2`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
 
 **Minor Improvements**
 
@@ -132,6 +135,7 @@ Backlog (TODO)
 - ``s3_context.attach_s3_client(None)`` raises ``TypeError``. Any other object is accepted as the client (e.g. a stub in tests).
 - ``S3FileNotExist`` raised by ``better_client.head_object`` names the version when ``version_id`` is given, and keeps the ``ClientError`` as its ``__cause__``.
 - Document that ``better_client.update_bucket_tagging`` and ``better_client.update_object_tagging`` merge like ``dict.update`` and are not atomic, which version ``update_object_tagging`` updates, and which boto3 errors they raise as is (e.g. ``MethodNotAllowed`` for a delete marker). Tag values with spaces, ``+`` and non-ASCII characters are tested against real AWS.
+- Document that the result of ``better_client.paginate_list_objects_v2`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix, not a folder. Fix the ``is_content_an_object`` truth table: a key ending with ``/`` that has data is an object.
 
 **Miscellaneous**
 
