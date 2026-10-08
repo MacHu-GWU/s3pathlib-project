@@ -38,6 +38,13 @@ So an ``S3Path`` returned by ``list_object_versions()`` keeps describing its
 version: its ``metadata`` is the metadata of that version, not of the latest
 one.
 
+The snapshot never decides which version an operation works on: without
+``version_id``, ``read_bytes()``, ``get_tags()``, ``delete()``, ... work on the
+latest version, even for a path that describes an older one. Pass
+``version_id=p.version_id`` to work on that version. An implicit version would
+make e.g. ``delete()`` permanently delete a listed version instead of adding a
+delete marker.
+
 Loading a snapshot in steps 3 and 4 fills the cache of this ``S3Path``; it is
 the only way the snapshot changes on its own. Methods that change S3
 (``write_bytes``, ``copy_file``, ``delete``, ...) return a new ``S3Path`` with

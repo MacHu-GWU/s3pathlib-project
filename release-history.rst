@@ -141,6 +141,7 @@ Backlog (TODO)
 - ``read_bytes(range=...)`` / ``read_bytes(part_number=...)`` stored the response as the metadata of the object, so ``size`` became the length of the range.
 - Reading a metadata property of a bucket, a relative path or the void path raised a botocore error (``ParamValidationError`` or ``TypeError``). It now raises ``S3PathTypeError`` (still a ``TypeError``) before calling AWS. A bucket returned by ``list_buckets()`` still has its ``last_modified_at``.
 - ``head_object()`` kept the old metadata when the object no longer existed; it now clears it before raising ``S3FileNotExist``. It also no longer stores ``ResponseMetadata`` in ``response``.
+- ``S3Path.get_tags``, ``put_tags`` and ``update_tags`` on a relative file path called AWS with no bucket and failed with a ``TypeError`` from botocore. They now raise ``S3PathTypeError`` (still a ``TypeError``) before calling AWS, the same as for the void path and relative folders.
 
 **Minor Improvements**
 
@@ -175,6 +176,8 @@ Backlog (TODO)
 - Document how ``S3Path.exists`` tests a bucket, a file and a folder, which API it calls, and the errors it raises.
 - Document the metadata snapshot of ``S3Path`` (``s3pathlib.core.metadata``): where it comes from, when a property calls AWS, which methods change it, and which client loads it.
 - Fix the ``expire_at`` docstring: it is the ``Expires`` HTTP header of the object, not the expiration date of a lifecycle rule (which is in ``response["Expiration"]``).
+- ``S3Path.put_tags`` returns a copy of the given tags instead of the same ``dict``.
+- Document the object tagging methods of ``S3Path`` (``s3pathlib.core.tagging``): ``put_tags({})`` removes all tags, ``update_tags`` is not atomic, which version they change, and the boto3 errors they raise as is. Document that the metadata snapshot of an ``S3Path`` never decides which version an operation works on: without ``version_id``, ``get_tags()``, ``read_bytes()``, ``delete()``, ... work on the latest version.
 
 **Miscellaneous**
 
