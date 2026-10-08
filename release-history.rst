@@ -145,6 +145,7 @@ Backlog (TODO)
 - Document that the result of ``better_client.paginate_list_objects_v2`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix, not a folder. Fix the ``is_content_an_object`` truth table: a key ending with ``/`` that has data is an object.
 - Document that the result of ``better_client.paginate_list_object_versions`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix. Fix its docstring, which named the wrong return type. ``better_client.list_object_versions.CommonPrefixTypeDefIterproxy`` is now the same class as in ``better_client.list_objects``.
 - Deprecate the ``ignore_not_found`` argument of ``better_client.delete_object``: it never had an effect, because S3 never reports a missing key when deleting. Passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0. Document that deleting a missing key in a bucket with versioning adds a delete marker.
+- Document how ``better_client.upload_dir`` builds the keys, the ``prefix`` rules (``"data"`` is ``"data/"``, ``""`` is the bucket root), that empty directories are not uploaded, that ``overwrite=False`` checks then uploads (not atomic), and the errors it raises (``S3UploadFailedError`` from boto3 when an upload fails).
 
 **Miscellaneous**
 
@@ -159,6 +160,8 @@ Backlog (TODO)
 - Add ``s3pathlib.tests.mock_aws``, the new base class for tests that call AWS. Every test module runs against moto (``TestMock``) and, when ``S3PATHLIB_TEST_REAL_AWS=true`` (``mise run cov-aws``), against real AWS (``TestRealAws``); ``@mock_only`` / ``@real_aws_only`` mark tests that only work in one mode. Each test gets its own S3 folder, and the real AWS folder of a test class is emptied when it starts. ``mise run setup-aws-ci`` also adds a lifecycle rule that expires the unit test objects after one day. Shared helpers moved to ``s3pathlib.tests.aws_helpers``.
 - ``mise run setup-aws-ci`` updates the inline policy of an existing test IAM user (without touching its access key), and the policy allows bucket tagging on temporary buckets.
 - The IAM policy of the test user (``mise run setup-aws-ci``) gives full access to the temporary buckets the tests create, named ``s3pathlib-test-tmp-*``.
+- ``better_client.upload_dir`` uses the standard library ``pathlib`` instead of ``pathlib_mate``; ``local_dir`` still accepts a ``str``, a ``pathlib.Path`` or a ``pathlib_mate.Path``.
+
 
 
 

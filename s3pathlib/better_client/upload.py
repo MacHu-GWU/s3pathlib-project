@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 
 """
+Upload a local directory to S3.
+
 .. _upload_file: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html#
 """
 
 from __future__ import annotations
 
 import typing as T
-
-from pathlib_mate import Path
+from pathlib import Path
 
 from .. import exc
 from ..type import PathType
 from ..utils import join_s3_uri
 from .head_object import is_object_exists
-
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from mypy_boto3_s3 import S3Client
@@ -29,20 +29,43 @@ def upload_dir(
     overwrite: bool = False,
 ) -> int:
     """
-    Recursively upload a local directory and files in its subdirectory to S3.
+    Recursively upload the files of a local directory and its subdirectories
+    to S3, with upload_file_ (multipart upload for large files). The path of
+    each file relative to ``local_dir`` becomes its key under ``prefix``, with
+    ``/`` as separator on every OS.
+
+    Example::
+
+        >>> upload_dir(s3_client, "my-bucket", "data/", "/tmp/data")
+        3
+
+    Only files are uploaded: an empty local directory does not create
+    anything in S3.
 
     :param s3_client: A ``boto3.session.Session().client("s3")`` object.
     :param bucket: S3 bucket name.
-    :param prefix: The s3 prefix (logic directory) you want to upload to.
-    :param local_dir: Absolute path of the directory on the local
-        file system you want to upload.
-    :param pattern: Linux styled glob pattern match syntax. see this official
-        guide https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob
-        for more details.
-    :param overwrite: If False, none of the file will be uploaded / overwritten
-        if any of target s3 location already taken.
+    :param prefix: The S3 folder to upload to, e.g. ``"data/"``. A missing
+        trailing ``/`` is added (``"data"`` is the same as ``"data/"``), and
+        ``""`` is the root of the bucket.
+    :param local_dir: The local directory, a ``str`` or any ``os.PathLike``
+        (e.g. ``pathlib.Path``); a relative path is relative to the current
+        directory.
+    :param pattern: Which files to upload, a glob pattern relative to
+        ``local_dir``, see https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob.
+        Default ``"**/*"``: every file, in every subdirectory.
+    :param overwrite: If False (default), check every target key first, and
+        upload nothing if any of them exists. The check and the upload are not
+        atomic: a key written by someone else in between is overwritten.
 
     :return: number of files uploaded
+
+    :raises TypeError: if ``local_dir`` is a file.
+    :raises FileNotFoundError: if ``local_dir`` does not exist.
+    :raises S3FileAlreadyExist: if ``overwrite`` is False and a target key
+        exists; nothing is uploaded.
+    :raises boto3.exceptions.S3UploadFailedError: if an upload fails, e.g. the
+        bucket does not exist; boto3 raises it with the ``ClientError`` as its
+        ``__context__``. The files uploaded before it are kept.
     """
     # preprocess input arguments
     if prefix.endswith("/"):
@@ -67,7 +90,7 @@ def upload_dir(
         if p.is_file():
             relative_path = p.relative_to(p_local_dir)
             key = "{}{}".format(final_prefix, "/".join(relative_path.parts))
-            todo.append((p.abspath, key))
+            todo.append((str(p.absolute()), key))
 
     # make sure all target s3 location not exists
     if overwrite is False:
