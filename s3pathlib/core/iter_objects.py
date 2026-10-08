@@ -22,6 +22,7 @@ from ..better_client.list_objects import (
     calculate_total_size,
     count_objects,
 )
+from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -164,7 +165,11 @@ class IterObjectsAPIMixin:
                 .contents()
                 .filter(is_content_an_object)
             ):
-                yield self._from_content_dict(bucket, dct=content)
+                yield self._from_content_dict(
+                    bucket,
+                    dct=content,
+                    s3_client=explicit_s3_client(s3_client, bsm),
+                )
 
         return S3PathIterProxy(_iter_s3path())
 
@@ -236,7 +241,11 @@ class IterObjectsAPIMixin:
                     yield root.joinpath(dct["Prefix"])
 
                 for dct in res.get("Contents", list()):
-                    yield self._from_content_dict(self.bucket, dct)
+                    yield self._from_content_dict(
+                        self.bucket,
+                        dct,
+                        s3_client=explicit_s3_client(s3_client, bsm),
+                    )
 
         return S3PathIterProxy(_iter_s3path())
 

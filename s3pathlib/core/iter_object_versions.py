@@ -16,6 +16,7 @@ from func_args import NOTHING
 from ..aws import s3_context
 from ..better_client.list_object_versions import paginate_list_object_versions
 from .iter_objects import S3PathIterProxy
+from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -108,10 +109,15 @@ class IterObjectVersionsAPIMixin:
                     response
                 )
                 s3path_list = list()
+                explicit_client = explicit_s3_client(s3_client, bsm)
                 for dct in versions:
-                    s3path_list.append(self._from_version_dict(bucket, dct=dct))
+                    s3path_list.append(
+                        self._from_version_dict(bucket, dct=dct, s3_client=explicit_client)
+                    )
                 for dct in delete_markers:
-                    s3path_list.append(self._from_delete_marker(bucket, dct=dct))
+                    s3path_list.append(
+                        self._from_delete_marker(bucket, dct=dct, s3_client=explicit_client)
+                    )
                 # S3 order: by key, then newest first. S3 sends the versions
                 # and the delete markers of a page in two lists, merge them;
                 # the pages themselves come in this order.

@@ -16,6 +16,7 @@ from ..better_client.head_bucket import is_bucket_exists
 from ..better_client.head_object import head_object
 from ..aws import s3_context
 
+from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -48,9 +49,10 @@ class ExistsAPIMixin:
         - File: the object exists (``head_object``). A missing bucket, or an
           object whose latest version is a delete marker, does not exist. With
           ``version_id``, test that version instead of the latest one; a
-          delete marker does not exist. When the object exists, its metadata
-          is cached (see ``response``); when it does not, the cached metadata
-          is cleared.
+          delete marker does not exist. When the object exists and this
+          ``S3Path`` has no metadata snapshot yet, the ``head_object``
+          response becomes its snapshot (see :mod:`s3pathlib.core.metadata`);
+          an existing snapshot is never replaced.
         - Folder: at least one object key starts with the folder key,
           including the folder marker object itself (e.g. ``folder/``), found
           with one ``list_objects_v2`` call. A folder in a missing bucket does
@@ -88,11 +90,16 @@ class ExistsAPIMixin:
                 ignore_not_found=True,
             )
             if dct is None:
-                self.clear_cache()
                 return False
             else:
-                dct.pop("ResponseMetadata", None)
-                self._meta = dct
+                # only fill an empty snapshot, see core.metadata
+                if self._meta is None:
+                    dct.pop("ResponseMetadata", None)
+                    self._set_meta(
+                        dct,
+                        complete=True,
+                        s3_client=explicit_s3_client(s3_client, bsm),
+                    )
                 return True
         else:  # a folder
             try:

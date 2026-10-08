@@ -18,6 +18,7 @@ Each one also inherits from the matching builtin exception, so
     │   └── S3FileAlreadyExist
     ├── S3PermissionDenied(PermissionError)
     ├── S3DeleteObjectsError
+    ├── S3ObjectChangedError
     ├── S3ValidationError(ValueError)
     └── S3PathTypeError(TypeError)
         ├── S3PathIsNotBucketError
@@ -80,6 +81,16 @@ class S3FileAlreadyExist(S3AlreadyExist):
 
 class S3PermissionDenied(S3PathlibError, PermissionError):
     pass
+
+
+class S3ObjectChangedError(S3PathlibError):
+    """
+    The S3 object changed since its metadata was loaded, so the missing
+    metadata fields cannot be loaded from the same object. Raised when an
+    ``S3Path`` returned by a list API (without version id) loads the rest of
+    its metadata, and the object was overwritten in between. Get a new
+    ``S3Path`` (e.g. list again) to read the new object.
+    """
 
 
 class S3DeleteObjectsError(S3PathlibError):

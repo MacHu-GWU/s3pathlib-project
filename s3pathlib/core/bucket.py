@@ -26,6 +26,7 @@ from func_args import NOTHING, resolve_kwargs
 from ..aws import s3_context
 from ..constants import S3_LIST_BUCKETS_MAX_BUCKETS
 from ..exc import S3ValidationError
+from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 
@@ -293,7 +294,11 @@ class BucketAPIMixin:
                 meta = {"LastModified": dct["CreationDate"]}
                 if "BucketRegion" in dct:
                     meta["BucketRegion"] = dct["BucketRegion"]
-                s3bucket._meta = meta
+                s3bucket._set_meta(
+                    meta,
+                    complete=False,
+                    s3_client=explicit_s3_client(s3_client, bsm),
+                )
                 s3bucket_list.append(s3bucket)
             continuation_token = response.get("ContinuationToken")
             if continuation_token is None:

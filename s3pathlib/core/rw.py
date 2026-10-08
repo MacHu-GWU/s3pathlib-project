@@ -23,6 +23,7 @@ from ..type import TagType, MetadataType
 from ..tag import encode_url_query
 from ..aws import s3_context
 
+from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -61,8 +62,11 @@ class ReadAndWriteAPIMixin:
         Read binary data from s3 object.
         A simple wrapper around get_object_.
 
-        It also updates this ``S3Path`` object's metadata and attributes like
-        ``etag``, ``size``, ``version_id``, etc with the get_object_ response.
+        If this ``S3Path`` has no metadata snapshot yet, the get_object_
+        response becomes its snapshot (``etag``, ``size``, ``version_id``,
+        ...), unless ``range`` or ``part_number`` is given (the response then
+        describes a part only). An existing snapshot is never replaced, see
+        :mod:`s3pathlib.core.metadata`.
 
         Example:
 
@@ -125,9 +129,19 @@ class ReadAndWriteAPIMixin:
         # print("--- get_object response ---")
         # pprint(response)
         data = response["Body"].read()
-        del response["Body"]
-        del response["ResponseMetadata"]
-        self._meta = response
+        # only fill an empty snapshot with a full response, see core.metadata
+        if (
+            (self._meta is None)
+            and (range is NOTHING)
+            and (part_number is NOTHING)
+        ):
+            del response["Body"]
+            del response["ResponseMetadata"]
+            self._set_meta(
+                response,
+                complete=True,
+                s3_client=explicit_s3_client(s3_client, bsm),
+            )
         return data
 
     def read_text(
@@ -158,8 +172,11 @@ class ReadAndWriteAPIMixin:
         Read text data from s3 object.
         A simple wrapper around get_object_.
 
-        It also updates this ``S3Path`` object's metadata and attributes like
-        ``etag``, ``size``, ``version_id``, etc with the get_object_ response.
+        If this ``S3Path`` has no metadata snapshot yet, the get_object_
+        response becomes its snapshot (``etag``, ``size``, ``version_id``,
+        ...), unless ``range`` or ``part_number`` is given (the response then
+        describes a part only). An existing snapshot is never replaced, see
+        :mod:`s3pathlib.core.metadata`.
 
         Example:
 
@@ -360,7 +377,11 @@ class ReadAndWriteAPIMixin:
         if metadata is not NOTHING:
             response["Metadata"] = metadata
         s3path = self.copy()
-        s3path._meta = response
+        s3path._set_meta(
+            response,
+            complete=False,
+            s3_client=explicit_s3_client(s3_client, bsm),
+        )
         return s3path
 
     def write_text(

@@ -12,6 +12,7 @@ from __future__ import annotations
 import typing as T
 from func_args import NOTHING
 
+from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 from ..aws import s3_context
 from ..better_client.delete_object import delete_object
@@ -130,7 +131,11 @@ class DeleteAPIMixin:
                 # it could be a delete marker or a deleted version
                 if "VersionId" in response:
                     s3path = self.copy()
-                    s3path._meta = response
+                    s3path._set_meta(
+                        response,
+                        complete=False,
+                        s3_client=explicit_s3_client(s3_client, bsm),
+                    )
                     return s3path
                 # not a versioned bucket
                 else:

@@ -54,6 +54,13 @@ Backlog (TODO)
 - Rename the misspelled ``ListObjectsV2OutputTypeDefIterproxy.common_prefixs()`` and ``contents_and_common_prefixs()`` (returned by ``better_client.paginate_list_objects_v2``) to ``common_prefixes()`` and ``contents_and_common_prefixes()``, the same names as in ``better_client.list_object_versions``.
 - ``better_client.delete_object_versions`` requires ``prefix`` to end with ``/`` (or be ``""`` for the whole bucket), the same as ``better_client.delete_dir``, and raises ``S3ValidationError`` otherwise. A prefix such as ``"data/file.txt"`` also matched ``data/file.txt.bak`` and deleted all its versions. To delete all versions of one object, use the new ``better_client.delete_object_all_versions``.
 - ``S3Path.exists(version_id=...)`` and ``S3Path.ensure_not_exists(version_id=...)`` raise ``ValueError`` on a bucket or a folder, before calling AWS. Before, ``version_id`` was silently ignored (e.g. ``S3Path("bucket").exists(version_id="v1")`` was ``True``); it only applies to a file.
+- The metadata loaded from S3 on an ``S3Path`` (``size``, ``etag``, ``last_modified_at``, ``version_id``, ``expire_at``, ``metadata``) is now a snapshot of one object version at one moment, see ``s3pathlib.core.metadata``. As a result:
+
+    - ``exists()`` and ``read_bytes()`` / ``read_text()`` only fill an ``S3Path`` that has no metadata yet; they no longer replace loaded metadata. To load the latest metadata, call ``head_object()`` (or ``clear_cache()``).
+    - A missing field of a partial snapshot (e.g. the user metadata of a listed object) is loaded from the same object version, not from the latest one. When the object was overwritten after it was listed, it raises the new ``S3ObjectChangedError`` instead of mixing the data of two objects.
+    - The properties of a delete marker never call AWS: ``size`` is ``0`` and ``etag``, ``metadata`` and ``expire_at`` are ``None``. Before, ``metadata`` loaded the latest version and raised ``S3FileNotExist``.
+    - ``response`` and ``metadata`` return a copy; changing it no longer changes the loaded metadata.
+- Remove ``S3Path.update_metadata``, which only raised ``NotImplementedError`` (S3 cannot change the metadata of an object without writing it again). Use ``write_bytes(..., metadata=...)`` or ``copy_file(..., metadata=...)``.
 
 **Features and Improvements**
 
@@ -84,6 +91,9 @@ Backlog (TODO)
 - Add ``better_client.delete_object_all_versions(s3_client, bucket, key)``, which permanently deletes all versions and delete markers of exactly one key.
 - Add ``s3pathlib.exc.S3DeleteObjectsError``, raised when S3 fails to delete some objects of a ``delete_objects`` call; it has the ``errors`` S3 returned and the number of objects deleted so far (``n_deleted``).
 - ``S3Path.list_buckets()`` keeps the region of each bucket when S3 returns it, in ``response["BucketRegion"]``. Add ``s3pathlib.constants.S3_LIST_BUCKETS_MAX_BUCKETS``, the page size of ListBuckets (10,000).
+- ``S3Path.head_object`` accepts ``version_id``, to load the metadata of one version.
+- An ``S3Path`` produced by a call with an explicit client (``bsm=...``), e.g. by ``iter_objects(bsm=...)`` or ``head_object(bsm=...)``, remembers that client and loads its missing metadata with it, instead of the default client of ``s3_context``. Pickle does not keep the client; ``copy.copy`` / ``copy.deepcopy`` do.
+- Add ``s3pathlib.exc.S3ObjectChangedError``.
 
 **Bugfixes**
 
@@ -126,7 +136,11 @@ Backlog (TODO)
 - ``S3Path.list_buckets()`` made one ListBuckets request without ``MaxBuckets``, which S3 rejects for an account allowed to have more than 10,000 buckets. It now fetches every page, 10,000 buckets at a time.
 - ``S3Path("bucket", "folder/").exists()`` raised ``NoSuchBucket`` when the bucket did not exist, while a file in a missing bucket returned ``False``. A folder in a missing bucket now does not exist either.
 - ``S3Path.exists()`` on a path without bucket raised a different error for each kind of path: a bare ``TypeError`` for the void path, a ``TypeError`` from botocore for a relative file, and ``S3PathTypeError`` for a relative folder. It now always raises ``S3PathTypeError`` (still a ``TypeError``) with a message, before calling AWS.
-- ``S3Path.exists()`` on a file caches the object metadata when it exists, but kept the old cache when the object no longer existed, so e.g. ``size`` still returned the size of the deleted object. It now clears the cache when the object does not exist.
+- An ``S3Path`` returned by ``list_object_versions()`` (or by ``write_bytes()`` with versioning) loaded its missing metadata from the latest version, so an old version silently got the size, user metadata and version id of the latest one. It now loads them from its own version.
+- ``version_id`` of an ``S3Path`` returned by ``iter_objects()`` / ``iterdir()`` was always ``"null"``, even with versioning, because the list API does not return it. It now loads the real version id.
+- ``read_bytes(range=...)`` / ``read_bytes(part_number=...)`` stored the response as the metadata of the object, so ``size`` became the length of the range.
+- Reading a metadata property of a bucket, a relative path or the void path raised a botocore error (``ParamValidationError`` or ``TypeError``). It now raises ``S3PathTypeError`` (still a ``TypeError``) before calling AWS. A bucket returned by ``list_buckets()`` still has its ``last_modified_at``.
+- ``head_object()`` kept the old metadata when the object no longer existed; it now clears it before raising ``S3FileNotExist``. It also no longer stores ``ResponseMetadata`` in ``response``.
 
 **Minor Improvements**
 
@@ -159,6 +173,8 @@ Backlog (TODO)
 - Document the bucket methods of ``S3Path`` (``s3pathlib.core.bucket``): every argument, the boto3 errors they raise as is (e.g. ``BucketAlreadyExists``, ``BucketNotEmpty``, ``NoSuchBucket``), that they reject a path that is not a bucket before calling AWS, and that creating a bucket you already own in ``us-east-1`` succeeds and resets its ACL.
 - ``S3Path.ensure_not_exists`` raises ``S3FileAlreadyExist``, ``S3FolderAlreadyExist`` or ``S3BucketAlreadyExist`` depending on the path, instead of ``S3AlreadyExist`` with a message saying "s3 object" for every path. They are subclasses of ``S3AlreadyExist``, so existing ``except`` clauses keep working.
 - Document how ``S3Path.exists`` tests a bucket, a file and a folder, which API it calls, and the errors it raises.
+- Document the metadata snapshot of ``S3Path`` (``s3pathlib.core.metadata``): where it comes from, when a property calls AWS, which methods change it, and which client loads it.
+- Fix the ``expire_at`` docstring: it is the ``Expires`` HTTP header of the object, not the expiration date of a lifecycle rule (which is in ``response["Expiration"]``).
 
 **Miscellaneous**
 

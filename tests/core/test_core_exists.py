@@ -115,18 +115,21 @@ class ExistsMixin(BaseTest):
             assert p.size == 3
         assert calls == []
 
-    def test_file_clears_metadata_when_gone(self):
+    def test_file_keeps_existing_snapshot(self):
         """
-        Once the object is deleted, ``exists()`` clears the cached metadata,
-        so that it is not read as the metadata of an existing object (2.x
-        kept it).
+        ``exists()`` only fills an empty metadata snapshot: a path that already
+        describes an object keeps describing it after the object is
+        overwritten or deleted (see ``s3pathlib.core.metadata``).
         """
         p = self.s3dir_test / "file.txt"
-        self.put(p)
+        self.put(p, b"abc")
         assert p.exists() is True
+        self.put(p, b"hello")
+        assert p.exists() is True
+        assert p.size == 3
         self.delete(p)
         assert p.exists() is False
-        assert p.response is None
+        assert p.size == 3
 
     def test_file_latest_version_is_delete_marker(self):
         """

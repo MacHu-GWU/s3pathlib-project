@@ -172,7 +172,9 @@ class BaseS3Path:
         "_is_dir",
         "_cached_cparts",  # cached comparison parts
         "_hash",  # cached hash value
-        "_meta",  # s3 object metadata cache object
+        "_meta",  # metadata snapshot of one object version, see core.metadata
+        "_meta_complete",  # True if _meta is a full head_object / get_object response
+        "_s3_client",  # the explicit client that loaded _meta, see core.metadata
     )
 
     def __new__(
@@ -299,6 +301,8 @@ class BaseS3Path:
         self._parts = parts
         self._is_dir = is_dir
         self._meta = None
+        self._meta_complete = False
+        self._s3_client = None
         return self
 
     @FilterableProperty

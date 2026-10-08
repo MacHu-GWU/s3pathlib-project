@@ -7,8 +7,8 @@ Test order:
 
 1. ``to_dict``: the format of every kind of path;
 2. ``from_dict``: round trips, then one case per kind of bad input;
-3. pickle and ``copy``: every protocol, the hash across processes, metadata,
-   pickles from 2.x, and tampered state.
+3. pickle and ``copy``: every protocol, the hash across processes, the
+   metadata snapshot and its S3 client, pickles from 2.x, and tampered state.
 """
 
 import copy
@@ -24,7 +24,8 @@ from s3pathlib.api import S3Path
 from s3pathlib.api import S3PathDict
 from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.aws_helpers import record_api_calls
+from s3pathlib.tests.mock_aws import BaseTest
 
 R = S3Path.make_relpath
 
@@ -208,7 +209,7 @@ class SerdeAPIMixin(BaseTest):
         p = S3Path("bucket", "a.txt")
         _ = hash(p)
         state = p.__getstate__()
-        assert set(state) == {"_bucket", "_parts", "_is_dir", "_meta"}
+        assert set(state) == {"_bucket", "_parts", "_is_dir", "_meta", "_meta_complete"}
         loaded = pickle.loads(pickle.dumps(p))
         assert hasattr(loaded, "_hash") is False
         assert hasattr(loaded, "_cached_cparts") is False
@@ -245,12 +246,28 @@ class SerdeAPIMixin(BaseTest):
         Metadata loaded from S3 is kept, so a path with its size can be sent
         to another process without calling ``head_object`` again.
         """
-        p = self.s3dir_root.joinpath("serde", "pickle.txt")
+        p = self.s3dir_test / "pickle.txt"
         self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"hello")
         p.head_object()
         loaded = pickle.loads(pickle.dumps(p))
         assert loaded.response == p.response
-        assert loaded.size == 5
+        with record_api_calls(self.s3_client) as calls:
+            assert loaded.size == 5
+            # a full snapshot stays full: a missing field needs no call
+            assert loaded.expire_at is None
+        assert calls == []
+
+    def test_pickle_drops_s3_client(self):
+        """
+        The S3 client that loaded the metadata cannot be pickled; a loaded
+        path falls back to ``s3_context``.
+        """
+        p = S3Path("bucket", "a.txt")
+        p._set_meta({"ETag": '"abc"'}, complete=False, s3_client=self.s3_client)
+        loaded = pickle.loads(pickle.dumps(p))
+        assert loaded._s3_client is None
+        assert loaded._meta_complete is False
+        assert loaded.response == {"ETag": '"abc"'}
 
     @pytest.mark.parametrize(
         "copier",
@@ -262,15 +279,18 @@ class SerdeAPIMixin(BaseTest):
     def test_copy_module(self, copier):
         """
         ``copy.copy`` / ``copy.deepcopy`` give an equal new path, with the
-        metadata and without the caches.
+        metadata snapshot and the S3 client that loaded it (shared), and
+        without the caches.
         """
         p = S3Path("bucket", "a.txt")
-        p._meta = {"VersionId": "v1"}
+        p._set_meta({"VersionId": "v1"}, complete=True, s3_client=self.s3_client)
         _ = hash(p)
         p1 = copier(p)
         assert p1 == p
         assert p1 is not p
-        assert p1._meta == {"VersionId": "v1"}
+        assert p1.response == {"VersionId": "v1"}
+        assert p1._meta_complete is True
+        assert p1._s3_client is self.s3_client
         assert hasattr(p1, "_hash") is False
 
     @pytest.mark.parametrize(
@@ -303,6 +323,8 @@ class SerdeAPIMixin(BaseTest):
         assert p == S3Path("bucket", "a.txt")
         assert type(p._parts) is tuple
         assert hash(p) == hash(S3Path("bucket", "a.txt"))
+        assert p._meta_complete is False
+        assert p._s3_client is None
 
     def test_unpickle_invalid_state(self):
         """
@@ -315,12 +337,12 @@ class SerdeAPIMixin(BaseTest):
             )
 
 
-# class Test(SerdeAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(SerdeAPIMixin):
+class TestMock(SerdeAPIMixin):
     use_mock = True
+
+
+class TestRealAws(SerdeAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

@@ -20,15 +20,21 @@ back, so ``json.loads(json.dumps(d)) == d``. It is also the type of
 
 **Pickle**
 
-Pickling (and ``copy.copy`` / ``copy.deepcopy``) keeps the path and the
-metadata loaded from S3, but not the cached hash: the hash of a ``str`` is
-different in every Python process, so a cached hash would be wrong after
-loading it in another process (e.g. with ``multiprocessing``).
+Pickling keeps the path and the metadata snapshot loaded from S3 (see
+:mod:`s3pathlib.core.metadata`), but not the cached hash: the hash of a ``str``
+is different in every Python process, so a cached hash would be wrong after
+loading it in another process (e.g. with ``multiprocessing``). It does not keep
+the S3 client that loaded the metadata either (a client cannot be pickled), so
+a loaded path uses ``s3_context`` to load the missing metadata fields.
+
+``copy.copy`` and ``copy.deepcopy`` keep the same things, plus the S3 client
+(shared, not copied).
 """
 
 from __future__ import annotations
 
 import typing as T
+import copy
 
 from ..exc import S3ValidationError
 from .base import _ensure_valid_state
@@ -54,8 +60,9 @@ class S3PathDict(T.TypedDict):
 
 _DICT_KEYS = ("bucket", "parts", "is_dir")
 
-# the fields saved by pickle; the caches (``_hash``, ``_cached_cparts``) are not
-_PICKLE_FIELDS = ("_bucket", "_parts", "_is_dir", "_meta")
+# the fields saved by pickle; the caches (``_hash``, ``_cached_cparts``) and
+# the S3 client (``_s3_client``, which cannot be pickled) are not
+_PICKLE_FIELDS = ("_bucket", "_parts", "_is_dir", "_meta", "_meta_complete")
 
 
 class SerdeAPIMixin:
@@ -112,12 +119,26 @@ class SerdeAPIMixin:
 
     def __getstate__(self: S3Path) -> dict:
         """
-        The state saved by pickle: the path and the metadata, without caches.
+        The state saved by pickle: the path and the metadata snapshot, without
+        caches and without the S3 client that loaded the metadata (a loaded
+        copy uses ``s3_context`` to load the missing metadata fields).
         """
         state = dict()
         for field in _PICKLE_FIELDS:
             state[field] = getattr(self, field)
         return state
+
+    def __copy__(self: S3Path) -> S3Path:
+        new = object.__new__(type(self))
+        new.__setstate__(self.__getstate__())
+        new._s3_client = self._s3_client
+        return new
+
+    def __deepcopy__(self: S3Path, memo: dict) -> S3Path:
+        new = object.__new__(type(self))
+        new.__setstate__(copy.deepcopy(self.__getstate__(), memo))
+        new._s3_client = self._s3_client
+        return new
 
     def __setstate__(self: S3Path, state: dict | tuple) -> None:
         """
@@ -141,3 +162,7 @@ class SerdeAPIMixin:
         self._parts = parts
         self._is_dir = state["_is_dir"]
         self._meta = state.get("_meta")
+        # pickles made before 3.0 have no _meta_complete; treating their
+        # metadata as partial only costs a head_object call when needed
+        self._meta_complete = state.get("_meta_complete", False)
+        self._s3_client = None
