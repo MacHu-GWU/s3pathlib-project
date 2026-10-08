@@ -52,6 +52,9 @@ ENV_GITHUB_TOKEN = "GITHUB_TOKEN"
 AWS_REGION = "us-east-1"
 IAM_USER_NAME = "project-s3pathlib-test"
 IAM_POLICY_NAME = "s3pathlib-unit-test"
+# Keep in sync with the tests: temporary buckets made by the tests are named
+# "s3pathlib-test-tmp-{uuid}" (e.g. tests/better_client/test_client_delete_object.py)
+TMP_BUCKET_PREFIX = "s3pathlib-test-tmp-"
 
 # Keep in sync with ``get_root_prefix`` in ``s3pathlib/tests/mock_aws.py``:
 # every object the unit tests write is under this prefix.
@@ -112,6 +115,9 @@ def build_iam_policy(aws_account_id: str) -> dict:
     The inline policy of the test IAM user.
 
     - Full access to the two test buckets and their objects.
+    - Full access to the temporary buckets the tests create, named
+      ``s3pathlib-test-tmp-*`` (e.g. to delete everything in a bucket, which
+      must never be tried on the shared test buckets).
     - Create / delete / inspect / tag any bucket: tests create and delete
       temporary buckets with random names, in several regions (e.g.
       ``tests/core/test_core_bucket.py``, and the bucket tagging tests, which
@@ -134,6 +140,15 @@ def build_iam_policy(aws_account_id: str) -> dict:
                 "Effect": "Allow",
                 "Action": "s3:*",
                 "Resource": bucket_resources,
+            },
+            {
+                "Sid": "FullAccessToTemporaryTestBuckets",
+                "Effect": "Allow",
+                "Action": "s3:*",
+                "Resource": [
+                    f"arn:aws:s3:::{TMP_BUCKET_PREFIX}*",
+                    f"arn:aws:s3:::{TMP_BUCKET_PREFIX}*/*",
+                ],
             },
             {
                 "Sid": "ManageTemporaryBuckets",

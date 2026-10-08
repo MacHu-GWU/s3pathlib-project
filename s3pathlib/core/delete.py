@@ -14,11 +14,10 @@ from func_args import NOTHING
 
 from .resolve_s3_client import resolve_s3_client
 from ..aws import s3_context
-from ..better_client.delete_object import (
-    delete_object,
-    delete_dir,
-    delete_object_versions,
-)
+from ..better_client.delete_object import delete_object
+from ..better_client.delete_object import delete_dir
+from ..better_client.delete_object import delete_object_versions
+from ..better_client.delete_object import delete_object_all_versions
 
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -78,7 +77,9 @@ class DeleteAPIMixin:
         :param expected_bucket_owner: see delete_object_.
         :param check_sum_algorithm: See delete_object_.
         :param is_hard_delete: if ``True``, then it will delete all versions
-            of the object, then the data is permanently deleted.
+            of the object, then the data is permanently deleted. For a file,
+            only the versions of this exact key are deleted (before 3.0, every
+            key starting with it, e.g. ``file.txt.bak``, was deleted too).
         :param skip_prompt: Default False, it will prompt you to confirm when deleting
             everything in an S3 bucket.
         :param bsm: See bsm_.
@@ -98,10 +99,11 @@ class DeleteAPIMixin:
         bucket = self.bucket
         if self.is_file():
             if is_hard_delete:
-                delete_object_versions(
+                # only this key: a prefix would also match "file.txt.bak"
+                delete_object_all_versions(
                     s3_client=s3_client,
                     bucket=bucket,
-                    prefix=self.key,
+                    key=self.key,
                     mfa=mfa,
                     request_payer=request_payer,
                     bypass_governance_retention=bypass_governance_retention,
@@ -120,7 +122,6 @@ class DeleteAPIMixin:
                 request_payer=request_payer,
                 bypass_governance_retention=bypass_governance_retention,
                 expected_bucket_owner=expected_bucket_owner,
-                ignore_not_found=True,
             )
             # delete_object API succeeded
             if bool(response):

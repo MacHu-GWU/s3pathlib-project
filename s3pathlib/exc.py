@@ -17,6 +17,7 @@ Each one also inherits from the matching builtin exception, so
     │   ├── S3FolderAlreadyExist
     │   └── S3FileAlreadyExist
     ├── S3PermissionDenied(PermissionError)
+    ├── S3DeleteObjectsError
     ├── S3ValidationError(ValueError)
     └── S3PathTypeError(TypeError)
         ├── S3PathIsNotBucketError
@@ -79,6 +80,24 @@ class S3FileAlreadyExist(S3AlreadyExist):
 
 class S3PermissionDenied(S3PathlibError, PermissionError):
     pass
+
+
+class S3DeleteObjectsError(S3PathlibError):
+    """
+    S3 failed to delete some of the objects of a ``delete_objects`` call. The
+    call itself succeeds (HTTP 200): the failures are in the ``Errors`` part
+    of the response, so boto3 raises nothing.
+
+    :param errors: The ``Errors`` of the response, e.g.
+        ``[{"Key": "a.txt", "VersionId": "v1", "Code": "AccessDenied", "Message": "..."}]``.
+    :param n_deleted: The number of objects deleted before (and in) the
+        failed call.
+    """
+
+    def __init__(self, message: str, errors: list[dict], n_deleted: int):
+        super().__init__(message)
+        self.errors = errors
+        self.n_deleted = n_deleted
 
 
 class S3ValidationError(S3PathlibError, ValueError):

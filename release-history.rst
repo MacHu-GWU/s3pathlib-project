@@ -52,6 +52,7 @@ Backlog (TODO)
 - ``better_client.is_bucket_exists`` (and ``S3Path("bucket").exists()``, which uses it) raises ``S3PermissionDenied`` (a ``PermissionError``) when S3 returns 403, i.e. the bucket exists but belongs to another AWS account, or you lack the ``s3:ListBucket`` permission. Before, it raised the ``botocore.exceptions.ClientError`` as is; the ``ClientError`` is now the ``__cause__``.
 - ``better_client.head_object`` and ``better_client.is_object_exists`` (and the ``S3Path`` methods built on them, such as ``exists()`` on a file and the metadata properties) raise ``S3PermissionDenied`` when S3 returns 403, even with ``ignore_not_found=True``: no permission is not "not found". Before, they raised the ``botocore.exceptions.ClientError`` as is; it is now the ``__cause__``.
 - Rename the misspelled ``ListObjectsV2OutputTypeDefIterproxy.common_prefixs()`` and ``contents_and_common_prefixs()`` (returned by ``better_client.paginate_list_objects_v2``) to ``common_prefixes()`` and ``contents_and_common_prefixes()``, the same names as in ``better_client.list_object_versions``.
+- ``better_client.delete_object_versions`` requires ``prefix`` to end with ``/`` (or be ``""`` for the whole bucket), the same as ``better_client.delete_dir``, and raises ``S3ValidationError`` otherwise. A prefix such as ``"data/file.txt"`` also matched ``data/file.txt.bak`` and deleted all its versions. To delete all versions of one object, use the new ``better_client.delete_object_all_versions``.
 
 **Features and Improvements**
 
@@ -79,6 +80,8 @@ Backlog (TODO)
 - Add ``s3pathlib.marker.deprecated``, the standard :pep:`702` decorator. Deprecated APIs now emit a ``DeprecationWarning`` that points at the caller, and type checkers / IDEs flag the call sites.
 - ``s3_context`` is thread safe: the default S3 client is created at most once, under a lock, and ``attach_s3_client`` replaces the client in one step.
 - ``s3_context`` creates the default S3 client when it is first used instead of when ``s3pathlib`` is imported, so importing ``s3pathlib`` has no side effect, and environment variables such as ``AWS_PROFILE`` set after the import are honored.
+- Add ``better_client.delete_object_all_versions(s3_client, bucket, key)``, which permanently deletes all versions and delete markers of exactly one key.
+- Add ``s3pathlib.exc.S3DeleteObjectsError``, raised when S3 fails to delete some objects of a ``delete_objects`` call; it has the ``errors`` S3 returned and the number of objects deleted so far (``n_deleted``).
 
 **Bugfixes**
 
@@ -112,6 +115,8 @@ Backlog (TODO)
 - ``better_client.paginate_list_objects_v2`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
 - ``better_client.paginate_list_object_versions`` returned more than ``limit`` entries whenever there were delete markers or folders, because ``limit`` only counted the versions: ``limit=3`` could return 4 entries. ``limit`` now counts versions, delete markers and common prefixes together, the same as S3's ``MaxKeys``. This also applies to ``S3Path.list_object_versions(limit=...)`` and ``better_client.delete_object_versions(limit=...)``.
 - ``better_client.paginate_list_object_versions`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
+- **Data loss**: ``S3Path("bucket", "data/file.txt").delete(is_hard_delete=True)`` permanently deleted all versions of every key starting with ``data/file.txt``, such as ``data/file.txt.bak`` and ``data/file.txt2/...``. It now only deletes the versions of ``data/file.txt``.
+- ``better_client.delete_dir`` and ``better_client.delete_object_versions`` ignored the objects S3 failed to delete (``delete_objects`` answers HTTP 200 and lists them in ``Errors``) and counted them as deleted. They now raise ``S3DeleteObjectsError`` and stop.
 
 **Minor Improvements**
 
@@ -139,6 +144,7 @@ Backlog (TODO)
 - Document that ``better_client.update_bucket_tagging`` and ``better_client.update_object_tagging`` merge like ``dict.update`` and are not atomic, which version ``update_object_tagging`` updates, and which boto3 errors they raise as is (e.g. ``MethodNotAllowed`` for a delete marker). Tag values with spaces, ``+`` and non-ASCII characters are tested against real AWS.
 - Document that the result of ``better_client.paginate_list_objects_v2`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix, not a folder. Fix the ``is_content_an_object`` truth table: a key ending with ``/`` that has data is an object.
 - Document that the result of ``better_client.paginate_list_object_versions`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix. Fix its docstring, which named the wrong return type. ``better_client.list_object_versions.CommonPrefixTypeDefIterproxy`` is now the same class as in ``better_client.list_objects``.
+- Deprecate the ``ignore_not_found`` argument of ``better_client.delete_object``: it never had an effect, because S3 never reports a missing key when deleting. Passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0. Document that deleting a missing key in a bucket with versioning adds a delete marker.
 
 **Miscellaneous**
 
@@ -152,6 +158,8 @@ Backlog (TODO)
 - The test helper ``s3pathlib.tests.mock.BaseTest`` no longer uses ``boto_session_manager``: ``cls.bsm`` is replaced by ``cls.boto_ses``, ``cls.aws_account_id`` and ``cls.aws_region``, and the S3 client is ``self.s3_client`` (``s3_context.s3_client``).
 - Add ``s3pathlib.tests.mock_aws``, the new base class for tests that call AWS. Every test module runs against moto (``TestMock``) and, when ``S3PATHLIB_TEST_REAL_AWS=true`` (``mise run cov-aws``), against real AWS (``TestRealAws``); ``@mock_only`` / ``@real_aws_only`` mark tests that only work in one mode. Each test gets its own S3 folder, and the real AWS folder of a test class is emptied when it starts. ``mise run setup-aws-ci`` also adds a lifecycle rule that expires the unit test objects after one day. Shared helpers moved to ``s3pathlib.tests.aws_helpers``.
 - ``mise run setup-aws-ci`` updates the inline policy of an existing test IAM user (without touching its access key), and the policy allows bucket tagging on temporary buckets.
+- The IAM policy of the test user (``mise run setup-aws-ci``) gives full access to the temporary buckets the tests create, named ``s3pathlib-test-tmp-*``.
+
 
 
 

@@ -20,3 +20,4 @@ from .list_object_versions import paginate_list_object_versions
 from .delete_object import delete_object
 from .delete_object import delete_dir
 from .delete_object import delete_object_versions
+from .delete_object import delete_object_all_versions
