@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
 """
-Tagging related API.
+Existence test related API.
 """
 
 from __future__ import annotations
 
 import typing as T
+
+import botocore.exceptions
 from func_args import NOTHING
 
 from .. import exc
@@ -27,29 +29,52 @@ class ExistsAPIMixin:
     A mixin class that implements the exists test related methods.
     """
 
+    def _ensure_version_id_on_file(self: S3Path, version_id: str):
+        if (version_id is not NOTHING) and (self.is_file() is False):
+            raise ValueError(
+                f"version_id only applies to a file, "
+                f"{self._error_label()} is not a file"
+            )
+
     def exists(
         self: S3Path,
         version_id: str = NOTHING,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> bool:
         """
-        Test if an S3Path object actually exists in S3 bucket.
+        Test if this path exists in S3.
 
-        - For S3 bucket: check if the bucket exists. If you don't have the
-            access, then it raise exception.
-        - For S3 object: check if the object exists
-        - For S3 directory: check if the directory exists, it returns ``True``
-            even if the folder doesn't have any object.
-        - For versioning enabled bucket, you can explicitly check if a specific
-            version exists, otherwise it will check the latest version.
+        - Bucket: the bucket exists (``head_bucket``).
+        - File: the object exists (``head_object``). A missing bucket, or an
+          object whose latest version is a delete marker, does not exist. With
+          ``version_id``, test that version instead of the latest one; a
+          delete marker does not exist. When the object exists, its metadata
+          is cached (see ``response``); when it does not, the cached metadata
+          is cleared.
+        - Folder: at least one object key starts with the folder key,
+          including the folder marker object itself (e.g. ``folder/``), found
+          with one ``list_objects_v2`` call. A folder in a missing bucket does
+          not exist.
 
-        Example:
+        Example::
 
-            >>> S3Path("bucket").exists()
-            >>> S3Path("bucket/file.txt").exists()
-            >>> S3Path("bucket/folder/").exists()
-            >>> S3Path("bucket/file.txt").exists(version_id="v123456")
+            S3Path("bucket").exists()
+            S3Path("bucket/file.txt").exists()
+            S3Path("bucket/folder/").exists()
+            S3Path("bucket/file.txt").exists(version_id="v123456")
+
+        :param version_id: the version of a file to test.
+
+        :raises S3PathTypeError: if this path has no bucket (a relative path
+            or the void path).
+        :raises ValueError: if ``version_id`` is given for a bucket or a
+            folder.
+        :raises S3PermissionDenied: if S3 answers 403 for a bucket or a file.
+        :raises botocore.exceptions.ClientError: any other error, as is; e.g.
+            ``AccessDenied`` for a folder you cannot list.
         """
+        self.ensure_not_relpath()
+        self._ensure_version_id_on_file(version_id)
         if self.is_bucket():
             s3_client = resolve_s3_client(s3_context, bsm)
             return is_bucket_exists(s3_client, self.bucket)
@@ -63,26 +88,30 @@ class ExistsAPIMixin:
                 ignore_not_found=True,
             )
             if dct is None:
+                self.clear_cache()
                 return False
             else:
-                if "ResponseMetadata" in dct:
-                    del dct["ResponseMetadata"]
+                dct.pop("ResponseMetadata", None)
                 self._meta = dct
                 return True
-        elif self.is_dir():
-            l = list(
-                self.iterdir(
-                    batch_size=1,
-                    limit=1,
-                    bsm=bsm,
+        else:  # a folder
+            try:
+                l = list(
+                    self.iterdir(
+                        batch_size=1,
+                        limit=1,
+                        bsm=bsm,
+                    )
                 )
-            )
+            except botocore.exceptions.ClientError as e:
+                if e.response["Error"]["Code"] == "NoSuchBucket":
+                    return False
+                else:
+                    raise e
             if len(l):
                 return True
             else:
                 return False
-        else:  # pragma: no cover
-            raise TypeError
 
     def ensure_not_exists(
         self: S3Path,
@@ -90,12 +119,21 @@ class ExistsAPIMixin:
         bsm: BotoSesManager | S3Client | None = None,
     ) -> None:
         """
-        A validator method ensure that it doesn't exists.
+        A validator method that ensures this path does not exist, see
+        :meth:`exists`.
+
+        :param version_id: the version of a file to test.
+
+        :raises S3FileAlreadyExist: if this path is a file and it exists.
+        :raises S3FolderAlreadyExist: if this path is a folder and it exists.
+        :raises S3BucketAlreadyExist: if this path is a bucket and it exists.
+
+        It also raises the errors of :meth:`exists`.
         """
         if self.exists(version_id=version_id, bsm=bsm):
-            raise exc.S3AlreadyExist(
-                (
-                    "cannot write to {}, s3 object ALREADY EXISTS! "
-                    "open console for more details {}."
-                ).format(self.uri, self.console_url)
-            )
+            if self.is_bucket():
+                raise exc.S3BucketAlreadyExist.make(self.uri)
+            elif self.is_file():
+                raise exc.S3FileAlreadyExist.make(self.uri)
+            else:
+                raise exc.S3FolderAlreadyExist.make(self.uri)

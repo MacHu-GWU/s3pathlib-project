@@ -53,6 +53,7 @@ Backlog (TODO)
 - ``better_client.head_object`` and ``better_client.is_object_exists`` (and the ``S3Path`` methods built on them, such as ``exists()`` on a file and the metadata properties) raise ``S3PermissionDenied`` when S3 returns 403, even with ``ignore_not_found=True``: no permission is not "not found". Before, they raised the ``botocore.exceptions.ClientError`` as is; it is now the ``__cause__``.
 - Rename the misspelled ``ListObjectsV2OutputTypeDefIterproxy.common_prefixs()`` and ``contents_and_common_prefixs()`` (returned by ``better_client.paginate_list_objects_v2``) to ``common_prefixes()`` and ``contents_and_common_prefixes()``, the same names as in ``better_client.list_object_versions``.
 - ``better_client.delete_object_versions`` requires ``prefix`` to end with ``/`` (or be ``""`` for the whole bucket), the same as ``better_client.delete_dir``, and raises ``S3ValidationError`` otherwise. A prefix such as ``"data/file.txt"`` also matched ``data/file.txt.bak`` and deleted all its versions. To delete all versions of one object, use the new ``better_client.delete_object_all_versions``.
+- ``S3Path.exists(version_id=...)`` and ``S3Path.ensure_not_exists(version_id=...)`` raise ``ValueError`` on a bucket or a folder, before calling AWS. Before, ``version_id`` was silently ignored (e.g. ``S3Path("bucket").exists(version_id="v1")`` was ``True``); it only applies to a file.
 
 **Features and Improvements**
 
@@ -123,6 +124,9 @@ Backlog (TODO)
 - ``S3Path.put_bucket_versioning(enable_mfa_delete=...)`` always failed with ``ParamValidationError``, because it sent ``MFADelete`` as a bool; it also replaced ``Status`` (``enable_mfa_delete=True`` enabled versioning even with ``enable_versioning=False``). It now sends ``MFADelete`` as ``"Enabled"`` / ``"Disabled"`` and keeps ``Status``.
 - ``S3Path.create_bucket()`` without ``region`` always asked for ``us-east-1``, which S3 rejects with ``IllegalLocationConstraintException`` when the client is in another region. ``region`` now defaults to ``None``, the region of the S3 client; a client in ``us-east-1`` behaves as before.
 - ``S3Path.list_buckets()`` made one ListBuckets request without ``MaxBuckets``, which S3 rejects for an account allowed to have more than 10,000 buckets. It now fetches every page, 10,000 buckets at a time.
+- ``S3Path("bucket", "folder/").exists()`` raised ``NoSuchBucket`` when the bucket did not exist, while a file in a missing bucket returned ``False``. A folder in a missing bucket now does not exist either.
+- ``S3Path.exists()`` on a path without bucket raised a different error for each kind of path: a bare ``TypeError`` for the void path, a ``TypeError`` from botocore for a relative file, and ``S3PathTypeError`` for a relative folder. It now always raises ``S3PathTypeError`` (still a ``TypeError``) with a message, before calling AWS.
+- ``S3Path.exists()`` on a file caches the object metadata when it exists, but kept the old cache when the object no longer existed, so e.g. ``size`` still returned the size of the deleted object. It now clears the cache when the object does not exist.
 
 **Minor Improvements**
 
@@ -153,6 +157,8 @@ Backlog (TODO)
 - Deprecate the ``ignore_not_found`` argument of ``better_client.delete_object``: it never had an effect, because S3 never reports a missing key when deleting. Passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0. Document that deleting a missing key in a bucket with versioning adds a delete marker.
 - Document how ``better_client.upload_dir`` builds the keys, the ``prefix`` rules (``"data"`` is ``"data/"``, ``""`` is the bucket root), that empty directories are not uploaded, that ``overwrite=False`` checks then uploads (not atomic), and the errors it raises (``S3UploadFailedError`` from boto3 when an upload fails).
 - Document the bucket methods of ``S3Path`` (``s3pathlib.core.bucket``): every argument, the boto3 errors they raise as is (e.g. ``BucketAlreadyExists``, ``BucketNotEmpty``, ``NoSuchBucket``), that they reject a path that is not a bucket before calling AWS, and that creating a bucket you already own in ``us-east-1`` succeeds and resets its ACL.
+- ``S3Path.ensure_not_exists`` raises ``S3FileAlreadyExist``, ``S3FolderAlreadyExist`` or ``S3BucketAlreadyExist`` depending on the path, instead of ``S3AlreadyExist`` with a message saying "s3 object" for every path. They are subclasses of ``S3AlreadyExist``, so existing ``except`` clauses keep working.
+- Document how ``S3Path.exists`` tests a bucket, a file and a folder, which API it calls, and the errors it raises.
 
 **Miscellaneous**
 
