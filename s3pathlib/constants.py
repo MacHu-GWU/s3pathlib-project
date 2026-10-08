@@ -9,6 +9,10 @@ IS_DELETE_MARKER = "IsDeleteMarker"
 # The maximum length of an S3 object key, in UTF-8 encoded bytes.
 S3_KEY_MAX_BYTES = 1024
 
+# The maximum ``MaxBuckets`` of one ListBuckets request.
+# Ref: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html
+S3_LIST_BUCKETS_MAX_BUCKETS = 10000
+
 # Naming rules for a new general purpose bucket.
 # Ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
 S3_BUCKET_MIN_LENGTH = 3

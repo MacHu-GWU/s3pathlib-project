@@ -82,6 +82,7 @@ Backlog (TODO)
 - ``s3_context`` creates the default S3 client when it is first used instead of when ``s3pathlib`` is imported, so importing ``s3pathlib`` has no side effect, and environment variables such as ``AWS_PROFILE`` set after the import are honored.
 - Add ``better_client.delete_object_all_versions(s3_client, bucket, key)``, which permanently deletes all versions and delete markers of exactly one key.
 - Add ``s3pathlib.exc.S3DeleteObjectsError``, raised when S3 fails to delete some objects of a ``delete_objects`` call; it has the ``errors`` S3 returned and the number of objects deleted so far (``n_deleted``).
+- ``S3Path.list_buckets()`` keeps the region of each bucket when S3 returns it, in ``response["BucketRegion"]``. Add ``s3pathlib.constants.S3_LIST_BUCKETS_MAX_BUCKETS``, the page size of ListBuckets (10,000).
 
 **Bugfixes**
 
@@ -119,6 +120,9 @@ Backlog (TODO)
 - ``better_client.delete_dir`` and ``better_client.delete_object_versions`` ignored the objects S3 failed to delete (``delete_objects`` answers HTTP 200 and lists them in ``Errors``) and counted them as deleted. They now raise ``S3DeleteObjectsError`` and stop.
 - ``S3Path.list_object_versions()`` yielded the entries of the earlier pages again after each page: 8 versions listed with ``batch_size=2`` gave 20 entries. Each entry is now yielded once, in the S3 order (by key, then newest first), while the pages are fetched.
 - ``S3Path("bucket", "file.txt").list_object_versions()`` also listed the versions of every key starting with ``file.txt``, such as ``file.txt.bak``; on a file it now lists the versions of this exact key only. ``limit`` counts the returned entries, and invalid ``limit`` / ``batch_size`` raise ``ValueError`` when the method is called.
+- ``S3Path.put_bucket_versioning(enable_mfa_delete=...)`` always failed with ``ParamValidationError``, because it sent ``MFADelete`` as a bool; it also replaced ``Status`` (``enable_mfa_delete=True`` enabled versioning even with ``enable_versioning=False``). It now sends ``MFADelete`` as ``"Enabled"`` / ``"Disabled"`` and keeps ``Status``.
+- ``S3Path.create_bucket()`` without ``region`` always asked for ``us-east-1``, which S3 rejects with ``IllegalLocationConstraintException`` when the client is in another region. ``region`` now defaults to ``None``, the region of the S3 client; a client in ``us-east-1`` behaves as before.
+- ``S3Path.list_buckets()`` made one ListBuckets request without ``MaxBuckets``, which S3 rejects for an account allowed to have more than 10,000 buckets. It now fetches every page, 10,000 buckets at a time.
 
 **Minor Improvements**
 
@@ -148,6 +152,7 @@ Backlog (TODO)
 - Document that the result of ``better_client.paginate_list_object_versions`` can be iterated only once, that its errors are raised when the iteration starts, and that ``prefix`` is a string prefix. Fix its docstring, which named the wrong return type. ``better_client.list_object_versions.CommonPrefixTypeDefIterproxy`` is now the same class as in ``better_client.list_objects``.
 - Deprecate the ``ignore_not_found`` argument of ``better_client.delete_object``: it never had an effect, because S3 never reports a missing key when deleting. Passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0. Document that deleting a missing key in a bucket with versioning adds a delete marker.
 - Document how ``better_client.upload_dir`` builds the keys, the ``prefix`` rules (``"data"`` is ``"data/"``, ``""`` is the bucket root), that empty directories are not uploaded, that ``overwrite=False`` checks then uploads (not atomic), and the errors it raises (``S3UploadFailedError`` from boto3 when an upload fails).
+- Document the bucket methods of ``S3Path`` (``s3pathlib.core.bucket``): every argument, the boto3 errors they raise as is (e.g. ``BucketAlreadyExists``, ``BucketNotEmpty``, ``NoSuchBucket``), that they reject a path that is not a bucket before calling AWS, and that creating a bucket you already own in ``us-east-1`` succeeds and resets its ACL.
 
 **Miscellaneous**
 
