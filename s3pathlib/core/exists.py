@@ -14,6 +14,7 @@ from func_args import NOTHING
 from .. import exc
 from ..better_client.head_bucket import is_bucket_exists
 from ..better_client.head_object import head_object
+from ..better_client.list_objects import paginate_list_objects_v2
 from ..aws import s3_context
 
 from .metadata import explicit_s3_client
@@ -102,14 +103,17 @@ class ExistsAPIMixin:
                     )
                 return True
         else:  # a folder
+            s3_client = resolve_s3_client(s3_context, bsm)
+            # any key under the folder, its folder marker included
+            proxy = paginate_list_objects_v2(
+                s3_client=s3_client,
+                bucket=self.bucket,
+                prefix=self.key,
+                batch_size=1,
+                limit=1,
+            )
             try:
-                l = list(
-                    self.iterdir(
-                        batch_size=1,
-                        limit=1,
-                        bsm=bsm,
-                    )
-                )
+                l = list(proxy.contents())
             except botocore.exceptions.ClientError as e:
                 if e.response["Error"]["Code"] == "NoSuchBucket":
                     return False

@@ -61,6 +61,9 @@ Backlog (TODO)
     - The properties of a delete marker never call AWS: ``size`` is ``0`` and ``etag``, ``metadata`` and ``expire_at`` are ``None``. Before, ``metadata`` loaded the latest version and raised ``S3FileNotExist``.
     - ``response`` and ``metadata`` return a copy; changing it no longer changes the loaded metadata.
 - Remove ``S3Path.update_metadata``, which only raised ``NotImplementedError`` (S3 cannot change the metadata of an object without writing it again). Use ``write_bytes(..., metadata=...)`` or ``copy_file(..., metadata=...)``.
+- ``S3Path.iter_objects()`` and ``S3Path.iterdir()`` on a file raise ``S3PathIsNotFolderError`` before calling AWS, the same as ``count_objects()`` and ``calculate_total_size()``. Before, they listed the keys starting with the key of the file, e.g. ``file.txt.bak`` and ``file.txt/...`` for ``file.txt``. To list by a string prefix, use ``better_client.paginate_list_objects_v2(prefix=...)``.
+- ``S3Path.iterdir()`` returns the files and the folders in the S3 order (by key, files and folders mixed), the same as ``iter_objects()``. Before, it returned the folders then the files of each page of up to ``batch_size`` entries, so the order changed with the page size.
+- ``S3PathIterProxy.filter_by_ext`` raises ``ValueError`` for an extension that is not ``""`` and does not start with ``.`` (e.g. ``"csv"``), which matched nothing.
 
 **Features and Improvements**
 
@@ -123,7 +126,7 @@ Backlog (TODO)
 - ``better_client.is_bucket_exists`` recognized "not found" by looking for ``Not Found`` in the error message; it now checks the error code ``404``, as the message of a ``HEAD`` response is not reliable.
 - ``better_client.head_object`` with a ``version_id`` that is a delete marker raised ``ClientError`` (S3 answers 405); it now means the object does not exist, the same as when the latest version is a delete marker. So ``is_object_exists(..., version_id=<delete marker>)`` returns ``False``.
 - ``better_client.head_object`` recognized "not found" by looking for ``Not Found`` in the error message; it now checks the error code. With moto, a missing bucket raised ``NoSuchBucket`` instead of meaning "not found" as on AWS; both now behave the same.
-- ``better_client.paginate_list_objects_v2`` with ``delimiter`` returned more than ``limit`` entries, because ``limit`` only counted the objects, not the folders (common prefixes): ``limit=3`` could return 8 entries. ``limit`` now counts both, the same as S3's ``MaxKeys``. This also applies to ``S3Path.iterdir(limit=...)`` and ``S3Path.iter_objects(recursive=False, limit=...)``.
+- ``better_client.paginate_list_objects_v2`` with ``delimiter`` returned more than ``limit`` entries, because ``limit`` only counted the objects, not the folders (common prefixes): ``limit=3`` could return 8 entries. ``limit`` now counts both, the same as S3's ``MaxKeys``. This also applies to ``S3Path.iterdir(limit=...)``, which counts the files and the folders it returns.
 - ``better_client.paginate_list_objects_v2`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
 - ``better_client.paginate_list_object_versions`` returned more than ``limit`` entries whenever there were delete markers or folders, because ``limit`` only counted the versions: ``limit=3`` could return 4 entries. ``limit`` now counts versions, delete markers and common prefixes together, the same as S3's ``MaxKeys``. This also applies to ``S3Path.list_object_versions(limit=...)`` and ``better_client.delete_object_versions(limit=...)``.
 - ``better_client.paginate_list_object_versions`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
@@ -142,6 +145,10 @@ Backlog (TODO)
 - Reading a metadata property of a bucket, a relative path or the void path raised a botocore error (``ParamValidationError`` or ``TypeError``). It now raises ``S3PathTypeError`` (still a ``TypeError``) before calling AWS. A bucket returned by ``list_buckets()`` still has its ``last_modified_at``.
 - ``head_object()`` kept the old metadata when the object no longer existed; it now clears it before raising ``S3FileNotExist``. It also no longer stores ``ResponseMetadata`` in ``response``.
 - ``S3Path.get_tags``, ``put_tags`` and ``update_tags`` on a relative file path called AWS with no bucket and failed with a ``TypeError`` from botocore. They now raise ``S3PathTypeError`` (still a ``TypeError``) before calling AWS, the same as for the void path and relative folders.
+- ``S3Path.iter_objects(limit=...)`` counted the folder markers (and, with ``recursive=False``, the folders) it skipped, so it returned fewer objects than ``limit``: ``limit=3`` could return 1 object, or none. ``limit`` now counts the returned objects.
+- ``S3Path.iterdir()`` returned the folder marker of the folder itself (e.g. ``folder/`` when listing ``folder/``) as an entry, which also took a ``limit`` slot. It is now skipped.
+- ``S3PathIterProxy.filter_by_ext`` raised ``S3PathIsNotFileError`` when ``iter_objects()`` returned an object whose key ends with ``/`` and that has content; such a folder now never matches. ``filter_by_ext()`` without extension raises ``ValueError`` with a message.
+- ``S3Path.iter_objects()``, ``iterdir()``, ``count_objects()`` and ``calculate_total_size()`` on a relative path or the void path raised a botocore ``TypeError`` (or ``S3PathTypeError`` with a confusing message); they now raise ``S3PathTypeError`` saying it is a relative path. An invalid ``limit`` or ``batch_size`` of ``iter_objects()`` / ``iterdir()`` raises ``ValueError`` when the method is called, not when the iteration starts.
 
 **Minor Improvements**
 
@@ -178,6 +185,7 @@ Backlog (TODO)
 - Fix the ``expire_at`` docstring: it is the ``Expires`` HTTP header of the object, not the expiration date of a lifecycle rule (which is in ``response["Expiration"]``).
 - ``S3Path.put_tags`` returns a copy of the given tags instead of the same ``dict``.
 - Document the object tagging methods of ``S3Path`` (``s3pathlib.core.tagging``): ``put_tags({})`` removes all tags, ``update_tags`` is not atomic, which version they change, and the boto3 errors they raise as is. Document that the metadata snapshot of an ``S3Path`` never decides which version an operation works on: without ``version_id``, ``get_tags()``, ``read_bytes()``, ``delete()``, ... work on the latest version.
+- Fix the docstrings of ``S3Path.iter_objects`` (``recursive`` was described backwards), ``iterdir`` (``limit`` also counts folders), ``calculate_total_size`` and ``count_objects`` (wrong examples), and document that the results are lazy, can be iterated only once, and carry the metadata from the list API.
 
 **Miscellaneous**
 
@@ -193,6 +201,7 @@ Backlog (TODO)
 - ``mise run setup-aws-ci`` updates the inline policy of an existing test IAM user (without touching its access key), and the policy allows bucket tagging on temporary buckets.
 - The IAM policy of the test user (``mise run setup-aws-ci``) gives full access to the temporary buckets the tests create, named ``s3pathlib-test-tmp-*``.
 - ``better_client.upload_dir`` uses the standard library ``pathlib`` instead of ``pathlib_mate``; ``local_dir`` still accepts a ``str``, a ``pathlib.Path`` or a ``pathlib_mate.Path``.
+- Remove the local test data folder ``tests/core/test_iter_objects``; the tests write their data to S3 directly.
 
 
 

@@ -33,13 +33,9 @@ if T.TYPE_CHECKING:  # pragma: no cover
 
 class S3PathIterProxy(IterProxy["S3Path"]):
     """
-    An iterator proxy utility class provide client side in-memory filter. It is
-    highly inspired by sqlalchemy Result Proxy that depends on SQL server side filter.
-
-    Allow client side in-memory filtering for iterator object that yield :class:`S3Path`.
-
-    It is a special variation of :class:`s3pathlib.iterproxy.IterProxy`,
-    See :class:`s3pathlib.iterproxy.IterProxy` for more details.
+    An iterator of :class:`S3Path`, with client side in-memory filters, see
+    :class:`iterproxy.IterProxy` and :mod:`s3pathlib.core.filterable_property`.
+    It can be iterated only once.
     """
 
     def __next__(self) -> S3Path:
@@ -62,37 +58,68 @@ class S3PathIterProxy(IterProxy["S3Path"]):
 
     def filter_by_ext(self, *exts: str) -> S3PathIterProxy:
         """
-        Filter S3 object by file extension. Case is insensitive.
+        Keep the files whose extension is one of ``exts``, case insensitive.
+        ``""`` matches the files without extension. A folder (e.g. an object
+        ``data/`` that has content) never matches.
 
         Example::
 
-            >>> p = S3Path("bucket")
-            >>> for path in p.iter_objects().filter_by_ext(".csv", ".json"):
-            ...      print(path)
+            for p in S3Path("bucket", "folder/").iter_objects().filter_by_ext(".csv", ".json"):
+                print(p)
+
+        :raises ValueError: if no extension is given, or an extension is not
+            ``""`` and does not start with ``.`` (e.g. ``"csv"``).
         """
-        n = len(exts)
-        if n == 0:
-            raise ValueError
-        elif n == 1:
-            ext = exts[0].lower()
+        if len(exts) == 0:
+            raise ValueError("give at least one extension, e.g. '.csv'")
+        for ext in exts:
+            if (ext != "") and (ext.startswith(".") is False):
+                raise ValueError(
+                    f"an extension starts with '.' (or is '' for no extension), "
+                    f"got {ext!r}"
+                )
+        valid_exts = set([ext.lower() for ext in exts])
 
-            def f(p: S3Path) -> bool:
-                return p.ext.lower() == ext
+        def f(p: S3Path) -> bool:
+            if p.is_file() is False:
+                return False
+            return p.ext.lower() in valid_exts
 
-            return self.filter(f)
-        else:
-            valid_exts = set([ext.lower() for ext in exts])
+        return self.filter(f)
 
-            def f(p: S3Path) -> bool:
-                return p.ext.lower() in valid_exts
 
-            return self.filter(f)
+def _ensure_limit(limit: int):
+    """
+    :raises ValueError: if ``limit`` is negative.
+    """
+    if limit is not NOTHING:
+        if limit < 0:
+            raise ValueError(f"``limit`` must not be negative, got {limit}.")
+
+
+def _get_page_size(batch_size: int, limit: int) -> int:
+    """
+    The number of entries per API call: no more than ``limit`` when it is
+    given (more pages are fetched if some entries are skipped).
+    """
+    if (limit is NOTHING) or (limit == 0):
+        return batch_size
+    else:
+        return min(batch_size, limit)
 
 
 class IterObjectsAPIMixin:
     """
     A mixin class that implements the iter objects methods.
     """
+
+    def _ensure_s3_dir(self: S3Path) -> None:
+        """
+        :raises S3PathTypeError: for a relative path or the void path.
+        :raises S3PathIsNotFolderError: for a file.
+        """
+        self.ensure_not_relpath()
+        self.ensure_dir()
 
     def iter_objects(
         self: S3Path,
@@ -107,69 +134,92 @@ class IterObjectsAPIMixin:
         bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
         """
-        Recursively iterate objects under this prefix, yield :class:`S3Path`.
+        Iterate the objects under this folder (or bucket), yield
+        :class:`S3Path` objects in the S3 order (by key). Folder markers (the
+        empty ``folder/`` objects made by "Create folder" in the S3 console)
+        are skipped; an object whose key ends with ``/`` but has content is
+        yielded, as a folder ``S3Path``.
 
         Assuming we have the following folder structure::
 
             s3://my-bucket/
             s3://my-bucket/README.txt
-            s3://my-bucket/hard-folder/ (this is a hard folder)
+            s3://my-bucket/hard-folder/ (a folder marker)
             s3://my-bucket/hard-folder/1.txt
-            s3://my-bucket/soft-folder/ (this is a soft folder)
-            s3://my-bucket/soft-folder/2.txt
+            s3://my-bucket/soft-folder/2.txt (no folder marker)
 
-        Example:
+        Example::
 
-            >>> s3dir = S3Path("s3://my-bucket/")
-            >>> s3dir.iter_objects().all()
-            [
-                S3Path('s3://my-bucket/README.txt'),
-                S3Path('s3://my-bucket/hard-folder/'),
-                S3Path('s3://my-bucket/hard-folder/1.txt'),
-                S3Path('s3://my-bucket/soft-folder/2.txt'),
-            ]
+            >>> S3Path("s3://my-bucket/").iter_objects().all()
+            [S3Path('s3://my-bucket/README.txt'), S3Path('s3://my-bucket/hard-folder/1.txt'), S3Path('s3://my-bucket/soft-folder/2.txt')]
+            >>> S3Path("s3://my-bucket/").iter_objects(recursive=False).all()
+            [S3Path('s3://my-bucket/README.txt')]
 
-        :param batch_size: Number of s3 object returned per paginator,
-            valid value is from 1 ~ 1000. large number can reduce IO.
-        :param limit: Total number of s3 object to return.
+        Each path has the metadata returned by the list API (``size``,
+        ``etag``, ``last_modified_at``), see :mod:`s3pathlib.core.metadata`.
+        The pages are fetched while iterating, and the result can be iterated
+        only once. Errors of the AWS calls (e.g. ``NoSuchBucket``) are raised
+        as is when the iteration starts.
+
+        :param batch_size: Number of entries per API call, 1 to 1000.
+        :param limit: Total number of objects to return. ``0`` returns nothing
+            without calling AWS.
         :param encoding_type: See ListObjectsV2_.
         :param fetch_owner: See ListObjectsV2_.
         :param start_after: See ListObjectsV2_.
         :param request_payer: See ListObjectsV2_.
         :param expected_bucket_owner: See ListObjectsV2_.
-        :param recursive: if True, it won't include files in sub folders.
+        :param recursive: ``True`` (default) for all the objects under this
+            folder, ``False`` for the objects directly in it only (not in sub
+            folders).
         :param bsm: See bsm_.
 
-        TODO: add unix glob liked syntax for pattern matching
+        :raises S3PathTypeError: for a relative path or the void path.
+        :raises S3PathIsNotFolderError: for a file.
+        :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
+            negative.
         """
+        self._ensure_s3_dir()
+        _ensure_limit(limit)
         s3_client = resolve_s3_client(s3_context, bsm)
         bucket = self.bucket
+        kwargs = dict(
+            s3_client=s3_client,
+            bucket=bucket,
+            prefix=self.key,
+            batch_size=_get_page_size(batch_size, limit),
+            encoding_type=encoding_type,
+            fetch_owner=fetch_owner,
+            start_after=start_after,
+            request_payer=request_payer,
+            expected_bucket_owner=expected_bucket_owner,
+        )
+        if recursive is False:
+            kwargs["delimiter"] = "/"
+        # ``limit`` is applied here, to the yielded paths: the folder markers
+        # and the folders (common prefixes) are skipped, they must not count
+        proxy = paginate_list_objects_v2(**kwargs)
+        explicit_client = explicit_s3_client(s3_client, bsm)
 
         def _iter_s3path() -> T.Iterable[S3Path]:
-            kwargs = dict(
-                s3_client=s3_client,
-                bucket=bucket,
-                prefix=self.key,
-                batch_size=batch_size,
-                limit=limit,
-                encoding_type=encoding_type,
-                fetch_owner=fetch_owner,
-                start_after=start_after,
-                request_payer=request_payer,
-                expected_bucket_owner=expected_bucket_owner,
-            )
-            if recursive is False:
-                kwargs["delimiter"] = "/"
-            for content in (
-                paginate_list_objects_v2(**kwargs)
-                .contents()
-                .filter(is_content_an_object)
-            ):
+            if limit is NOTHING:
+                remaining = None
+            else:
+                remaining = limit
+            if remaining == 0:
+                return
+            for content in proxy.contents():
+                if is_content_an_object(content) is False:
+                    continue
                 yield self._from_content_dict(
                     bucket,
                     dct=content,
-                    s3_client=explicit_s3_client(s3_client, bsm),
+                    s3_client=explicit_client,
                 )
+                if remaining is not None:
+                    remaining -= 1
+                    if remaining == 0:
+                        return
 
         return S3PathIterProxy(_iter_s3path())
 
@@ -185,67 +235,99 @@ class IterObjectsAPIMixin:
         bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
         """
-        iterate objects and folder under this prefix non-recursively,
-        yield :class:`S3Path`.
+        Iterate the files and the folders directly in this folder (or bucket),
+        not recursively, yield :class:`S3Path` objects in the S3 order (by
+        key, so files and folders are mixed). The folder marker of this folder
+        itself is skipped.
 
         Assuming we have the following folder structure::
 
             s3://my-bucket/
             s3://my-bucket/README.txt
-            s3://my-bucket/hard-folder/ (this is a hard folder)
+            s3://my-bucket/hard-folder/ (a folder marker)
             s3://my-bucket/hard-folder/1.txt
-            s3://my-bucket/soft-folder/ (this is a soft folder)
-            s3://my-bucket/soft-folder/2.txt
+            s3://my-bucket/soft-folder/2.txt (no folder marker)
 
-        Example:
+        Example::
 
-            >>> s3dir = S3Path("s3://my-bucket/")
-            >>> s3dir.iterdir().all()
-            [
-                S3Path('s3://my-bucket/hard-folder/'),
-                S3Path('s3://my-bucket/soft-folder/'),
-                S3Path('s3://my-bucket/README.txt'),
-            ]
+            >>> S3Path("s3://my-bucket/").iterdir().all()
+            [S3Path('s3://my-bucket/README.txt'), S3Path('s3://my-bucket/hard-folder/'), S3Path('s3://my-bucket/soft-folder/')]
 
-        :param batch_size: number of s3 object returned per paginator,
-            valid value is from 1 ~ 1000. large number can reduce IO.
-        :param limit: total number of s3 object (not folder)to return
+        A file has the metadata returned by the list API (``size``, ``etag``,
+        ``last_modified_at``), see :mod:`s3pathlib.core.metadata`; a folder
+        has none. The pages are fetched while iterating, and the result can be
+        iterated only once. Errors of the AWS calls (e.g. ``NoSuchBucket``)
+        are raised as is when the iteration starts.
+
+        :param batch_size: Number of entries per API call, 1 to 1000.
+        :param limit: Total number of files and folders to return. ``0``
+            returns nothing without calling AWS.
         :param encoding_type: See ListObjectsV2_.
         :param fetch_owner: See ListObjectsV2_.
         :param start_after: See ListObjectsV2_.
         :param request_payer: See ListObjectsV2_.
         :param expected_bucket_owner: See ListObjectsV2_.
         :param bsm: See bsm_.
+
+        :raises S3PathTypeError: for a relative path or the void path.
+        :raises S3PathIsNotFolderError: for a file.
+        :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
+            negative.
         """
+        self._ensure_s3_dir()
+        _ensure_limit(limit)
         s3_client = resolve_s3_client(s3_context, bsm)
         bucket = self.bucket
+        root = self.root
+        # ``limit`` is applied here, to the yielded paths: the folder marker
+        # of this folder is skipped, it must not count
+        proxy = paginate_list_objects_v2(
+            s3_client=s3_client,
+            bucket=bucket,
+            prefix=self.key,
+            batch_size=_get_page_size(batch_size, limit),
+            delimiter="/",
+            encoding_type=encoding_type,
+            fetch_owner=fetch_owner,
+            start_after=start_after,
+            request_payer=request_payer,
+            expected_bucket_owner=expected_bucket_owner,
+        )
+        explicit_client = explicit_s3_client(s3_client, bsm)
 
         def _iter_s3path() -> T.Iterable[S3Path]:
-            root = self.root
-
-            proxy = paginate_list_objects_v2(
-                s3_client=s3_client,
-                bucket=bucket,
-                prefix=self.key,
-                batch_size=batch_size,
-                limit=limit,
-                delimiter="/",
-                encoding_type=encoding_type,
-                fetch_owner=fetch_owner,
-                start_after=start_after,
-                request_payer=request_payer,
-                expected_bucket_owner=expected_bucket_owner,
-            )
+            if limit is NOTHING:
+                remaining = None
+            else:
+                remaining = limit
+            if remaining == 0:
+                return
             for res in proxy:
+                # S3 sends the folders and the files of a page in two lists,
+                # merge them by key; the pages themselves come in key order
+                entries = list()
                 for dct in res.get("CommonPrefixes", list()):
-                    yield root.joinpath(dct["Prefix"])
-
+                    entries.append((dct["Prefix"], root.joinpath(dct["Prefix"])))
                 for dct in res.get("Contents", list()):
-                    yield self._from_content_dict(
-                        self.bucket,
-                        dct,
-                        s3_client=explicit_s3_client(s3_client, bsm),
+                    if dct["Key"] == self.key:
+                        continue
+                    entries.append(
+                        (
+                            dct["Key"],
+                            self._from_content_dict(
+                                bucket,
+                                dct,
+                                s3_client=explicit_client,
+                            ),
+                        )
                     )
+                entries.sort(key=lambda x: x[0])
+                for _, s3path in entries:
+                    yield s3path
+                    if remaining is not None:
+                        remaining -= 1
+                        if remaining == 0:
+                            return
 
         return S3PathIterProxy(_iter_s3path())
 
@@ -256,36 +338,37 @@ class IterObjectsAPIMixin:
         bsm: BotoSesManager | S3Client | None = None,
     ) -> tuple[int, int | str]:
         """
-        Perform the "Calculate Total Size" action in AWS S3 console
+        Count the objects under this folder (or bucket), recursively, and sum
+        their sizes, like the "Calculate total size" action of the S3 console.
 
         Assuming we have the following folder structure::
 
             s3://my-bucket/
-            s3://my-bucket/README.txt
-            s3://my-bucket/hard-folder/ (this is a hard folder)
-            s3://my-bucket/hard-folder/1.txt
-            s3://my-bucket/soft-folder/ (this is a soft folder)
-            s3://my-bucket/soft-folder/2.txt
+            s3://my-bucket/README.txt (1000 bytes)
+            s3://my-bucket/hard-folder/ (a folder marker)
+            s3://my-bucket/hard-folder/1.txt (2000 bytes)
+            s3://my-bucket/soft-folder/2.txt (3000 bytes, no folder marker)
 
-        Example:
+        Example::
 
-            >>> s3dir = S3Path("s3://my-bucket/")
-            >>> s3dir.calculate_total_size()
-            (3, 15360) # README.txt, hard-folder/1.txt, soft-folder/2.txt
-            >>> s3dir.calculate_total_size(for_human=True)
-            (3, 15 KB) # README.txt, hard-folder/1.txt, soft-folder/2.txt
-            >>> s3dir.count_objects(include_folder=True)
-            (4, 15 KB) # README.txt, hard-folder/, hard-folder/1.txt, soft-folder/2.txt
+            >>> S3Path("s3://my-bucket/").calculate_total_size()
+            (3, 6000)
+            >>> S3Path("s3://my-bucket/").calculate_total_size(for_human=True)
+            (3, '5.86 KB')
+            >>> S3Path("s3://my-bucket/").calculate_total_size(include_folder=True)
+            (4, 6000)
 
-        :param for_human: Default False. If true, returns human readable string for "size".
-        :param include_folder: Default False, whether counting the hard folder
-        (an empty "/" object).
+        :param for_human: if ``True``, the size is a human readable string.
+        :param include_folder: if ``True``, also count the folder markers.
         :param bsm: See bsm_.
 
-        :return: a tuple, first value is number of objects,
-            second value is total size in bytes
+        :return: ``(count, total_size)``, the size in bytes (or a string with
+            ``for_human=True``).
+
+        :raises S3PathTypeError: for a relative path or the void path.
+        :raises S3PathIsNotFolderError: for a file.
         """
-        self.ensure_dir()
+        self._ensure_s3_dir()
         s3_client = resolve_s3_client(s3_context, bsm)
         count, size = calculate_total_size(
             s3_client=s3_client,
@@ -303,32 +386,24 @@ class IterObjectsAPIMixin:
         bsm: BotoSesManager | S3Client | None = None,
     ) -> int:
         """
-        Count how many objects are under this s3 directory.
+        Count the objects under this folder (or bucket), recursively.
 
-        Assuming we have the following folder structure::
+        Assuming the folder structure of :meth:`calculate_total_size`:
 
-            s3://my-bucket/
-            s3://my-bucket/README.txt
-            s3://my-bucket/hard-folder/ (this is a hard folder)
-            s3://my-bucket/hard-folder/1.txt
-            s3://my-bucket/soft-folder/ (this is a soft folder)
-            s3://my-bucket/soft-folder/2.txt
+        Example::
 
-        Example:
+            >>> S3Path("s3://my-bucket/").count_objects()
+            3
+            >>> S3Path("s3://my-bucket/").count_objects(include_folder=True)
+            4
 
-            >>> s3dir = S3Path("s3://my-bucket/")
-            >>> s3dir.count_objects()
-            3 # README.txt, hard-folder/1.txt, soft-folder/2.txt
-            >>> s3dir.count_objects(include_folder=True)
-            4 # README.txt, hard-folder/, hard-folder/1.txt, soft-folder/2.txt
-
-        :param include_folder: Default False, whether counting the hard folder
-        (an empty "/" object).
+        :param include_folder: if ``True``, also count the folder markers.
         :param bsm: See bsm_.
 
-        :return: an integer represents the number of objects
+        :raises S3PathTypeError: for a relative path or the void path.
+        :raises S3PathIsNotFolderError: for a file.
         """
-        self.ensure_dir()
+        self._ensure_s3_dir()
         s3_client = resolve_s3_client(s3_context, bsm)
         return count_objects(
             s3_client=s3_client,
