@@ -97,6 +97,8 @@ Backlog (TODO)
 - ``S3Path.head_object`` accepts ``version_id``, to load the metadata of one version.
 - An ``S3Path`` produced by a call with an explicit client (``bsm=...``), e.g. by ``iter_objects(bsm=...)`` or ``head_object(bsm=...)``, remembers that client and loads its missing metadata with it, instead of the default client of ``s3_context``. Pickle does not keep the client; ``copy.copy`` / ``copy.deepcopy`` do.
 - Add ``s3pathlib.exc.S3ObjectChangedError``.
+- ``S3Path.write_bytes`` and ``S3Path.write_text`` accept ``if_match`` and ``if_none_match``, the conditional writes of S3: ``if_none_match="*"`` only writes a new object, ``if_match=<etag>`` only replaces the object if nobody changed it.
+- ``S3Path.touch`` makes one conditional ``put_object`` call instead of ``head_object`` + ``put_object``, so it is atomic: an object written by someone else in between is never replaced.
 
 **Bugfixes**
 
@@ -149,6 +151,10 @@ Backlog (TODO)
 - ``S3Path.iterdir()`` returned the folder marker of the folder itself (e.g. ``folder/`` when listing ``folder/``) as an entry, which also took a ``limit`` slot. It is now skipped.
 - ``S3PathIterProxy.filter_by_ext`` raised ``S3PathIsNotFileError`` when ``iter_objects()`` returned an object whose key ends with ``/`` and that has content; such a folder now never matches. ``filter_by_ext()`` without extension raises ``ValueError`` with a message.
 - ``S3Path.iter_objects()``, ``iterdir()``, ``count_objects()`` and ``calculate_total_size()`` on a relative path or the void path raised a botocore ``TypeError`` (or ``S3PathTypeError`` with a confusing message); they now raise ``S3PathTypeError`` saying it is a relative path. An invalid ``limit`` or ``batch_size`` of ``iter_objects()`` / ``iterdir()`` raises ``ValueError`` when the method is called, not when the iteration starts.
+- **Data loss**: ``S3Path.touch(exist_ok=True)`` replaced an existing object with an empty one, although it was documented to do nothing. It now never changes an existing object.
+- **Data loss**: ``S3Path.mkdir(exist_ok=True)`` and ``mkdir(parents=True)`` replaced the existing folder marker objects with empty ones, losing their content, and added a version each time with versioning. They now only write the markers that do not exist.
+- The ``S3Path`` returned by ``write_bytes`` / ``write_text`` had the user metadata keys in the given case, while S3 stores them in lower case, and no user metadata at all when none was given (so reading ``metadata`` called ``head_object``). It now has the metadata as S3 stores it, ``{}`` when none was given.
+- ``read_bytes``, ``read_text``, ``write_bytes``, ``write_text``, ``touch`` and ``mkdir`` on a bucket, a relative path or the void path raised a botocore error (``ParamValidationError`` or ``TypeError``). They now raise ``S3PathTypeError`` (still a ``TypeError``) before calling AWS; ``mkdir`` on a bucket says to use ``create_bucket()``.
 
 **Minor Improvements**
 
@@ -186,6 +192,7 @@ Backlog (TODO)
 - ``S3Path.put_tags`` returns a copy of the given tags instead of the same ``dict``.
 - Document the object tagging methods of ``S3Path`` (``s3pathlib.core.tagging``): ``put_tags({})`` removes all tags, ``update_tags`` is not atomic, which version they change, and the boto3 errors they raise as is. Document that the metadata snapshot of an ``S3Path`` never decides which version an operation works on: without ``version_id``, ``get_tags()``, ``read_bytes()``, ``delete()``, ... work on the latest version.
 - Fix the docstrings of ``S3Path.iter_objects`` (``recursive`` was described backwards), ``iterdir`` (``limit`` also counts folders), ``calculate_total_size`` and ``count_objects`` (wrong examples), and document that the results are lazy, can be iterated only once, and carry the metadata from the list API.
+- Fix the docstring examples of the read and write methods of ``S3Path`` (``s3pathlib.core.rw``), and document that writing returns a new ``S3Path`` and leaves the original one unchanged, how ``touch`` and ``mkdir`` treat existing objects, and the boto3 errors they raise as is.
 
 **Miscellaneous**
 
