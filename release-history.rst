@@ -117,6 +117,8 @@ Backlog (TODO)
 - ``better_client.paginate_list_object_versions`` sent a negative ``limit`` to S3 (which rejects it, while moto silently ignored it); it now raises ``ValueError``. ``limit=0`` returns nothing without calling AWS.
 - **Data loss**: ``S3Path("bucket", "data/file.txt").delete(is_hard_delete=True)`` permanently deleted all versions of every key starting with ``data/file.txt``, such as ``data/file.txt.bak`` and ``data/file.txt2/...``. It now only deletes the versions of ``data/file.txt``.
 - ``better_client.delete_dir`` and ``better_client.delete_object_versions`` ignored the objects S3 failed to delete (``delete_objects`` answers HTTP 200 and lists them in ``Errors``) and counted them as deleted. They now raise ``S3DeleteObjectsError`` and stop.
+- ``S3Path.list_object_versions()`` yielded the entries of the earlier pages again after each page: 8 versions listed with ``batch_size=2`` gave 20 entries. Each entry is now yielded once, in the S3 order (by key, then newest first), while the pages are fetched.
+- ``S3Path("bucket", "file.txt").list_object_versions()`` also listed the versions of every key starting with ``file.txt``, such as ``file.txt.bak``; on a file it now lists the versions of this exact key only. ``limit`` counts the returned entries, and invalid ``limit`` / ``batch_size`` raise ``ValueError`` when the method is called.
 
 **Minor Improvements**
 
