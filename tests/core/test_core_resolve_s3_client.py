@@ -114,4 +114,8 @@ class TestUseMock(ResolveS3ClientMixin):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, module="s3pathlib.core.resolve_s3_client", preview=False)
+    run_cov_test(
+        __file__,
+        module="s3pathlib.core.resolve_s3_client",
+        preview=False,
+    )

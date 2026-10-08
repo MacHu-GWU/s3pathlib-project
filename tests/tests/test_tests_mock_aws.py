@@ -574,4 +574,8 @@ def test_switch_real_aws_errors(tmp_path, env_value, message):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, module="s3pathlib.tests.mock_aws", preview=False)
+    run_cov_test(
+        __file__,
+        module="s3pathlib.tests.mock_aws",
+        preview=False,
+    )

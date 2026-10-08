@@ -213,4 +213,8 @@ class TestUseMock(ReadAndWriteAPIMixin):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, module="s3pathlib.core.rw", preview=False)
+    run_cov_test(
+        __file__,
+        module="s3pathlib.core.rw",
+        preview=False,
+    )

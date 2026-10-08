@@ -105,4 +105,8 @@ def test_deprecated_class_warns_on_instantiation():
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, "s3pathlib.marker", preview=False)
+    run_cov_test(
+        __file__,
+        "s3pathlib.marker",
+        preview=False,
+    )

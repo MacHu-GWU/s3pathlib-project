@@ -39,4 +39,8 @@ def test_content_type_usable_as_str():
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, "s3pathlib.content_type", preview=False)
+    run_cov_test(
+        __file__,
+        "s3pathlib.content_type",
+        preview=False,
+    )

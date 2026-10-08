@@ -73,4 +73,8 @@ def test_top_level_names_still_work(name):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, "s3pathlib.api", preview=False)
+    run_cov_test(
+        __file__,
+        "s3pathlib.api",
+        preview=False,
+    )

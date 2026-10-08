@@ -133,4 +133,8 @@ def test_encode_for_api_aliases(alias, base):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, "s3pathlib.tag", preview=False)
+    run_cov_test(
+        __file__,
+        "s3pathlib.tag",
+        preview=False,
+    )

@@ -326,4 +326,8 @@ class TestUseMock(AwsMixin):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, module="s3pathlib.aws", preview=False)
+    run_cov_test(
+        __file__,
+        module="s3pathlib.aws",
+        preview=False,
+    )

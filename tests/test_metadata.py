@@ -49,4 +49,8 @@ def test_warn_upper_case_one_warning_per_bad_key():
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, "s3pathlib.metadata", preview=False)
+    run_cov_test(
+        __file__,
+        "s3pathlib.metadata",
+        preview=False,
+    )

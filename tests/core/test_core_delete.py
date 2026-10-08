@@ -146,4 +146,8 @@ class TestUseMock(DeleteAPIMixin):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, module="s3pathlib.core.delete", preview=False)
+    run_cov_test(
+        __file__,
+        module="s3pathlib.core.delete",
+        preview=False,
+    )

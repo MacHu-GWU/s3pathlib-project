@@ -543,4 +543,8 @@ def test_grouper_list_invalid_n(n):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, "s3pathlib.utils", preview=False)
+    run_cov_test(
+        __file__,
+        "s3pathlib.utils",
+        preview=False,
+    )

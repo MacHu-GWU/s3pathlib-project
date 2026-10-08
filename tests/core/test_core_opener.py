@@ -128,4 +128,8 @@ class TestUseMock(OpenerAPIMixin):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, module="s3pathlib.core.opener", preview=False)
+    run_cov_test(
+        __file__,
+        module="s3pathlib.core.opener",
+        preview=False,
+    )

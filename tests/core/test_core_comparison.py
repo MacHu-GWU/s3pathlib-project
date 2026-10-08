@@ -272,4 +272,8 @@ class TestUseMock(ComparisonAPIMixin):
 
 
 if __name__ == "__main__":
-    run_cov_test(__file__, module="s3pathlib.core.comparison", preview=False)
+    run_cov_test(
+        __file__,
+        module="s3pathlib.core.comparison",
+        preview=False,
+    )
