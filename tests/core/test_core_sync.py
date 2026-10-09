@@ -201,9 +201,13 @@ class SyncMixin(BaseTest):
         assert "--only-show-errors" not in runner.args
 
     def test_quiet_and_quite(self, runner):
-        with pytest.raises(ValueError, match="give quiet only"):
-            S3Path.sync(self.s3dir_test / "a/", "/tmp/data", quiet=True, quite=True)
-        assert runner.calls == []
+        """
+        When both are given, the deprecated ``quite`` wins: ``quiet`` has a
+        plain default, so passing it cannot be told from leaving it out.
+        """
+        with pytest.warns(DeprecationWarning, match="Use 'quiet' instead"):
+            S3Path.sync(self.s3dir_test / "a/", "/tmp/data", quiet=True, quite=False, verbose=False)
+        assert "--only-show-errors" not in runner.args
 
     def test_sync_from_and_to(self, runner):
         s3dir = self.s3dir_test / "a/"

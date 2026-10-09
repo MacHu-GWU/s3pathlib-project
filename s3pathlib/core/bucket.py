@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import typing as T
 
-from func_args import NOTHING, resolve_kwargs
-
+from .._arg import OPT
+from .._arg import remove_optional
 from ..aws import s3_context
 from ..constants import S3_LIST_BUCKETS_MAX_BUCKETS
 from ..exc import S3ValidationError
@@ -62,14 +62,14 @@ class BucketAPIMixin:
     def create_bucket(
         self: S3Path,
         region: str | None = None,
-        acl: str = NOTHING,
-        grant_full_control: str = NOTHING,
-        grant_read: str = NOTHING,
-        grant_read_acp: str = NOTHING,
-        grant_write: str = NOTHING,
-        grant_write_acp: str = NOTHING,
-        object_lock_enabled_for_bucket: bool = NOTHING,
-        object_ownership: str = NOTHING,
+        acl: str = OPT,
+        grant_full_control: str = OPT,
+        grant_read: str = OPT,
+        grant_read_acp: str = OPT,
+        grant_write: str = OPT,
+        grant_write_acp: str = OPT,
+        object_lock_enabled_for_bucket: bool = OPT,
+        object_ownership: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> dict:
         """
@@ -108,11 +108,11 @@ class BucketAPIMixin:
             region = s3_client.meta.region_name
         # us-east-1 is the default location, S3 rejects it as a LocationConstraint
         if region == "us-east-1":
-            create_bucket_configuration = NOTHING
+            create_bucket_configuration = OPT
         else:
             create_bucket_configuration = dict(LocationConstraint=region)
         response = s3_client.create_bucket(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=self.bucket,
                 ACL=acl,
                 CreateBucketConfiguration=create_bucket_configuration,
@@ -129,7 +129,7 @@ class BucketAPIMixin:
 
     def delete_bucket(
         self: S3Path,
-        expected_bucket_owner: str = NOTHING,
+        expected_bucket_owner: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> dict:
         """
@@ -149,7 +149,7 @@ class BucketAPIMixin:
         self.ensure_bucket()
         s3_client = resolve_s3_client(s3_context, bsm)
         response = s3_client.delete_bucket(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=self.bucket,
                 ExpectedBucketOwner=expected_bucket_owner,
             ),
@@ -159,7 +159,7 @@ class BucketAPIMixin:
 
     def get_bucket_versioning(
         self: S3Path,
-        expected_bucket_owner: str = NOTHING,
+        expected_bucket_owner: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> dict:
         """
@@ -178,7 +178,7 @@ class BucketAPIMixin:
         self.ensure_bucket()
         s3_client = resolve_s3_client(s3_context, bsm)
         response = s3_client.get_bucket_versioning(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=self.bucket,
                 ExpectedBucketOwner=expected_bucket_owner,
             ),
@@ -216,10 +216,10 @@ class BucketAPIMixin:
     def put_bucket_versioning(
         self: S3Path,
         enable_versioning: bool,
-        enable_mfa_delete: bool = NOTHING,
-        check_sum_algorithm: str = NOTHING,
-        mfa: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
+        enable_mfa_delete: bool | None = None,
+        check_sum_algorithm: str = OPT,
+        mfa: str = OPT,
+        expected_bucket_owner: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> dict:
         """
@@ -230,8 +230,8 @@ class BucketAPIMixin:
         :param enable_versioning: ``True`` sets ``Status`` to ``"Enabled"``,
             ``False`` to ``"Suspended"``.
         :param enable_mfa_delete: ``True`` sets ``MFADelete`` to
-            ``"Enabled"``, ``False`` to ``"Disabled"``; not given, it is not
-            sent. Only the root user of the bucket owner account can change
+            ``"Enabled"``, ``False`` to ``"Disabled"``; ``None`` (default), it
+            is not sent. Only the root user of the bucket owner account can change
             it, and it requires ``mfa``.
         :param check_sum_algorithm: ``ChecksumAlgorithm``.
         :param mfa: ``MFA``, the serial number of the MFA device, a space, and
@@ -251,13 +251,13 @@ class BucketAPIMixin:
         else:
             status = "Suspended"
         versioning_configuration = dict(Status=status)
-        if enable_mfa_delete is not NOTHING:
+        if enable_mfa_delete is not None:
             if enable_mfa_delete:
                 versioning_configuration["MFADelete"] = "Enabled"
             else:
                 versioning_configuration["MFADelete"] = "Disabled"
         response = s3_client.put_bucket_versioning(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=self.bucket,
                 ChecksumAlgorithm=check_sum_algorithm,
                 VersioningConfiguration=versioning_configuration,

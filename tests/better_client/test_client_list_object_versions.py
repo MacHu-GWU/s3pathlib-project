@@ -190,6 +190,12 @@ class ListObjectVersionsMixin(BaseTest):
             assert self.entries(limit=0) == []
         assert calls == []
 
+    def test_limit_none(self):
+        """
+        ``limit=None`` is no limit, the same as leaving it out.
+        """
+        assert len(self.entries(batch_size=3, limit=None)) == N_ENTRIES
+
     def test_delimiter(self):
         """
         With ``delimiter="/"``, the entries of the direct objects are listed

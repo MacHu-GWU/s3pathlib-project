@@ -76,8 +76,8 @@ import copy
 from datetime import datetime
 
 import botocore.exceptions
-from func_args import NOTHING
 
+from .._arg import OPT
 from .. import exc
 from .. import utils
 from ..constants import IS_DELETE_MARKER
@@ -151,7 +151,7 @@ class MetadataAPIMixin:
 
     def head_object(
         self: S3Path,
-        version_id: str = NOTHING,
+        version_id: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> dict:
         """
@@ -212,13 +212,13 @@ class MetadataAPIMixin:
         else:
             if "VersionId" in self._meta:
                 version_id = self._meta["VersionId"]
-                if_match = NOTHING
+                if_match = OPT
             elif "ETag" in self._meta:
-                version_id = NOTHING
+                version_id = OPT
                 if_match = self._meta["ETag"]
             else:
-                version_id = NOTHING
-                if_match = NOTHING
+                version_id = OPT
+                if_match = OPT
             try:
                 response = head_object(
                     s3_client,

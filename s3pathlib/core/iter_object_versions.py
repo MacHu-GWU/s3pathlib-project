@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import typing as T
 
-from func_args import NOTHING
-
+from .._arg import OPT
 from ..aws import s3_context
 from ..better_client.list_object_versions import paginate_list_object_versions
 from .iter_objects import S3PathIterProxy
@@ -33,10 +32,10 @@ class IterObjectVersionsAPIMixin:
     def list_object_versions(
         self: S3Path,
         batch_size: int = 1000,
-        limit: int = NOTHING,
-        delimiter: str = NOTHING,
-        encoding_type: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
+        limit: int | None = None,
+        delimiter: str = OPT,
+        encoding_type: str = OPT,
+        expected_bucket_owner: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
         """
@@ -62,7 +61,8 @@ class IterObjectVersionsAPIMixin:
 
         :param batch_size: Number of entries per API call, 1 to 1000.
         :param limit: Total number of versions and delete markers to return.
-            ``0`` returns nothing without calling AWS.
+            ``0`` returns nothing without calling AWS. ``None`` (default): no
+            limit.
         :param delimiter: See ListObjectVersions_. Folders (common prefixes)
             are not returned.
         :param encoding_type: See ListObjectVersions_.
@@ -72,7 +72,7 @@ class IterObjectVersionsAPIMixin:
         :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
             negative.
         """
-        if limit is not NOTHING:
+        if limit is not None:
             if limit < 0:
                 raise ValueError(f"``limit`` must not be negative, got {limit}.")
         s3_client = resolve_s3_client(s3_context, bsm)
@@ -94,7 +94,7 @@ class IterObjectVersionsAPIMixin:
         )
 
         def _iter_s3path() -> T.Iterable[S3Path]:
-            if limit is NOTHING:
+            if limit is None:
                 remaining = None
             else:
                 remaining = limit

@@ -376,6 +376,12 @@ class BucketMixin(BaseTest):
                 {"Status": "Enabled", "MFADelete": "Disabled"},
                 id="enable-mfa-off",
             ),
+            pytest.param(
+                True,
+                None,
+                {"Status": "Enabled"},
+                id="mfa-none-not-sent",
+            ),
         ],
     )
     def test_put_bucket_versioning_arguments_passed_to_boto3(
@@ -386,7 +392,8 @@ class BucketMixin(BaseTest):
     ):
         """
         ``enable_mfa_delete`` only sets ``MFADelete`` and leaves ``Status`` as
-        given by ``enable_versioning`` (2.x overwrote ``Status`` with it); the
+        given by ``enable_versioning`` (2.x overwrote ``Status`` with it);
+        ``None`` (the default) does not send ``MFADelete``; the
         other arguments are sent under their boto3 names. Enabling MFA delete
         needs the root user and an MFA device, so it is only stubbed.
         """

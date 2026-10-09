@@ -25,7 +25,7 @@ Backlog (TODO)
 
 - Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11.
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
-- Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``, ``boto-session-manager>=2.0.1,<3.0.0``, ``func-args>=1.0.2``.
+- Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``, ``boto-session-manager>=2.0.1,<3.0.0``.
 - Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none`` and ``s3pathlib.exc.ensure_all_none``; the library no longer uses them.
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
@@ -115,7 +115,7 @@ Backlog (TODO)
 - ``S3Path.touch`` makes one conditional ``put_object`` call instead of ``head_object`` + ``put_object``, so it is atomic: an object written by someone else in between is never replaced.
 - ``S3Path.upload_file`` returns a new ``S3Path`` of the uploaded object, the same as ``write_bytes``; it returned ``None`` before.
 - ``S3Path.copy_file`` (and the other copy methods) with ``overwrite=False`` copy conditionally (``IfNoneMatch="*"``) after checking the target, so on AWS an object written by someone else in between is not replaced either.
-- Add the ``quiet`` argument to ``S3Path.sync``, ``sync_from`` and ``sync_to``. The misspelled ``quite`` is deprecated: passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0.
+- Add the ``quiet`` argument to ``S3Path.sync``, ``sync_from`` and ``sync_to``. The misspelled ``quite`` is deprecated: passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0. When both are given, ``quite`` is used.
 - ``S3Path.sync`` supports S3 compatible endpoints (the endpoint of the client is passed to the CLI) and unsigned clients (``--no-sign-request``).
 - Add ``s3pathlib.exc.S3SyncError``.
 - ``s3pathlib.api`` also exports the exceptions module ``exc`` (e.g. ``except exc.S3FileNotExist``), ``S3PathIterProxy`` (returned by ``iter_objects``, ``iterdir`` and ``list_object_versions``) and ``AwsPartitionEnum`` (for ``get_arn`` / ``get_console_url``), so every public name is available from ``s3pathlib.api``.
@@ -233,6 +233,8 @@ Backlog (TODO)
 - Document the copy methods of ``S3Path`` (``s3pathlib.core.copy``): how metadata and content headers are copied, that ``copy_object`` copies objects up to 5 GB, which version is copied, and the errors they raise as is.
 - Document ``S3Path.delete``: what each kind of path and argument deletes, what it returns, that deleting a missing key adds a delete marker with versioning, and that emptying a bucket asks for confirmation.
 - Document ``S3Path.sync``: which identity the AWS CLI uses and its limits, every argument, and the errors.
+- ``limit=None`` means no limit (the default), the same as leaving it out; it used to raise ``TypeError``. This applies to ``S3Path.iter_objects``, ``iterdir`` and ``list_object_versions``, and to ``better_client.paginate_list_objects_v2``, ``paginate_list_object_versions``, ``delete_dir`` and ``delete_object_versions``.
+- ``S3Path.put_bucket_versioning(enable_mfa_delete=None)`` (the default) does not send ``MFADelete``.
 
 **Miscellaneous**
 
@@ -256,6 +258,7 @@ Backlog (TODO)
 - The library code no longer imports ``boto_session_manager`` at runtime (``S3Path.sync`` used ``BotoSesManager.awscli()``); it is only used in type hints.
 - A test locks the exact set of public names of ``s3pathlib.api``, so any change of the public API is deliberate.
 - Every test module that calls AWS uses ``s3pathlib.tests.mock_aws``, so the whole test suite also runs against real AWS (``mise run cov-aws``). Remove the unused test data ``tests/data/``, ``tests/core/test_upload_dir/`` and ``tests/better_client/dummy_data.py``, and their entries in ``s3pathlib.paths``.
+- Remove the ``func-args`` dependency; its "not given" value is now the private ``s3pathlib._arg.OPT``. Arguments passed on to boto3 still default to "not given", and ``None`` is still not the same: botocore rejects it with ``ParamValidationError`` (S3 has no ``None`` value), so a condition such as ``if_match=p.etag`` is never silently dropped.
 
 
 

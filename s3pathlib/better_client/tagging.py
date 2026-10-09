@@ -15,9 +15,9 @@ from __future__ import annotations
 import typing as T
 
 import botocore.exceptions
-from func_args import NOTHING
-from func_args import resolve_kwargs
 
+from .._arg import OPT
+from .._arg import remove_optional
 from .. import tag
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -28,8 +28,8 @@ def update_bucket_tagging(
     s3_client: S3Client,
     bucket: str,
     tags: tag.TagType,
-    checksum_algorithm: str = NOTHING,
-    expected_bucket_owner: str = NOTHING,
+    checksum_algorithm: str = OPT,
+    expected_bucket_owner: str = OPT,
 ) -> tag.TagType:
     """
     Update the bucket tags like ``dict.update``: add the new keys, overwrite
@@ -62,7 +62,7 @@ def update_bucket_tagging(
     """
     try:
         res = s3_client.get_bucket_tagging(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=bucket,
                 ExpectedBucketOwner=expected_bucket_owner,
             )
@@ -77,7 +77,7 @@ def update_bucket_tagging(
 
     existing_tags.update(tags)
     s3_client.put_bucket_tagging(
-        **resolve_kwargs(
+        **remove_optional(
             Bucket=bucket,
             Tagging=dict(TagSet=tag.encode_for_put_bucket_tagging(existing_tags)),
             ChecksumAlgorithm=checksum_algorithm,
@@ -92,11 +92,11 @@ def update_object_tagging(
     bucket: str,
     key: str,
     tags: tag.TagType,
-    version_id: str = NOTHING,
-    content_md5: str = NOTHING,
-    checksum_algorithm: str = NOTHING,
-    expected_bucket_owner: str = NOTHING,
-    request_payer: str = NOTHING,
+    version_id: str = OPT,
+    content_md5: str = OPT,
+    checksum_algorithm: str = OPT,
+    expected_bucket_owner: str = OPT,
+    request_payer: str = OPT,
 ) -> tuple[str | None, tag.TagType]:
     """
     Update the object tags like ``dict.update``: add the new keys, overwrite
@@ -139,7 +139,7 @@ def update_object_tagging(
       the ``s3:GetObjectTagging`` / ``s3:PutObjectTagging`` permission.
     """
     res = s3_client.get_object_tagging(
-        **resolve_kwargs(
+        **remove_optional(
             Bucket=bucket,
             Key=key,
             VersionId=version_id,
@@ -151,12 +151,12 @@ def update_object_tagging(
     existing_tags = tag.parse_tags(res.get("TagSet", []))
     existing_tags.update(tags)
     s3_client.put_object_tagging(
-        **resolve_kwargs(
+        **remove_optional(
             Bucket=bucket,
             Key=key,
             Tagging=dict(TagSet=tag.encode_for_put_object_tagging(existing_tags)),
             # pin the version that was read
-            VersionId=res.get("VersionId", NOTHING),
+            VersionId=res.get("VersionId", OPT),
             ContentMD5=content_md5,
             ChecksumAlgorithm=checksum_algorithm,
             ExpectedBucketOwner=expected_bucket_owner,

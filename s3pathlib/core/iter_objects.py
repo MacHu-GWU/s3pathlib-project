@@ -12,8 +12,8 @@ from __future__ import annotations
 import typing as T
 
 from iterproxy import IterProxy
-from func_args import NOTHING
 
+from .._arg import OPT
 from .. import utils
 from ..aws import s3_context
 from ..better_client.list_objects import (
@@ -88,21 +88,21 @@ class S3PathIterProxy(IterProxy["S3Path"]):
         return self.filter(f)
 
 
-def _ensure_limit(limit: int):
+def _ensure_limit(limit: int | None):
     """
     :raises ValueError: if ``limit`` is negative.
     """
-    if limit is not NOTHING:
+    if limit is not None:
         if limit < 0:
             raise ValueError(f"``limit`` must not be negative, got {limit}.")
 
 
-def _get_page_size(batch_size: int, limit: int) -> int:
+def _get_page_size(batch_size: int, limit: int | None) -> int:
     """
     The number of entries per API call: no more than ``limit`` when it is
     given (more pages are fetched if some entries are skipped).
     """
-    if (limit is NOTHING) or (limit == 0):
+    if (limit is None) or (limit == 0):
         return batch_size
     else:
         return min(batch_size, limit)
@@ -124,12 +124,12 @@ class IterObjectsAPIMixin:
     def iter_objects(
         self: S3Path,
         batch_size: int = 1000,
-        limit: int = NOTHING,
-        encoding_type: str = NOTHING,
-        fetch_owner: bool = NOTHING,
-        start_after: str = NOTHING,
-        request_payer: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
+        limit: int | None = None,
+        encoding_type: str = OPT,
+        fetch_owner: bool = OPT,
+        start_after: str = OPT,
+        request_payer: str = OPT,
+        expected_bucket_owner: str = OPT,
         recursive: bool = True,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
@@ -163,7 +163,7 @@ class IterObjectsAPIMixin:
 
         :param batch_size: Number of entries per API call, 1 to 1000.
         :param limit: Total number of objects to return. ``0`` returns nothing
-            without calling AWS.
+            without calling AWS. ``None`` (default): no limit.
         :param encoding_type: See ListObjectsV2_.
         :param fetch_owner: See ListObjectsV2_.
         :param start_after: See ListObjectsV2_.
@@ -202,7 +202,7 @@ class IterObjectsAPIMixin:
         explicit_client = explicit_s3_client(s3_client, bsm)
 
         def _iter_s3path() -> T.Iterable[S3Path]:
-            if limit is NOTHING:
+            if limit is None:
                 remaining = None
             else:
                 remaining = limit
@@ -226,12 +226,12 @@ class IterObjectsAPIMixin:
     def iterdir(
         self: S3Path,
         batch_size: int = 1000,
-        limit: int = NOTHING,
-        encoding_type: str = NOTHING,
-        fetch_owner: bool = NOTHING,
-        start_after: str = NOTHING,
-        request_payer: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
+        limit: int | None = None,
+        encoding_type: str = OPT,
+        fetch_owner: bool = OPT,
+        start_after: str = OPT,
+        request_payer: str = OPT,
+        expected_bucket_owner: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> S3PathIterProxy:
         """
@@ -261,7 +261,8 @@ class IterObjectsAPIMixin:
 
         :param batch_size: Number of entries per API call, 1 to 1000.
         :param limit: Total number of files and folders to return. ``0``
-            returns nothing without calling AWS.
+            returns nothing without calling AWS. ``None`` (default): no
+            limit.
         :param encoding_type: See ListObjectsV2_.
         :param fetch_owner: See ListObjectsV2_.
         :param start_after: See ListObjectsV2_.
@@ -296,7 +297,7 @@ class IterObjectsAPIMixin:
         explicit_client = explicit_s3_client(s3_client, bsm)
 
         def _iter_s3path() -> T.Iterable[S3Path]:
-            if limit is NOTHING:
+            if limit is None:
                 remaining = None
             else:
                 remaining = limit

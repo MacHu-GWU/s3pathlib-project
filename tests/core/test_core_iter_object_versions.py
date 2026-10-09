@@ -143,6 +143,15 @@ class ListObjectVersionsMixin(BaseTest):
         assert len(p.list_object_versions(limit=5).all()) == 2
         assert len(p.list_object_versions(limit=1).all()) == 1
 
+    def test_limit_none(self):
+        """
+        ``limit=None`` is no limit, the same as leaving it out.
+        """
+        for key in ["a.txt", "b.txt", "c.txt"]:
+            self.put(key, "x")
+        s3dir = self.s3dir_test_with_versioning
+        assert len(s3dir.list_object_versions(batch_size=1, limit=None).all()) == 3
+
     def test_limit_zero(self):
         """
         ``limit=0`` returns nothing without calling AWS.

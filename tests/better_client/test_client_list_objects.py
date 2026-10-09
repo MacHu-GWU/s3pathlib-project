@@ -117,11 +117,13 @@ class ListObjectsMixin(BaseTest):
             pytest.param(10, 3, 1, id="limit-under-batch-size"),
             pytest.param(3, 6, 2, id="limit-on-page-boundary"),
             pytest.param(3, 100, 4, id="limit-over-total"),
+            pytest.param(3, None, 4, id="none-is-no-limit"),
         ],
     )
     def test_limit(self, batch_size, limit, n_calls):
         """
-        ``limit`` caps the total, and no page is fetched after it is reached.
+        ``limit`` caps the total, and no page is fetched after it is reached;
+        ``None`` is no limit.
         """
         with record_api_calls(self.s3_client) as calls:
             keys = self.list_keys(batch_size=batch_size, limit=limit)

@@ -215,6 +215,18 @@ class ReadAndWriteMixin(BaseTest):
             data = getattr(S3Path("bucket", "file.txt"), method)(**kwargs)
         assert data in (b"he", "he")
 
+    def test_read_none_is_not_omitted(self):
+        """
+        ``None`` is not "not given": botocore rejects it before sending the
+        request, instead of reading the latest version.
+        """
+        p = self.s3dir_test / "file.txt"
+        self.put(p)
+        with record_api_calls(self.s3_client) as calls:
+            with pytest.raises(botocore.exceptions.ParamValidationError, match="VersionId"):
+                p.read_bytes(version_id=None)
+        assert calls == []
+
     # --------------------------------------------------------------------------
     # 2. write_bytes / write_text
     # --------------------------------------------------------------------------
@@ -313,6 +325,34 @@ class ReadAndWriteMixin(BaseTest):
         with self.stub() as stubber:
             stubber.add_response("put_object", {"ETag": '"e"'}, expected_params=expected)
             getattr(S3Path("bucket", "file.txt"), method)(data, **kwargs)
+
+    @pytest.mark.parametrize(
+        "kwargs, error, match",
+        [
+            pytest.param(
+                {"if_match": None},
+                botocore.exceptions.ParamValidationError,
+                "IfMatch",
+                id="if_match",
+            ),
+            # tags and metadata are encoded before the boto3 call, which fails
+            pytest.param({"tags": None}, TypeError, None, id="tags"),
+            pytest.param({"metadata": None}, AttributeError, None, id="metadata"),
+        ],
+    )
+    def test_write_none_is_not_omitted(self, kwargs, error, match):
+        """
+        ``None`` is not "not given": the write fails before calling AWS. If it
+        were "not given", ``if_match=p.etag`` with no ETag would silently
+        drop the condition and overwrite the object.
+        """
+        p = self.s3dir_test / "file.txt"
+        self.put(p, b"v1")
+        with record_api_calls(self.s3_client) as calls:
+            with pytest.raises(error, match=match):
+                p.write_bytes(b"v2", **kwargs)
+        assert calls == []
+        assert self.get(p) == b"v1"
 
     # --------------------------------------------------------------------------
     # 3. touch

@@ -224,14 +224,21 @@ class DeleteObjectMixin(BaseTest):
                 delete_dir(self.s3_client, self.bucket, self.s3dir_test.key + "folder")
         assert calls == []
 
-    def test_delete_dir_limit(self):
+    @pytest.mark.parametrize(
+        "limit, count, remaining",
+        [
+            pytest.param(2, 2, ["c.txt"], id="limit-2"),
+            pytest.param(None, 3, [], id="none-is-no-limit"),
+        ],
+    )
+    def test_delete_dir_limit(self, limit, count, remaining):
         """
-        ``limit`` caps the number of deleted objects, in key order.
+        ``limit`` caps the number of deleted objects, in key order; ``None``
+        is no limit.
         """
         bucket, prefix = self.put(["a.txt", "b.txt", "c.txt"])
-        count = delete_dir(self.s3_client, bucket, prefix, limit=2, batch_size=1)
-        assert count == 2
-        assert self.keys(bucket, prefix) == ["c.txt"]
+        assert delete_dir(self.s3_client, bucket, prefix, limit=limit, batch_size=1) == count
+        assert self.keys(bucket, prefix) == remaining
 
     def test_delete_dir_versioning(self):
         """
@@ -270,14 +277,21 @@ class DeleteObjectMixin(BaseTest):
             delete_object_versions(self.s3_client, bucket, prefix + "file.txt")
         assert self.versions(bucket, prefix) == ["file.txt", "file.txt.bak"]
 
-    def test_delete_object_versions_limit(self):
+    @pytest.mark.parametrize(
+        "limit, count, n_remaining",
+        [
+            pytest.param(2, 2, 1, id="limit-2"),
+            pytest.param(None, 3, 0, id="none-is-no-limit"),
+        ],
+    )
+    def test_delete_object_versions_limit(self, limit, count, n_remaining):
         """
-        ``limit`` caps the number of deleted versions and delete markers.
+        ``limit`` caps the number of deleted versions and delete markers;
+        ``None`` is no limit.
         """
         bucket, prefix = self.put(["a.txt", "b.txt", "c.txt"], versioning=True)
-        count = delete_object_versions(self.s3_client, bucket, prefix, limit=2)
-        assert count == 2
-        assert len(self.versions(bucket, prefix)) == 1
+        assert delete_object_versions(self.s3_client, bucket, prefix, limit=limit) == count
+        assert len(self.versions(bucket, prefix)) == n_remaining
 
     # --------------------------------------------------------------------------
     # 4. delete_object_all_versions

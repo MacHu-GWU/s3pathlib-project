@@ -11,8 +11,8 @@ Delete S3 file or folder.
 from __future__ import annotations
 
 import typing as T
-from func_args import NOTHING
 
+from .._arg import OPT
 from ..constants import IS_DELETE_MARKER
 from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
@@ -36,12 +36,12 @@ class DeleteAPIMixin:
 
     def delete(
         self: S3Path,
-        version_id: str = NOTHING,
-        mfa: str = NOTHING,
-        request_payer: str = NOTHING,
-        bypass_governance_retention: bool = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        check_sum_algorithm: str = NOTHING,
+        version_id: str = OPT,
+        mfa: str = OPT,
+        request_payer: str = OPT,
+        bypass_governance_retention: bool = OPT,
+        expected_bucket_owner: str = OPT,
+        check_sum_algorithm: str = OPT,
         is_hard_delete: bool = False,
         skip_prompt: bool = False,
         bsm: BotoSesManager | S3Client | None = None,
@@ -118,7 +118,7 @@ class DeleteAPIMixin:
         :raises botocore.exceptions.ClientError: as is, e.g. ``NoSuchBucket``.
         """
         self.ensure_not_relpath()
-        if version_id is not NOTHING:
+        if version_id is not OPT:
             if self.is_dir():
                 raise ValueError("version_id only applies to deleting a file")
             if is_hard_delete:

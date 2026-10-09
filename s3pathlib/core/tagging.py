@@ -28,8 +28,8 @@ from __future__ import annotations
 
 import typing as T
 
-from func_args import NOTHING, resolve_kwargs
-
+from .._arg import OPT
+from .._arg import remove_optional
 from .resolve_s3_client import resolve_s3_client
 from ..better_client.tagging import update_object_tagging
 from ..aws import s3_context
@@ -59,9 +59,9 @@ class TaggingAPIMixin:
 
     def get_tags(
         self: S3Path,
-        version_id: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        request_payer: str = NOTHING,
+        version_id: str = OPT,
+        expected_bucket_owner: str = OPT,
+        request_payer: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> tuple[str | None, TagType]:
         """
@@ -84,7 +84,7 @@ class TaggingAPIMixin:
         self._ensure_taggable()
         s3_client = resolve_s3_client(s3_context, bsm)
         res = s3_client.get_object_tagging(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=self.bucket,
                 Key=self.key,
                 VersionId=version_id,
@@ -99,11 +99,11 @@ class TaggingAPIMixin:
     def put_tags(
         self: S3Path,
         tags: TagType,
-        version_id: str = NOTHING,
-        content_md5: str = NOTHING,
-        checksum_algorithm: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        request_payer: str = NOTHING,
+        version_id: str = OPT,
+        content_md5: str = OPT,
+        checksum_algorithm: str = OPT,
+        expected_bucket_owner: str = OPT,
+        request_payer: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> tuple[str | None, TagType]:
         """
@@ -128,7 +128,7 @@ class TaggingAPIMixin:
         self._ensure_taggable()
         s3_client = resolve_s3_client(s3_context, bsm)
         res = s3_client.put_object_tagging(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=self.bucket,
                 Key=self.key,
                 Tagging=dict(TagSet=encode_tag_set(tags)),
@@ -145,11 +145,11 @@ class TaggingAPIMixin:
     def update_tags(
         self: S3Path,
         tags: TagType,
-        version_id: str = NOTHING,
-        content_md5: str = NOTHING,
-        checksum_algorithm: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        request_payer: str = NOTHING,
+        version_id: str = OPT,
+        content_md5: str = OPT,
+        checksum_algorithm: str = OPT,
+        expected_bucket_owner: str = OPT,
+        request_payer: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> tuple[str | None, TagType]:
         """

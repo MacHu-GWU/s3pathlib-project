@@ -12,8 +12,8 @@ from __future__ import annotations
 import typing as T
 from pathlib import Path
 
-from func_args import NOTHING, resolve_kwargs
-
+from .._arg import OPT
+from .._arg import remove_optional
 from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 from ..better_client.upload import upload_dir
@@ -36,9 +36,9 @@ class UploadAPIMixin:
         self: S3Path,
         path: PathType,
         overwrite: bool = False,
-        extra_args: dict = NOTHING,
-        callback: T.Callable[[int], T.Any] = NOTHING,
-        config: TransferConfig = NOTHING,
+        extra_args: dict = OPT,
+        callback: T.Callable[[int], T.Any] = OPT,
+        config: TransferConfig = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> S3Path:
         """
@@ -98,7 +98,7 @@ class UploadAPIMixin:
             Filename=str(p.absolute()),
             Bucket=self.bucket,
             Key=self.key,
-            **resolve_kwargs(
+            **remove_optional(
                 ExtraArgs=extra_args,
                 Callback=callback,
                 Config=config,

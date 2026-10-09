@@ -712,15 +712,6 @@ wheels = [
 ]
 
 [[package]]
-name = "func-args"
-version = "1.0.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9b/20/b6b297a845884b7f4ec3dd1f40a0b96280310efd3231b25374fbaf4fdef2/func_args-1.0.2.tar.gz", hash = "sha256:f46acb57f22fc0e95e6ac18c992e128f0bc207450f9cab9c02237296e0105d34", size = 19965, upload-time = "2026-04-28T19:56:48.229Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/9c/49269f73c85a1f934db66bda4badb5ff6aa7de2747605469f6ffa226e497/func_args-1.0.2-py3-none-any.whl", hash = "sha256:f0f36b2aea676321f436d708c39b61c4f83ddeaa31c9aef38a71898ea5fc7adb", size = 15085, upload-time = "2026-04-28T19:56:46.799Z" },
-]
-
-[[package]]
 name = "furo"
 version = "2024.8.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1779,7 +1770,6 @@ source = { editable = "." }
 dependencies = [
     { name = "boto-session-manager" },
     { name = "boto3" },
-    { name = "func-args" },
     { name = "iterproxy" },
     { name = "pathlib-mate" },
     { name = "smart-open" },
@@ -1824,7 +1814,6 @@ requires-dist = [
     { name = "docfly", marker = "extra == 'doc'", specifier = "==3.0.3" },
     { name = "flask", marker = "extra == 'test'", specifier = ">=3.0.0,<4.0.0" },
     { name = "flask-cors", marker = "extra == 'test'", specifier = ">=5.0.0,<7.0.0" },
-    { name = "func-args", specifier = ">=1.0.2,<2.0.0" },
     { name = "furo", marker = "extra == 'doc'", specifier = "==2024.8.6" },
     { name = "httpx", marker = "extra == 'mise'", specifier = ">=0.28.0,<1.0.0" },
     { name = "ipython", marker = "extra == 'doc'", specifier = ">=8.18.1,<8.19.0" },

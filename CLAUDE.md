@@ -27,6 +27,12 @@ Python 3.11+ syntax: `X | None`, `A | B`, `list[str]`, `dict[str, int]`, `type[X
 
 3.0.0 is the baseline; its public API is listed in `release-history.rst`. Only use `.. versionadded::` / `.. versionchanged::` for changes after 3.0.0.
 
+## Argument Defaults
+
+- An argument passed on to boto3 (`version_id`, `if_match`, `metadata`, ...) defaults to `OPT` from `s3pathlib/_arg.py` ("do not send it"); build the call with `remove_optional(...)`. `None` is not "not given": it is kept, and botocore rejects it (`ParamValidationError`).
+- An argument of s3pathlib itself (`bsm`, `limit`, `region`, `encoding`, ...) defaults to `None` or a plain value, never `OPT`.
+- `_arg` is private: never export `OPT` from `s3pathlib.api`.
+
 ## Errors
 
 Raise AWS errors as is when they are usable; convert them only when they are not.

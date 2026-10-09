@@ -12,9 +12,9 @@ from __future__ import annotations
 import typing as T
 import warnings
 
-from func_args import NOTHING
-from func_args import resolve_kwargs
-
+from .._arg import NOT_GIVEN
+from .._arg import OPT
+from .._arg import remove_optional
 from .. import exc
 from ..utils import grouper_list
 from ..utils import ensure_s3_dir
@@ -30,12 +30,12 @@ def delete_object(
     s3_client: S3Client,
     bucket: str,
     key: str,
-    version_id: str = NOTHING,
-    mfa: str = NOTHING,
-    request_payer: str = NOTHING,
-    bypass_governance_retention: bool = NOTHING,
-    expected_bucket_owner: str = NOTHING,
-    ignore_not_found: bool = NOTHING,
+    version_id: str = OPT,
+    mfa: str = OPT,
+    request_payer: str = OPT,
+    bypass_governance_retention: bool = OPT,
+    expected_bucket_owner: str = OPT,
+    ignore_not_found: bool = NOT_GIVEN,
 ) -> DeleteObjectOutputTypeDef:
     """
     Wrapper of delete_object_.
@@ -58,7 +58,7 @@ def delete_object(
 
     :return: See delete_object_.
     """
-    if ignore_not_found is not NOTHING:
+    if ignore_not_found is not NOT_GIVEN:
         warnings.warn(
             "ignore_not_found is deprecated since 3.0.0, will be removed in "
             "4.0.0. It has no effect: S3 never reports a missing key when "
@@ -67,7 +67,7 @@ def delete_object(
             stacklevel=2,
         )
     return s3_client.delete_object(
-        **resolve_kwargs(
+        **remove_optional(
             Bucket=bucket,
             Key=key,
             MFA=mfa,
@@ -102,7 +102,7 @@ def _delete_objects(
     :raises S3DeleteObjectsError: if S3 failed to delete some of the objects.
     """
     response = s3_client.delete_objects(
-        **resolve_kwargs(
+        **remove_optional(
             Bucket=bucket,
             Delete={"Objects": objects},
             MFA=mfa,
@@ -146,12 +146,12 @@ def delete_dir(
     bucket: str,
     prefix: str,
     batch_size: int = 1000,
-    limit: int = NOTHING,
-    mfa: str = NOTHING,
-    request_payer: str = NOTHING,
-    bypass_governance_retention: bool = NOTHING,
-    expected_bucket_owner: str = NOTHING,
-    check_sum_algorithm: str = NOTHING,
+    limit: int | None = None,
+    mfa: str = OPT,
+    request_payer: str = OPT,
+    bypass_governance_retention: bool = OPT,
+    expected_bucket_owner: str = OPT,
+    check_sum_algorithm: str = OPT,
     skip_prompt: bool = False,
 ) -> int:
     """
@@ -165,7 +165,8 @@ def delete_dir(
     :param prefix: The folder to delete; it has to end with ``/``. ``""``
         deletes everything in the bucket, after asking you to confirm.
     :param batch_size: Number of objects listed per API call, 1 to 1000.
-    :param limit: Total Number of s3 object to delete.
+    :param limit: Total number of objects to delete. ``None`` (default):
+        no limit.
     :param mfa: See delete_object_.
     :param request_payer: See delete_object_.
     :param bypass_governance_retention: See delete_object_.
@@ -219,12 +220,12 @@ def delete_object_versions(
     bucket: str,
     prefix: str,
     batch_size: int = 1000,
-    limit: int = NOTHING,
-    mfa: str = NOTHING,
-    request_payer: str = NOTHING,
-    bypass_governance_retention: bool = NOTHING,
-    expected_bucket_owner: str = NOTHING,
-    check_sum_algorithm: str = NOTHING,
+    limit: int | None = None,
+    mfa: str = OPT,
+    request_payer: str = OPT,
+    bypass_governance_retention: bool = OPT,
+    expected_bucket_owner: str = OPT,
+    check_sum_algorithm: str = OPT,
     skip_prompt: bool = False,
 ) -> int:
     """
@@ -238,6 +239,7 @@ def delete_object_versions(
         deletes everything in the bucket, after asking you to confirm.
     :param batch_size: Number of versions listed per API call, 1 to 1000.
     :param limit: Total number of versions and delete markers to delete.
+        ``None`` (default): no limit.
     :param mfa: See delete_object_.
     :param request_payer: See delete_object_.
     :param bypass_governance_retention: See delete_object_.
@@ -292,11 +294,11 @@ def delete_object_all_versions(
     s3_client: S3Client,
     bucket: str,
     key: str,
-    mfa: str = NOTHING,
-    request_payer: str = NOTHING,
-    bypass_governance_retention: bool = NOTHING,
-    expected_bucket_owner: str = NOTHING,
-    check_sum_algorithm: str = NOTHING,
+    mfa: str = OPT,
+    request_payer: str = OPT,
+    bypass_governance_retention: bool = OPT,
+    expected_bucket_owner: str = OPT,
+    check_sum_algorithm: str = OPT,
 ) -> int:
     """
     Delete all versions and delete markers of one object, permanently, with

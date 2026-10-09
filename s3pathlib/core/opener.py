@@ -18,8 +18,9 @@ import re
 from datetime import datetime
 
 import smart_open
-from func_args import NOTHING, resolve_kwargs
 
+from .._arg import OPT
+from .._arg import remove_optional
 from ..metadata import warn_upper_case_in_metadata_key
 from ..aws import s3_context
 from ..type import MetadataType, TagType
@@ -49,7 +50,7 @@ class OpenerAPIMixin:
     def open(
         self: S3Path,
         mode: str = "r",
-        version_id: str = NOTHING,
+        version_id: str = OPT,
         buffering: int = -1,
         encoding: str | None = None,
         errors: str | None = None,
@@ -58,59 +59,59 @@ class OpenerAPIMixin:
         opener=None,
         compression: str | None = None,
         multipart_upload: bool = True,
-        metadata: MetadataType = NOTHING,
-        tags: TagType = NOTHING,
+        metadata: MetadataType = OPT,
+        tags: TagType = OPT,
         # write related parameters
-        acl: str = NOTHING,
-        cache_control: str = NOTHING,
-        content_disposition: str = NOTHING,
-        content_encoding: str = NOTHING,
-        content_language: str = NOTHING,
-        content_length: int = NOTHING,
-        content_md5: str = NOTHING,
-        content_type: str = NOTHING,
-        checksum_algorithm: str = NOTHING,
+        acl: str = OPT,
+        cache_control: str = OPT,
+        content_disposition: str = OPT,
+        content_encoding: str = OPT,
+        content_language: str = OPT,
+        content_length: int = OPT,
+        content_md5: str = OPT,
+        content_type: str = OPT,
+        checksum_algorithm: str = OPT,
         # put_object exclusive parameters
-        checksum_crc32: str = NOTHING,
-        checksum_crc32c: str = NOTHING,
-        checksum_sha1: str = NOTHING,
-        checksum_sha256: str = NOTHING,
+        checksum_crc32: str = OPT,
+        checksum_crc32c: str = OPT,
+        checksum_sha1: str = OPT,
+        checksum_sha256: str = OPT,
         # write related parameters
-        expires_datetime: datetime = NOTHING,
-        grant_full_control: str = NOTHING,
-        grant_read: str = NOTHING,
-        grant_read_acp: str = NOTHING,
-        grant_write_acp: str = NOTHING,
-        server_side_encryption: str = NOTHING,
-        storage_class: str = NOTHING,
-        website_redirect_location: str = NOTHING,
+        expires_datetime: datetime = OPT,
+        grant_full_control: str = OPT,
+        grant_read: str = OPT,
+        grant_read_acp: str = OPT,
+        grant_write_acp: str = OPT,
+        server_side_encryption: str = OPT,
+        storage_class: str = OPT,
+        website_redirect_location: str = OPT,
         # common read / write related parameters
-        sse_customer_algorithm: str = NOTHING,
-        sse_customer_key: str = NOTHING,
+        sse_customer_algorithm: str = OPT,
+        sse_customer_key: str = OPT,
         # write related parameters
-        sse_kms_key_id: str = NOTHING,
-        sse_kms_encryption_context: str = NOTHING,
-        bucket_key_enabled: bool = NOTHING,
+        sse_kms_key_id: str = OPT,
+        sse_kms_encryption_context: str = OPT,
+        bucket_key_enabled: bool = OPT,
         # common read / write related parameters
-        request_payer: str = NOTHING,
+        request_payer: str = OPT,
         # write related parameters
-        object_lock_mode: str = NOTHING,
-        object_lock_retain_until_datetime: datetime = NOTHING,
-        object_lock_legal_hold_status: str = NOTHING,
+        object_lock_mode: str = OPT,
+        object_lock_retain_until_datetime: datetime = OPT,
+        object_lock_legal_hold_status: str = OPT,
         # common read / write related parameters
-        expected_bucket_owner: str = NOTHING,
+        expected_bucket_owner: str = OPT,
         # read related parameters
-        if_match: str = NOTHING,
-        if_modified_since: datetime = NOTHING,
-        if_none_match: str = NOTHING,
-        if_unmodified_since: datetime = NOTHING,
-        response_cache_control: str = NOTHING,
-        response_content_disposition: str = NOTHING,
-        response_content_encoding: str = NOTHING,
-        response_content_language: str = NOTHING,
-        response_content_type: str = NOTHING,
-        response_expires: str = NOTHING,
-        checksum_mode: str = NOTHING,
+        if_match: str = OPT,
+        if_modified_since: datetime = OPT,
+        if_none_match: str = OPT,
+        if_unmodified_since: datetime = OPT,
+        response_cache_control: str = OPT,
+        response_content_disposition: str = OPT,
+        response_content_encoding: str = OPT,
+        response_content_language: str = OPT,
+        response_content_type: str = OPT,
+        response_expires: str = OPT,
+        checksum_mode: str = OPT,
         # other parameters
         transport_params: dict | None = None,
         bsm: BotoSesManager | S3Client | None = None,
@@ -253,7 +254,7 @@ class OpenerAPIMixin:
                 f"use read_bytes() / write_bytes() instead"
             )
         is_write_mode = mode.startswith("w")
-        if is_write_mode and (version_id is not NOTHING):
+        if is_write_mode and (version_id is not OPT):
             raise ValueError("version_id is only for reading, not for writing")
 
         s3_client = resolve_s3_client(s3_context, bsm)
@@ -267,17 +268,17 @@ class OpenerAPIMixin:
                 )
         transport_params["client"] = s3_client
         transport_params["multipart_upload"] = multipart_upload
-        if version_id is not NOTHING:
+        if version_id is not OPT:
             transport_params["version_id"] = version_id
 
         if is_write_mode:
-            if metadata is not NOTHING:
+            if metadata is not OPT:
                 warn_upper_case_in_metadata_key(metadata)
-            if tags is NOTHING:
-                tagging = NOTHING
+            if tags is OPT:
+                tagging = OPT
             else:
                 tagging = encode_url_query(tags)
-            s3_client_kwargs = resolve_kwargs(
+            s3_client_kwargs = remove_optional(
                 Metadata=metadata,
                 Tagging=tagging,
                 ACL=acl,
@@ -317,7 +318,7 @@ class OpenerAPIMixin:
             }
             given = list()
             for name, (param, value) in put_object_only.items():
-                if value is not NOTHING:
+                if value is not OPT:
                     given.append(name)
                     s3_client_kwargs[param] = value
             if multipart_upload:
@@ -329,7 +330,7 @@ class OpenerAPIMixin:
             else:
                 key_name = "S3.Client.put_object"
         else:
-            s3_client_kwargs = resolve_kwargs(
+            s3_client_kwargs = remove_optional(
                 IfMatch=if_match,
                 IfModifiedSince=if_modified_since,
                 IfNoneMatch=if_none_match,

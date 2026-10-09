@@ -33,8 +33,8 @@ from urllib.parse import urlparse
 
 import botocore
 import botocore.exceptions
-from func_args import NOTHING
 
+from .._arg import NOT_GIVEN
 from .. import exc
 from ..aws import s3_context
 from ..type import PathType
@@ -140,9 +140,7 @@ def _sync(
     they call it directly, so that the deprecation warning points at the
     caller of any of them.
     """
-    if quite is not NOTHING:
-        if quiet is not NOTHING:
-            raise ValueError("give quiet only, quite is its deprecated old name")
+    if quite is not NOT_GIVEN:
         warnings.warn(
             "The 'quite' argument is deprecated since 3.0.0, will be removed in "
             "4.0.0. Use 'quiet' instead.",
@@ -150,8 +148,6 @@ def _sync(
             stacklevel=3,
         )
         quiet = quite
-    elif quiet is NOTHING:
-        quiet = True
 
     src_arg, src_is_s3 = _to_cli_path(src)
     dst_arg, dst_is_s3 = _to_cli_path(dst)
@@ -219,7 +215,7 @@ class SyncAPIMixin:
         src: S3Path | PathType,
         dst: S3Path | PathType,
         bsm: BotoSesManager | S3Client | None = None,
-        quite: bool = NOTHING,
+        quite: bool = NOT_GIVEN,
         include: str | None = None,
         exclude: str | None = None,
         acl: str | None = None,
@@ -228,7 +224,7 @@ class SyncAPIMixin:
         page_size: str | None = None,
         delete: bool = False,
         verbose: bool = True,
-        quiet: bool = NOTHING,
+        quiet: bool = True,
     ) -> None:
         """
         Run ``aws s3 sync src dst`` with the identity of the S3 client, see
@@ -244,7 +240,8 @@ class SyncAPIMixin:
             one of them is in S3.
         :param bsm: the S3 client whose identity the CLI uses, default the
             client of ``s3_context``.
-        :param quite: deprecated, use ``quiet``.
+        :param quite: deprecated, use ``quiet``. When given, it is used
+            instead of ``quiet``.
         :param include: ``--include`` pattern.
         :param exclude: ``--exclude`` pattern.
         :param acl: ``--acl``.
@@ -261,8 +258,7 @@ class SyncAPIMixin:
 
         :raises S3PathTypeError: for a relative ``S3Path`` or the void path.
         :raises S3PathIsNotFolderError: for an ``S3Path`` of a file.
-        :raises ValueError: if neither ``src`` nor ``dst`` is in S3, or both
-            ``quiet`` and ``quite`` are given.
+        :raises ValueError: if neither ``src`` nor ``dst`` is in S3.
         :raises FileNotFoundError: if the ``aws`` command is not installed.
         :raises botocore.exceptions.NoCredentialsError: if the S3 client has
             no credentials.
@@ -289,7 +285,7 @@ class SyncAPIMixin:
         self: S3Path,
         src: S3Path | PathType,
         bsm: BotoSesManager | S3Client | None = None,
-        quite: bool = NOTHING,
+        quite: bool = NOT_GIVEN,
         include: str | None = None,
         exclude: str | None = None,
         acl: str | None = None,
@@ -298,7 +294,7 @@ class SyncAPIMixin:
         page_size: str | None = None,
         delete: bool = False,
         verbose: bool = True,
-        quiet: bool = NOTHING,
+        quiet: bool = True,
     ) -> None:
         """
         Sync ``src`` to this S3 folder, see :meth:`sync`.
@@ -323,7 +319,7 @@ class SyncAPIMixin:
         self: S3Path,
         dst: S3Path | PathType,
         bsm: BotoSesManager | S3Client | None = None,
-        quite: bool = NOTHING,
+        quite: bool = NOT_GIVEN,
         include: str | None = None,
         exclude: str | None = None,
         acl: str | None = None,
@@ -332,7 +328,7 @@ class SyncAPIMixin:
         page_size: str | None = None,
         delete: bool = False,
         verbose: bool = True,
-        quiet: bool = NOTHING,
+        quiet: bool = True,
     ) -> None:
         """
         Sync this S3 folder to ``dst``, see :meth:`sync`.

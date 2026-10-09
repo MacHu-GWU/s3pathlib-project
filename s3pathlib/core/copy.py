@@ -30,8 +30,9 @@ import typing as T
 from datetime import datetime
 
 import botocore.exceptions
-from func_args import NOTHING, resolve_kwargs
 
+from .._arg import OPT
+from .._arg import remove_optional
 from .. import exc
 from .. import utils
 from ..type import TagType, MetadataType
@@ -108,14 +109,14 @@ def _copy_object(
     kwargs = dict(
         Bucket=dst_bucket,
         Key=dst_key,
-        CopySource=resolve_kwargs(
+        CopySource=remove_optional(
             Bucket=src_bucket,
             Key=src_key,
             VersionId=version_id,
         ),
     )
     kwargs.update(other_kwargs)
-    if (metadata is not NOTHING) or len(replace_kwargs):
+    if (metadata is not OPT) or len(replace_kwargs):
         src = head_object(
             s3_client,
             src_bucket,
@@ -124,7 +125,7 @@ def _copy_object(
             **head_kwargs,
         )
         kwargs["MetadataDirective"] = "REPLACE"
-        if metadata is NOTHING:
+        if metadata is OPT:
             kwargs["Metadata"] = src["Metadata"]
         else:
             kwargs["Metadata"] = metadata
@@ -133,7 +134,7 @@ def _copy_object(
                 kwargs[param] = replace_kwargs[param]
             elif param in src:
                 kwargs[param] = src[param]
-    if tags is not NOTHING:
+    if tags is not OPT:
         kwargs["Tagging"] = encode_url_query(tags)
         kwargs["TaggingDirective"] = "REPLACE"
     if overwrite is False:
@@ -156,42 +157,42 @@ class CopyAPIMixin:
     def copy_file(
         self: S3Path,
         dst: S3Path,
-        version_id: str = NOTHING,
-        metadata: MetadataType | None = NOTHING,
-        tags: TagType | None = NOTHING,
+        version_id: str = OPT,
+        metadata: MetadataType = OPT,
+        tags: TagType = OPT,
         overwrite: bool = False,
         bsm: BotoSesManager | S3Client | None = None,
-        acl: str = NOTHING,
-        cache_control: str = NOTHING,
-        content_disposition: str = NOTHING,
-        content_encoding: str = NOTHING,
-        content_language: str = NOTHING,
-        content_type: str = NOTHING,
-        copy_source_if_match: str = NOTHING,
-        copy_source_if_modified_since: datetime = NOTHING,
-        copy_source_if_none_match: str = NOTHING,
-        copy_source_if_unmodified_since: datetime = NOTHING,
-        expires_datetime: datetime = NOTHING,
-        grant_full_control: str = NOTHING,
-        grant_read: str = NOTHING,
-        grant_read_acp: str = NOTHING,
-        grant_write_acp: str = NOTHING,
-        server_side_encryption: str = NOTHING,
-        storage_class: str = NOTHING,
-        website_redirect_location: str = NOTHING,
-        sse_customer_algorithm: str = NOTHING,
-        sse_customer_key: str = NOTHING,
-        sse_kms_key_id: str = NOTHING,
-        sse_kms_encryption_context: str = NOTHING,
-        bucket_key_enabled: bool = NOTHING,
-        copy_source_sse_customer_algorithm: str = NOTHING,
-        copy_source_sse_customer_key: str = NOTHING,
-        request_payer: str = NOTHING,
-        object_lock_mode: str = NOTHING,
-        object_lock_retain_until_datetime: datetime = NOTHING,
-        object_lock_legal_hold_status: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        expected_source_bucket_owner: str = NOTHING,
+        acl: str = OPT,
+        cache_control: str = OPT,
+        content_disposition: str = OPT,
+        content_encoding: str = OPT,
+        content_language: str = OPT,
+        content_type: str = OPT,
+        copy_source_if_match: str = OPT,
+        copy_source_if_modified_since: datetime = OPT,
+        copy_source_if_none_match: str = OPT,
+        copy_source_if_unmodified_since: datetime = OPT,
+        expires_datetime: datetime = OPT,
+        grant_full_control: str = OPT,
+        grant_read: str = OPT,
+        grant_read_acp: str = OPT,
+        grant_write_acp: str = OPT,
+        server_side_encryption: str = OPT,
+        storage_class: str = OPT,
+        website_redirect_location: str = OPT,
+        sse_customer_algorithm: str = OPT,
+        sse_customer_key: str = OPT,
+        sse_kms_key_id: str = OPT,
+        sse_kms_encryption_context: str = OPT,
+        bucket_key_enabled: bool = OPT,
+        copy_source_sse_customer_algorithm: str = OPT,
+        copy_source_sse_customer_key: str = OPT,
+        request_payer: str = OPT,
+        object_lock_mode: str = OPT,
+        object_lock_retain_until_datetime: datetime = OPT,
+        object_lock_legal_hold_status: str = OPT,
+        expected_bucket_owner: str = OPT,
+        expected_source_bucket_owner: str = OPT,
     ) -> S3Path:
         """
         Copy this object to the object ``dst``, see copy_object_ and the
@@ -282,7 +283,7 @@ class CopyAPIMixin:
         meta = {"ETag": result["ETag"], "LastModified": result["LastModified"]}
         if "VersionId" in response:
             meta["VersionId"] = response["VersionId"]
-        if metadata is not NOTHING:
+        if metadata is not OPT:
             # the user metadata the copy has, as S3 stores it
             stored_metadata = dict()
             for key, value in metadata.items():
@@ -322,7 +323,7 @@ class CopyAPIMixin:
             "copy_source_if_none_match",
             "copy_source_if_unmodified_since",
         ]:
-            if kwargs[name] is not NOTHING:
+            if kwargs[name] is not OPT:
                 raise ValueError(
                     f"{name} only applies to copying a file, not a folder"
                 )
@@ -355,7 +356,7 @@ class CopyAPIMixin:
                 src_key=src_key,
                 dst_bucket=dst.bucket,
                 dst_key=dst_key,
-                version_id=NOTHING,
+                version_id=OPT,
                 overwrite=overwrite,
                 metadata=metadata,
                 tags=tags,
@@ -368,41 +369,41 @@ class CopyAPIMixin:
     def copy_dir(
         self: S3Path,
         dst: S3Path,
-        metadata: MetadataType | None = NOTHING,
-        tags: TagType | None = NOTHING,
+        metadata: MetadataType = OPT,
+        tags: TagType = OPT,
         overwrite: bool = False,
         bsm: BotoSesManager | S3Client | None = None,
-        acl: str = NOTHING,
-        cache_control: str = NOTHING,
-        content_disposition: str = NOTHING,
-        content_encoding: str = NOTHING,
-        content_language: str = NOTHING,
-        content_type: str = NOTHING,
-        copy_source_if_match: str = NOTHING,
-        copy_source_if_modified_since: datetime = NOTHING,
-        copy_source_if_none_match: str = NOTHING,
-        copy_source_if_unmodified_since: datetime = NOTHING,
-        expires_datetime: datetime = NOTHING,
-        grant_full_control: str = NOTHING,
-        grant_read: str = NOTHING,
-        grant_read_acp: str = NOTHING,
-        grant_write_acp: str = NOTHING,
-        server_side_encryption: str = NOTHING,
-        storage_class: str = NOTHING,
-        website_redirect_location: str = NOTHING,
-        sse_customer_algorithm: str = NOTHING,
-        sse_customer_key: str = NOTHING,
-        sse_kms_key_id: str = NOTHING,
-        sse_kms_encryption_context: str = NOTHING,
-        bucket_key_enabled: bool = NOTHING,
-        copy_source_sse_customer_algorithm: str = NOTHING,
-        copy_source_sse_customer_key: str = NOTHING,
-        request_payer: str = NOTHING,
-        object_lock_mode: str = NOTHING,
-        object_lock_retain_until_datetime: datetime = NOTHING,
-        object_lock_legal_hold_status: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        expected_source_bucket_owner: str = NOTHING,
+        acl: str = OPT,
+        cache_control: str = OPT,
+        content_disposition: str = OPT,
+        content_encoding: str = OPT,
+        content_language: str = OPT,
+        content_type: str = OPT,
+        copy_source_if_match: str = OPT,
+        copy_source_if_modified_since: datetime = OPT,
+        copy_source_if_none_match: str = OPT,
+        copy_source_if_unmodified_since: datetime = OPT,
+        expires_datetime: datetime = OPT,
+        grant_full_control: str = OPT,
+        grant_read: str = OPT,
+        grant_read_acp: str = OPT,
+        grant_write_acp: str = OPT,
+        server_side_encryption: str = OPT,
+        storage_class: str = OPT,
+        website_redirect_location: str = OPT,
+        sse_customer_algorithm: str = OPT,
+        sse_customer_key: str = OPT,
+        sse_kms_key_id: str = OPT,
+        sse_kms_encryption_context: str = OPT,
+        bucket_key_enabled: bool = OPT,
+        copy_source_sse_customer_algorithm: str = OPT,
+        copy_source_sse_customer_key: str = OPT,
+        request_payer: str = OPT,
+        object_lock_mode: str = OPT,
+        object_lock_retain_until_datetime: datetime = OPT,
+        object_lock_legal_hold_status: str = OPT,
+        expected_bucket_owner: str = OPT,
+        expected_source_bucket_owner: str = OPT,
     ) -> int:
         """
         Copy every object under this folder (or bucket) to the folder ``dst``,
@@ -472,42 +473,42 @@ class CopyAPIMixin:
     def copy_to(
         self: S3Path,
         dst: S3Path,
-        version_id: str = NOTHING,
-        metadata: MetadataType | None = NOTHING,
-        tags: TagType | None = NOTHING,
+        version_id: str = OPT,
+        metadata: MetadataType = OPT,
+        tags: TagType = OPT,
         overwrite: bool = False,
         bsm: BotoSesManager | S3Client | None = None,
-        acl: str = NOTHING,
-        cache_control: str = NOTHING,
-        content_disposition: str = NOTHING,
-        content_encoding: str = NOTHING,
-        content_language: str = NOTHING,
-        content_type: str = NOTHING,
-        copy_source_if_match: str = NOTHING,
-        copy_source_if_modified_since: datetime = NOTHING,
-        copy_source_if_none_match: str = NOTHING,
-        copy_source_if_unmodified_since: datetime = NOTHING,
-        expires_datetime: datetime = NOTHING,
-        grant_full_control: str = NOTHING,
-        grant_read: str = NOTHING,
-        grant_read_acp: str = NOTHING,
-        grant_write_acp: str = NOTHING,
-        server_side_encryption: str = NOTHING,
-        storage_class: str = NOTHING,
-        website_redirect_location: str = NOTHING,
-        sse_customer_algorithm: str = NOTHING,
-        sse_customer_key: str = NOTHING,
-        sse_kms_key_id: str = NOTHING,
-        sse_kms_encryption_context: str = NOTHING,
-        bucket_key_enabled: bool = NOTHING,
-        copy_source_sse_customer_algorithm: str = NOTHING,
-        copy_source_sse_customer_key: str = NOTHING,
-        request_payer: str = NOTHING,
-        object_lock_mode: str = NOTHING,
-        object_lock_retain_until_datetime: datetime = NOTHING,
-        object_lock_legal_hold_status: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        expected_source_bucket_owner: str = NOTHING,
+        acl: str = OPT,
+        cache_control: str = OPT,
+        content_disposition: str = OPT,
+        content_encoding: str = OPT,
+        content_language: str = OPT,
+        content_type: str = OPT,
+        copy_source_if_match: str = OPT,
+        copy_source_if_modified_since: datetime = OPT,
+        copy_source_if_none_match: str = OPT,
+        copy_source_if_unmodified_since: datetime = OPT,
+        expires_datetime: datetime = OPT,
+        grant_full_control: str = OPT,
+        grant_read: str = OPT,
+        grant_read_acp: str = OPT,
+        grant_write_acp: str = OPT,
+        server_side_encryption: str = OPT,
+        storage_class: str = OPT,
+        website_redirect_location: str = OPT,
+        sse_customer_algorithm: str = OPT,
+        sse_customer_key: str = OPT,
+        sse_kms_key_id: str = OPT,
+        sse_kms_encryption_context: str = OPT,
+        bucket_key_enabled: bool = OPT,
+        copy_source_sse_customer_algorithm: str = OPT,
+        copy_source_sse_customer_key: str = OPT,
+        request_payer: str = OPT,
+        object_lock_mode: str = OPT,
+        object_lock_retain_until_datetime: datetime = OPT,
+        object_lock_legal_hold_status: str = OPT,
+        expected_bucket_owner: str = OPT,
+        expected_source_bucket_owner: str = OPT,
     ) -> int:
         """
         Copy this file with :meth:`copy_file`, or this folder with
@@ -558,7 +559,7 @@ class CopyAPIMixin:
             expected_source_bucket_owner=expected_source_bucket_owner,
         )
         if self.is_dir():
-            if version_id is not NOTHING:
+            if version_id is not OPT:
                 raise ValueError("version_id only applies to copying a file")
             return self.copy_dir(dst=dst, **kwargs)
         else:
@@ -568,41 +569,41 @@ class CopyAPIMixin:
     def move_to(
         self: S3Path,
         dst: S3Path,
-        metadata: MetadataType | None = NOTHING,
-        tags: TagType | None = NOTHING,
+        metadata: MetadataType = OPT,
+        tags: TagType = OPT,
         overwrite: bool = False,
         bsm: BotoSesManager | S3Client | None = None,
-        acl: str = NOTHING,
-        cache_control: str = NOTHING,
-        content_disposition: str = NOTHING,
-        content_encoding: str = NOTHING,
-        content_language: str = NOTHING,
-        content_type: str = NOTHING,
-        copy_source_if_match: str = NOTHING,
-        copy_source_if_modified_since: datetime = NOTHING,
-        copy_source_if_none_match: str = NOTHING,
-        copy_source_if_unmodified_since: datetime = NOTHING,
-        expires_datetime: datetime = NOTHING,
-        grant_full_control: str = NOTHING,
-        grant_read: str = NOTHING,
-        grant_read_acp: str = NOTHING,
-        grant_write_acp: str = NOTHING,
-        server_side_encryption: str = NOTHING,
-        storage_class: str = NOTHING,
-        website_redirect_location: str = NOTHING,
-        sse_customer_algorithm: str = NOTHING,
-        sse_customer_key: str = NOTHING,
-        sse_kms_key_id: str = NOTHING,
-        sse_kms_encryption_context: str = NOTHING,
-        bucket_key_enabled: bool = NOTHING,
-        copy_source_sse_customer_algorithm: str = NOTHING,
-        copy_source_sse_customer_key: str = NOTHING,
-        request_payer: str = NOTHING,
-        object_lock_mode: str = NOTHING,
-        object_lock_retain_until_datetime: datetime = NOTHING,
-        object_lock_legal_hold_status: str = NOTHING,
-        expected_bucket_owner: str = NOTHING,
-        expected_source_bucket_owner: str = NOTHING,
+        acl: str = OPT,
+        cache_control: str = OPT,
+        content_disposition: str = OPT,
+        content_encoding: str = OPT,
+        content_language: str = OPT,
+        content_type: str = OPT,
+        copy_source_if_match: str = OPT,
+        copy_source_if_modified_since: datetime = OPT,
+        copy_source_if_none_match: str = OPT,
+        copy_source_if_unmodified_since: datetime = OPT,
+        expires_datetime: datetime = OPT,
+        grant_full_control: str = OPT,
+        grant_read: str = OPT,
+        grant_read_acp: str = OPT,
+        grant_write_acp: str = OPT,
+        server_side_encryption: str = OPT,
+        storage_class: str = OPT,
+        website_redirect_location: str = OPT,
+        sse_customer_algorithm: str = OPT,
+        sse_customer_key: str = OPT,
+        sse_kms_key_id: str = OPT,
+        sse_kms_encryption_context: str = OPT,
+        bucket_key_enabled: bool = OPT,
+        copy_source_sse_customer_algorithm: str = OPT,
+        copy_source_sse_customer_key: str = OPT,
+        request_payer: str = OPT,
+        object_lock_mode: str = OPT,
+        object_lock_retain_until_datetime: datetime = OPT,
+        object_lock_legal_hold_status: str = OPT,
+        expected_bucket_owner: str = OPT,
+        expected_source_bucket_owner: str = OPT,
     ) -> int:
         """
         Move this file or folder: copy it with :meth:`copy_to`, then delete
@@ -673,11 +674,11 @@ class CopyAPIMixin:
                     bucket=self.bucket,
                     objects=objects,
                     n_deleted=n_deleted,
-                    mfa=NOTHING,
+                    mfa=OPT,
                     request_payer=request_payer,
-                    bypass_governance_retention=NOTHING,
-                    expected_bucket_owner=NOTHING,
-                    check_sum_algorithm=NOTHING,
+                    bypass_governance_retention=OPT,
+                    expected_bucket_owner=OPT,
+                    check_sum_algorithm=OPT,
                 )
             return len(src_keys)
         else:
@@ -734,7 +735,7 @@ def _make_copy_kwargs(
     :return: ``(replace_kwargs, other_kwargs, head_kwargs)``, see
         :func:`_copy_object`.
     """
-    replace_kwargs = resolve_kwargs(
+    replace_kwargs = remove_optional(
         CacheControl=cache_control,
         ContentDisposition=content_disposition,
         ContentEncoding=content_encoding,
@@ -743,7 +744,7 @@ def _make_copy_kwargs(
         Expires=expires_datetime,
         WebsiteRedirectLocation=website_redirect_location,
     )
-    other_kwargs = resolve_kwargs(
+    other_kwargs = remove_optional(
         ACL=acl,
         CopySourceIfMatch=copy_source_if_match,
         CopySourceIfModifiedSince=copy_source_if_modified_since,
@@ -770,7 +771,7 @@ def _make_copy_kwargs(
         ExpectedSourceBucketOwner=expected_source_bucket_owner,
     )
     # to read the source object (it may be encrypted with SSE-C)
-    head_kwargs = resolve_kwargs(
+    head_kwargs = remove_optional(
         sse_customer_algorithm=copy_source_sse_customer_algorithm,
         sse_customer_key=copy_source_sse_customer_key,
         request_payer=request_payer,

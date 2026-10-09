@@ -167,12 +167,12 @@ class IterObjectsMixin(BaseTest):
         assert sizes == [len(KEYS[key]) for key in ALL_OBJECTS]
 
     @pytest.mark.parametrize("recursive", [True, False])
-    @pytest.mark.parametrize("limit", [1, 3, 100])
+    @pytest.mark.parametrize("limit", [1, 3, 100, None])
     def test_iter_objects_limit(self, recursive, limit):
         """
-        ``limit`` counts the returned objects. 2.x also counted the folder
-        markers and folders it skipped, so ``limit=3`` returned 1 object, or
-        none with ``recursive=False``.
+        ``limit`` counts the returned objects; ``None`` is no limit. 2.x also
+        counted the folder markers and folders it skipped, so ``limit=3``
+        returned 1 object, or none with ``recursive=False``.
         """
         if recursive:
             expected = ALL_OBJECTS
@@ -240,10 +240,10 @@ class IterObjectsMixin(BaseTest):
         result = self.s3dir_data.iterdir(batch_size=2).all()
         assert self.rel(result) == TOP_ENTRIES
 
-    @pytest.mark.parametrize("limit", [1, 4, 100])
+    @pytest.mark.parametrize("limit", [1, 4, 100, None])
     def test_iterdir_limit(self, limit):
         """
-        ``limit`` counts the returned files and folders.
+        ``limit`` counts the returned files and folders; ``None`` is no limit.
         """
         result = self.s3dir_data.iterdir(limit=limit).all()
         assert self.rel(result) == TOP_ENTRIES[:limit]

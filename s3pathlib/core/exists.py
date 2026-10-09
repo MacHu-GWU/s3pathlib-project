@@ -9,8 +9,8 @@ from __future__ import annotations
 import typing as T
 
 import botocore.exceptions
-from func_args import NOTHING
 
+from .._arg import OPT
 from .. import exc
 from ..better_client.head_bucket import is_bucket_exists
 from ..better_client.head_object import head_object
@@ -32,7 +32,7 @@ class ExistsAPIMixin:
     """
 
     def _ensure_version_id_on_file(self: S3Path, version_id: str):
-        if (version_id is not NOTHING) and (self.is_file() is False):
+        if (version_id is not OPT) and (self.is_file() is False):
             raise ValueError(
                 f"version_id only applies to a file, "
                 f"{self._error_label()} is not a file"
@@ -40,7 +40,7 @@ class ExistsAPIMixin:
 
     def exists(
         self: S3Path,
-        version_id: str = NOTHING,
+        version_id: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> bool:
         """
@@ -126,7 +126,7 @@ class ExistsAPIMixin:
 
     def ensure_not_exists(
         self: S3Path,
-        version_id: str = NOTHING,
+        version_id: str = OPT,
         bsm: BotoSesManager | S3Client | None = None,
     ) -> None:
         """

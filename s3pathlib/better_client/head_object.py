@@ -12,8 +12,9 @@ import typing as T
 from datetime import datetime
 
 import botocore.exceptions
-from func_args import NOTHING, resolve_kwargs
 
+from .._arg import OPT
+from .._arg import remove_optional
 from .. import exc
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -25,18 +26,18 @@ def head_object(
     s3_client: S3Client,
     bucket: str,
     key: str,
-    if_match: str = NOTHING,
-    if_modified_since: datetime = NOTHING,
-    if_none_match: str = NOTHING,
-    if_unmodified_since: datetime = NOTHING,
-    range: str = NOTHING,
-    version_id: str = NOTHING,
-    sse_customer_algorithm: str = NOTHING,
-    sse_customer_key: str = NOTHING,
-    request_payer: str = NOTHING,
-    part_number: int = NOTHING,
-    expected_bucket_owner: str = NOTHING,
-    checksum_mode: str = NOTHING,
+    if_match: str = OPT,
+    if_modified_since: datetime = OPT,
+    if_none_match: str = OPT,
+    if_unmodified_since: datetime = OPT,
+    range: str = OPT,
+    version_id: str = OPT,
+    sse_customer_algorithm: str = OPT,
+    sse_customer_key: str = OPT,
+    request_payer: str = OPT,
+    part_number: int = OPT,
+    expected_bucket_owner: str = OPT,
+    checksum_mode: str = OPT,
     ignore_not_found: bool = False,
 ) -> dict | HeadObjectOutputTypeDef | None:
     """
@@ -91,7 +92,7 @@ def head_object(
     """
     try:
         dct = s3_client.head_object(
-            **resolve_kwargs(
+            **remove_optional(
                 Bucket=bucket,
                 Key=key,
                 IfMatch=if_match,
@@ -123,7 +124,7 @@ def head_object(
                 return None
             else:
                 uri = f"s3://{bucket}/{key}"
-                if version_id is NOTHING:
+                if version_id is OPT:
                     raise exc.S3FileNotExist.make(uri) from e
                 else:
                     raise exc.S3FileNotExist(
@@ -144,7 +145,7 @@ def is_object_exists(
     s3_client: S3Client,
     bucket: str,
     key: str,
-    version_id: str = NOTHING,
+    version_id: str = OPT,
 ) -> bool:
     """
     Check if an object exists. If you want to use the head_object_ API response

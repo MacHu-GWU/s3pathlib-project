@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import typing as T
 
-from func_args import NOTHING
-from func_args import resolve_kwargs
 from iterproxy import IterProxy
 
+from .._arg import OPT
+from .._arg import remove_optional
 from .list_objects import CommonPrefixTypeDefIterproxy
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -142,10 +142,10 @@ def paginate_list_object_versions(
     bucket: str,
     prefix: str,
     batch_size: int = 1000,
-    limit: int = NOTHING,
-    delimiter: str = NOTHING,
-    encoding_type: str = NOTHING,
-    expected_bucket_owner: str = NOTHING,
+    limit: int | None = None,
+    delimiter: str = OPT,
+    encoding_type: str = OPT,
+    expected_bucket_owner: str = OPT,
 ) -> ListObjectVersionsOutputTypeDefIterproxy:
     """
     Call list_object_versions_ page by page, and return a user-friendly
@@ -177,7 +177,7 @@ def paginate_list_object_versions(
     :param limit: The maximum number of entries in total: versions, delete
         markers and folders (common prefixes, when ``delimiter`` is given)
         counted together, the same as ``MaxKeys``. ``0`` returns nothing
-        without calling AWS. Not given: no limit.
+        without calling AWS. ``None`` (default): no limit.
     :param delimiter: See list_object_versions_.
     :param encoding_type: See list_object_versions_.
     :param expected_bucket_owner: See list_object_versions_.
@@ -190,7 +190,7 @@ def paginate_list_object_versions(
     # validate arguments
     if batch_size < 1 or batch_size > 1000:
         raise ValueError("``batch_size`` has to be 1 ~ 1000.")
-    if limit is not NOTHING:
+    if limit is not None:
         if limit < 0:
             raise ValueError(f"``limit`` must not be negative, got {limit}.")
 
@@ -199,12 +199,12 @@ def paginate_list_object_versions(
         # it returned more entries than ``limit`` when there were delete
         # markers or common prefixes. S3's MaxKeys counts all of them, so
         # asking for the remaining number on each call gives exactly ``limit``.
-        if limit is NOTHING:
+        if limit is None:
             remaining = None
         else:
             remaining = limit
-        key_marker = NOTHING
-        version_id_marker = NOTHING
+        key_marker = OPT
+        version_id_marker = OPT
         while True:
             if remaining is None:
                 max_keys = batch_size
@@ -213,7 +213,7 @@ def paginate_list_object_versions(
                     break
                 max_keys = min(batch_size, remaining)
             response = s3_client.list_object_versions(
-                **resolve_kwargs(
+                **remove_optional(
                     Bucket=bucket,
                     Prefix=prefix,
                     Delimiter=delimiter,
@@ -234,6 +234,6 @@ def paginate_list_object_versions(
                 break
             key_marker = response["NextKeyMarker"]
             # absent when the page ends with a common prefix
-            version_id_marker = response.get("NextVersionIdMarker", NOTHING)
+            version_id_marker = response.get("NextVersionIdMarker", OPT)
 
     return ListObjectVersionsOutputTypeDefIterproxy(_paginate_list_object_versions())

@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import typing as T
 
-from func_args import NOTHING
-from func_args import resolve_kwargs
 from iterproxy import IterProxy
 
+from .._arg import OPT
+from .._arg import remove_optional
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from mypy_boto3_s3 import S3Client
@@ -106,13 +106,13 @@ def paginate_list_objects_v2(
     bucket: str,
     prefix: str,
     batch_size: int = 1000,
-    limit: int = NOTHING,
-    delimiter: str = NOTHING,
-    encoding_type: str = NOTHING,
-    fetch_owner: bool = NOTHING,
-    start_after: str = NOTHING,
-    request_payer: str = NOTHING,
-    expected_bucket_owner: str = NOTHING,
+    limit: int | None = None,
+    delimiter: str = OPT,
+    encoding_type: str = OPT,
+    fetch_owner: bool = OPT,
+    start_after: str = OPT,
+    request_payer: str = OPT,
+    expected_bucket_owner: str = OPT,
 ) -> ListObjectsV2OutputTypeDefIterproxy:
     """
     Call list_objects_v2_ page by page, and return a user-friendly
@@ -144,8 +144,8 @@ def paginate_list_objects_v2(
         1 to 1000.
     :param limit: The maximum number of entries in total, objects and folders
         (common prefixes, when ``delimiter`` is given) counted together, the
-        same as ``MaxKeys``. ``0`` returns nothing without calling AWS. Not
-        given: no limit.
+        same as ``MaxKeys``. ``0`` returns nothing without calling AWS.
+        ``None`` (default): no limit.
     :param delimiter: See list_objects_v2_.
     :param encoding_type: See list_objects_v2_.
     :param fetch_owner: See list_objects_v2_.
@@ -161,7 +161,7 @@ def paginate_list_objects_v2(
     # validate arguments
     if batch_size < 1 or batch_size > 1000:
         raise ValueError("``batch_size`` has to be 1 ~ 1000.")
-    if limit is not NOTHING:
+    if limit is not None:
         if limit < 0:
             raise ValueError(f"``limit`` must not be negative, got {limit}.")
 
@@ -170,11 +170,11 @@ def paginate_list_objects_v2(
         # with a delimiter it returned more entries than ``limit``. S3's
         # MaxKeys counts objects and common prefixes together, so asking for
         # the remaining number on each call gives exactly ``limit`` entries.
-        if limit is NOTHING:
+        if limit is None:
             remaining = None
         else:
             remaining = limit
-        continuation_token = NOTHING
+        continuation_token = OPT
         while True:
             if remaining is None:
                 max_keys = batch_size
@@ -183,7 +183,7 @@ def paginate_list_objects_v2(
                     break
                 max_keys = min(batch_size, remaining)
             response = s3_client.list_objects_v2(
-                **resolve_kwargs(
+                **remove_optional(
                     Bucket=bucket,
                     Prefix=prefix,
                     Delimiter=delimiter,
