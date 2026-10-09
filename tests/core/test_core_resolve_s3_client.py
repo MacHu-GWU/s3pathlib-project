@@ -111,6 +111,21 @@ class ResolveS3ClientMixin(BaseTest):
         assert explicit_calls == ["HeadObject"]
         assert default_calls == []
 
+    def test_uploaded_path_loads_metadata_with_its_client(self, tmp_path):
+        """
+        The path returned by ``upload_file(bsm=...)`` has no snapshot, and
+        loads it with that client.
+        """
+        local_file = tmp_path / "file.txt"
+        local_file.write_bytes(b"hello")
+        s3_client = self.boto_ses.client("s3")
+        new = (self.s3dir_test / "file.txt").upload_file(local_file, bsm=s3_client)
+        with record_api_calls(s3_context.s3_client) as default_calls:
+            with record_api_calls(s3_client) as explicit_calls:
+                assert new.size == 5
+        assert explicit_calls == ["HeadObject"]
+        assert default_calls == []
+
     def test_path_without_client_uses_s3_context(self):
         """
         A path built by the user, or derived from a path with a client

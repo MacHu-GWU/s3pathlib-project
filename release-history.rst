@@ -102,6 +102,7 @@ Backlog (TODO)
 - Add ``s3pathlib.exc.S3ObjectChangedError``.
 - ``S3Path.write_bytes`` and ``S3Path.write_text`` accept ``if_match`` and ``if_none_match``, the conditional writes of S3: ``if_none_match="*"`` only writes a new object, ``if_match=<etag>`` only replaces the object if nobody changed it.
 - ``S3Path.touch`` makes one conditional ``put_object`` call instead of ``head_object`` + ``put_object``, so it is atomic: an object written by someone else in between is never replaced.
+- ``S3Path.upload_file`` returns a new ``S3Path`` of the uploaded object, the same as ``write_bytes``; it returned ``None`` before.
 
 **Bugfixes**
 
@@ -160,6 +161,8 @@ Backlog (TODO)
 - ``read_bytes``, ``read_text``, ``write_bytes``, ``write_text``, ``touch`` and ``mkdir`` on a bucket, a relative path or the void path raised a botocore error (``ParamValidationError`` or ``TypeError``). They now raise ``S3PathTypeError`` (still a ``TypeError``) before calling AWS; ``mkdir`` on a bucket says to use ``create_bucket()``.
 - ``S3Path.open("w", ...)`` ignored all the write arguments (``content_type``, ``cache_control``, ``storage_class``, ``acl``, ...) unless ``metadata`` or ``tags`` was also given. They now always take effect.
 - ``S3Path.open`` raised ``AttributeError`` for ``mode=None`` and smart_open's ``NotImplementedError`` for ``"w+"`` / ``"r+"``; any mode other than ``r`` / ``rb`` / ``rt`` / ``w`` / ``wb`` / ``wt`` now raises ``ValueError``. A bucket, a relative path or the void path raises ``S3PathTypeError`` instead of a smart_open / botocore error.
+- ``S3Path.upload_file`` checks the local path before calling AWS: a missing file raises ``FileNotFoundError`` and a directory raises ``IsADirectoryError``. Before, it first called ``head_object``, and real AWS then raised a confusing ``botocore.exceptions.UnseekableStreamError`` for a directory.
+- ``S3Path.upload_file`` and ``S3Path.upload_dir`` on a relative path or the void path raised a botocore ``TypeError`` (with ``overwrite=True``); they now raise ``S3PathTypeError`` before calling AWS.
 
 **Minor Improvements**
 
@@ -199,6 +202,7 @@ Backlog (TODO)
 - Fix the docstrings of ``S3Path.iter_objects`` (``recursive`` was described backwards), ``iterdir`` (``limit`` also counts folders), ``calculate_total_size`` and ``count_objects`` (wrong examples), and document that the results are lazy, can be iterated only once, and carry the metadata from the list API.
 - Fix the docstring examples of the read and write methods of ``S3Path`` (``s3pathlib.core.rw``), and document that writing returns a new ``S3Path`` and leaves the original one unchanged, how ``touch`` and ``mkdir`` treat existing objects, and the boto3 errors they raise as is.
 - Document ``S3Path.open``: it reads and writes whole objects as streams, how ``compression`` works (inferred from the extension by default), that an exception inside the ``with`` block of a write leaves no partial object (tested), that reading a missing object raises ``OSError`` with the boto3 error as its ``__cause__``, and which arguments smart_open ignores for S3 (``buffering``, ``closefd``, ``opener``).
+- Document ``S3Path.upload_file`` and ``S3Path.upload_dir``: ``overwrite=False`` checks then uploads (not atomic, boto3's ``upload_file`` has no conditional write), the allowed ``extra_args``, and the errors they raise. Fix the ``upload_dir`` docstring example, which used a ``path`` argument that does not exist.
 
 **Miscellaneous**
 
@@ -216,6 +220,7 @@ Backlog (TODO)
 - ``better_client.upload_dir`` uses the standard library ``pathlib`` instead of ``pathlib_mate``; ``local_dir`` still accepts a ``str``, a ``pathlib.Path`` or a ``pathlib_mate.Path``.
 - Remove the local test data folder ``tests/core/test_iter_objects``; the tests write their data to S3 directly.
 - The tests of ``S3Path.open`` use ``s3pathlib.tests.mock_aws``; they no longer always run against real AWS (the old test class ignored ``S3PATHLIB_TEST_REAL_AWS``).
+- ``s3pathlib.type.PathType`` is ``str | os.PathLike``; the library code no longer imports ``pathlib_mate`` (a ``pathlib_mate.Path`` is still accepted, it is an ``os.PathLike``). ``S3Path.upload_file`` uses the standard library ``pathlib``.
 
 
 
