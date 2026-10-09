@@ -118,6 +118,7 @@ Backlog (TODO)
 - Add the ``quiet`` argument to ``S3Path.sync``, ``sync_from`` and ``sync_to``. The misspelled ``quite`` is deprecated: passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0.
 - ``S3Path.sync`` supports S3 compatible endpoints (the endpoint of the client is passed to the CLI) and unsigned clients (``--no-sign-request``).
 - Add ``s3pathlib.exc.S3SyncError``.
+- ``s3pathlib.api`` also exports the exceptions module ``exc`` (e.g. ``except exc.S3FileNotExist``), ``S3PathIterProxy`` (returned by ``iter_objects``, ``iterdir`` and ``list_object_versions``) and ``AwsPartitionEnum`` (for ``get_arn`` / ``get_console_url``), so every public name is available from ``s3pathlib.api``.
 
 **Bugfixes**
 
@@ -253,6 +254,7 @@ Backlog (TODO)
 - The tests of ``S3Path.delete`` with versioning also run on moto (moto 5 handles versioned deletes).
 - The ``S3Path.sync`` tests run ``aws s3 sync`` end to end, against a moto server in moto mode and against AWS, when the AWS CLI is installed (they are skipped otherwise); the other tests check the command line and its environment. Add ``flask`` and ``flask-cors`` to the test dependencies, for the moto server.
 - The library code no longer imports ``boto_session_manager`` at runtime (``S3Path.sync`` used ``BotoSesManager.awscli()``); it is only used in type hints.
+- A test locks the exact set of public names of ``s3pathlib.api``, so any change of the public API is deliberate.
 
 
 
