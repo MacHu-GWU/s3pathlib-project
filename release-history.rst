@@ -64,6 +64,9 @@ Backlog (TODO)
 - ``S3Path.iter_objects()`` and ``S3Path.iterdir()`` on a file raise ``S3PathIsNotFolderError`` before calling AWS, the same as ``count_objects()`` and ``calculate_total_size()``. Before, they listed the keys starting with the key of the file, e.g. ``file.txt.bak`` and ``file.txt/...`` for ``file.txt``. To list by a string prefix, use ``better_client.paginate_list_objects_v2(prefix=...)``.
 - ``S3Path.iterdir()`` returns the files and the folders in the S3 order (by key, files and folders mixed), the same as ``iter_objects()``. Before, it returned the folders then the files of each page of up to ``batch_size`` entries, so the order changed with the page size.
 - ``S3PathIterProxy.filter_by_ext`` raises ``ValueError`` for an extension that is not ``""`` and does not start with ``.`` (e.g. ``"csv"``), which matched nothing.
+- Remove the ``ignore_ext``, ``range`` and ``part_number`` arguments of ``S3Path.open``; passing them raises ``TypeError``. None of them ever had an effect: ``ignore_ext`` was removed from smart_open 6, and smart_open sets its own ``Range`` to stream and seek (``range`` was ignored, ``part_number`` failed on AWS). ``open`` reads and writes whole objects; to read part of an object use ``read_bytes(range=...)`` or ``read_bytes(part_number=...)``, to turn off compression use ``compression="disable"``.
+- ``S3Path.open`` raises ``ValueError`` for a key containing ``?versionId=`` or ``&versionId=`` (e.g. ``page?versionId=1``); use ``read_bytes`` / ``write_bytes`` for such keys. smart_open 8 takes that part of the URI as a version id and removes it from the key, even when ``version_id`` is given, so writing failed and reading silently read another object; there is no way to escape it. The key is rejected with every smart_open version, so that code does not break when smart_open is upgraded. Other ``?`` in a key still work.
+- ``S3Path.open`` raises ``ValueError`` for ``version_id`` in write mode, and for ``content_length``, ``content_md5`` and ``checksum_crc32`` / ``checksum_crc32c`` / ``checksum_sha1`` / ``checksum_sha256`` with ``multipart_upload=True`` (the default), which only ``put_object`` (``multipart_upload=False``) supports. Before, they were silently ignored.
 
 **Features and Improvements**
 
@@ -155,6 +158,8 @@ Backlog (TODO)
 - **Data loss**: ``S3Path.mkdir(exist_ok=True)`` and ``mkdir(parents=True)`` replaced the existing folder marker objects with empty ones, losing their content, and added a version each time with versioning. They now only write the markers that do not exist.
 - The ``S3Path`` returned by ``write_bytes`` / ``write_text`` had the user metadata keys in the given case, while S3 stores them in lower case, and no user metadata at all when none was given (so reading ``metadata`` called ``head_object``). It now has the metadata as S3 stores it, ``{}`` when none was given.
 - ``read_bytes``, ``read_text``, ``write_bytes``, ``write_text``, ``touch`` and ``mkdir`` on a bucket, a relative path or the void path raised a botocore error (``ParamValidationError`` or ``TypeError``). They now raise ``S3PathTypeError`` (still a ``TypeError``) before calling AWS; ``mkdir`` on a bucket says to use ``create_bucket()``.
+- ``S3Path.open("w", ...)`` ignored all the write arguments (``content_type``, ``cache_control``, ``storage_class``, ``acl``, ...) unless ``metadata`` or ``tags`` was also given. They now always take effect.
+- ``S3Path.open`` raised ``AttributeError`` for ``mode=None`` and smart_open's ``NotImplementedError`` for ``"w+"`` / ``"r+"``; any mode other than ``r`` / ``rb`` / ``rt`` / ``w`` / ``wb`` / ``wt`` now raises ``ValueError``. A bucket, a relative path or the void path raises ``S3PathTypeError`` instead of a smart_open / botocore error.
 
 **Minor Improvements**
 
@@ -193,6 +198,7 @@ Backlog (TODO)
 - Document the object tagging methods of ``S3Path`` (``s3pathlib.core.tagging``): ``put_tags({})`` removes all tags, ``update_tags`` is not atomic, which version they change, and the boto3 errors they raise as is. Document that the metadata snapshot of an ``S3Path`` never decides which version an operation works on: without ``version_id``, ``get_tags()``, ``read_bytes()``, ``delete()``, ... work on the latest version.
 - Fix the docstrings of ``S3Path.iter_objects`` (``recursive`` was described backwards), ``iterdir`` (``limit`` also counts folders), ``calculate_total_size`` and ``count_objects`` (wrong examples), and document that the results are lazy, can be iterated only once, and carry the metadata from the list API.
 - Fix the docstring examples of the read and write methods of ``S3Path`` (``s3pathlib.core.rw``), and document that writing returns a new ``S3Path`` and leaves the original one unchanged, how ``touch`` and ``mkdir`` treat existing objects, and the boto3 errors they raise as is.
+- Document ``S3Path.open``: it reads and writes whole objects as streams, how ``compression`` works (inferred from the extension by default), that an exception inside the ``with`` block of a write leaves no partial object (tested), that reading a missing object raises ``OSError`` with the boto3 error as its ``__cause__``, and which arguments smart_open ignores for S3 (``buffering``, ``closefd``, ``opener``).
 
 **Miscellaneous**
 
@@ -209,6 +215,7 @@ Backlog (TODO)
 - The IAM policy of the test user (``mise run setup-aws-ci``) gives full access to the temporary buckets the tests create, named ``s3pathlib-test-tmp-*``.
 - ``better_client.upload_dir`` uses the standard library ``pathlib`` instead of ``pathlib_mate``; ``local_dir`` still accepts a ``str``, a ``pathlib.Path`` or a ``pathlib_mate.Path``.
 - Remove the local test data folder ``tests/core/test_iter_objects``; the tests write their data to S3 directly.
+- The tests of ``S3Path.open`` use ``s3pathlib.tests.mock_aws``; they no longer always run against real AWS (the old test class ignored ``S3PATHLIB_TEST_REAL_AWS``).
 
 
 
