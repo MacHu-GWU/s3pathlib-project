@@ -73,18 +73,28 @@ def test_is_real_aws_enabled_invalid(monkeypatch, value):
 
 
 @pytest.mark.parametrize(
-    "ci, runtime",
-    [pytest.param(False, "local", id="local"), pytest.param(True, "ci", id="ci")],
+    "ci, run_id, runtime",
+    [
+        pytest.param(False, None, "local", id="local"),
+        pytest.param(False, "123", "local", id="local-ignores-run-id"),
+        pytest.param(True, None, "ci", id="ci-without-run-id"),
+        pytest.param(True, "123", "ci/123", id="github-actions-run"),
+    ],
 )
-def test_get_root_prefix(monkeypatch, ci, runtime):
+def test_get_root_prefix(monkeypatch, ci, run_id, runtime):
     """
-    Local runs and CI runs, and each OS / Python version, write to different
-    folders, so they never delete each other's objects.
+    Local runs and CI runs, each GitHub Actions workflow run, and each OS /
+    Python version write to different folders, so they never delete each
+    other's objects (e.g. pushes to two branches tested at the same time).
     """
     if ci:
         monkeypatch.setenv("CI", "true")
     else:
         monkeypatch.delenv("CI", raising=False)
+    if run_id is None:
+        monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
+    else:
+        monkeypatch.setenv("GITHUB_RUN_ID", run_id)
     major = sys.version_info.major
     minor = sys.version_info.minor
     assert mock_aws.get_root_prefix() == (

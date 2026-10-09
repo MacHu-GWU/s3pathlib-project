@@ -23,7 +23,7 @@ Backlog (TODO)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 **Breaking Changes**
 
-- Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11.
+- Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11. Python 3.11 to 3.14 are supported and tested.
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
 - Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``.
 - Remove the runtime dependencies ``pathlib-mate``, ``func-args`` and ``boto-session-manager``. The runtime dependencies are now ``boto3``, ``smart-open``, ``iterproxy`` and ``typing-extensions`` (Python < 3.13 only). If your code imports one of the removed packages, add it to your own dependencies.
@@ -259,6 +259,7 @@ Backlog (TODO)
 - Remove the ``boto-session-manager`` dependency; the library no longer uses it (``S3Path.sync`` used ``BotoSesManager.awscli()``).
 - Regenerate ``requirements*.txt`` with ``mise run export`` (``uv export``), and add ``requirements-mise.txt``. Remove the stale ``requirements-poetry.txt``, ``requirements-automation.txt`` and ``requirements-furo-sphinx-search.txt``, and the old ``.readthedocs.yaml``, which competed with the uv based ``.readthedocs.yml`` (Read the Docs picks either one when both exist).
 - The documentation notebooks use the standard library ``pathlib`` instead of ``pathlib_mate``.
+- Rewrite the GitHub Actions CI with uv: it runs on every push to ``main`` and ``dev``, on Ubuntu with Python 3.11 to 3.14 and on Windows with Python 3.14, and runs the whole test suite against moto and real AWS. Each workflow run uses its own S3 folder (``GITHUB_RUN_ID``), so concurrent runs do not interfere. Add the Python version classifiers.
 - A test locks the exact set of public names of ``s3pathlib.api``, so any change of the public API is deliberate.
 - Every test module that calls AWS uses ``s3pathlib.tests.mock_aws``, so the whole test suite also runs against real AWS (``mise run cov-aws``). Remove the unused test data ``tests/data/``, ``tests/core/test_upload_dir/`` and ``tests/better_client/dummy_data.py``, and their entries in ``s3pathlib.paths``.
 - Remove the ``func-args`` dependency; its "not given" value is now the private ``s3pathlib._arg.OPT``. Arguments passed on to boto3 still default to "not given", and ``None`` is still not the same: botocore rejects it with ``ParamValidationError`` (S3 has no ``None`` value), so a condition such as ``if_match=p.etag`` is never silently dropped.

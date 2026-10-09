@@ -49,7 +49,8 @@ after ``module`` in the test buckets, and each test under its own
 ``s3dir_test`` (``s3dir_root / "<test name>/"``). On real AWS, everything under
 ``s3dir_root`` (all object versions) is deleted when the class starts, so a run
 never sees objects left by a previous run. With moto, each class starts from
-empty buckets.
+empty buckets. The folders of concurrent runs never overlap, see
+``get_root_prefix``.
 """
 
 from __future__ import annotations
@@ -73,6 +74,7 @@ ENV_REAL_AWS = "S3PATHLIB_TEST_REAL_AWS"
 ENV_TEST_AWS_PROFILE = "S3PATHLIB_TEST_AWS_PROFILE"
 ENV_CI_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID_FOR_GITHUB_CI"
 ENV_CI_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI"
+ENV_GITHUB_RUN_ID = "GITHUB_RUN_ID"
 
 AWS_REGION = "us-east-1"
 
@@ -87,10 +89,18 @@ def is_ci() -> bool:
 def get_root_prefix() -> str:
     """
     The S3 folder of this test run. Different OS / Python versions (e.g. the
-    CI matrix) use different folders, so they can run at the same time.
+    CI matrix) use different folders, so they can run at the same time. On
+    GitHub Actions, each workflow run also has its own folder
+    (``GITHUB_RUN_ID``), so two runs at the same time (e.g. pushes to ``main``
+    and ``dev``) never empty each other's folders; the lifecycle rule of the
+    test buckets deletes them after one day.
     """
     if is_ci():
-        runtime = "ci"
+        run_id = os.environ.get(ENV_GITHUB_RUN_ID, "")
+        if run_id == "":
+            runtime = "ci"
+        else:
+            runtime = f"ci/{run_id}"
     else:
         runtime = "local"
     return (

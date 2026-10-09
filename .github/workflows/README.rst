@@ -25,3 +25,15 @@ Resources (``${aws_account_id}`` is the account of the dev profile):
 - Buckets ``${aws_account_id}-us-east-1-s3pathlib-test`` (versioning off) and ``${aws_account_id}-us-east-1-s3pathlib-test-versioning-on`` (versioning on).
 - IAM user ``project-s3pathlib-test`` with the inline policy ``s3pathlib-unit-test``: full access to the two buckets, create / delete / inspect any bucket (``tests/core/test_core_bucket.py`` uses temporary buckets), and ``sts:GetCallerIdentity``.
 - GitHub Actions secrets ``AWS_ACCESS_KEY_ID_FOR_GITHUB_CI`` and ``AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI``, read by ``main.yml``.
+- Bucket lifecycle rule: everything under ``projects/s3pathlib/unittest/`` expires after one day.
+
+
+The CI workflow (``main.yml``)
+------------------------------------------------------------------------------
+- Runs on every push to ``main`` and ``dev``, and by hand (``workflow_dispatch``).
+- Matrix: Ubuntu with Python 3.11, 3.12, 3.13 and 3.14; Windows with Python 3.14 only.
+- Every job runs the whole test suite against moto **and** real AWS (``S3PATHLIB_TEST_REAL_AWS=true``, with the secrets above). Without the secrets the real AWS tests fail; they are never skipped silently.
+- Each workflow run writes to its own S3 folder, ``projects/s3pathlib/unittest/ci/${GITHUB_RUN_ID}/...`` (see ``get_root_prefix`` in ``s3pathlib/tests/mock_aws.py``), so runs of different pushes can run at the same time; the lifecycle rule deletes the folders.
+- It uses uv only, not mise: the ``[env]`` section of ``mise.toml`` reads local secrets that do not exist on the runners.
+- The ``S3Path.sync`` end-to-end tests use the AWS CLI preinstalled on the GitHub-hosted runners.
+- The Ubuntu jobs upload the coverage to Codecov (secret ``CODECOV_TOKEN``, set by ``mise run setup-codecov``).
