@@ -17,7 +17,10 @@ Test order:
 4. an explicit client with refreshable credentials keeps working.
 """
 
+import subprocess
 import types
+
+import boto3
 
 from s3pathlib.api import S3Path
 from s3pathlib.api import s3_context
@@ -125,6 +128,28 @@ class ResolveS3ClientMixin(BaseTest):
                 assert new.size == 5
         assert explicit_calls == ["HeadObject"]
         assert default_calls == []
+
+    def test_sync_uses_explicit_client(self, monkeypatch):
+        """
+        ``S3Path.sync(bsm=...)`` runs the AWS CLI with the credentials and the
+        region of that client, not of ``s3_context``.
+        """
+        calls = list()
+
+        def run(args, env, stderr, text):
+            calls.append(env)
+            return subprocess.CompletedProcess(args, 0, stderr="")
+
+        monkeypatch.setattr("s3pathlib.core.sync.shutil.which", lambda name: "/bin/aws")
+        monkeypatch.setattr("s3pathlib.core.sync.subprocess.run", run)
+        s3_client = boto3.session.Session(
+            aws_access_key_id="EXPLICIT",
+            aws_secret_access_key="secret",
+            region_name="eu-west-1",
+        ).client("s3")
+        S3Path.sync(self.s3dir_test, "/tmp/data", bsm=s3_client, verbose=False)
+        assert calls[0]["AWS_ACCESS_KEY_ID"] == "EXPLICIT"
+        assert calls[0]["AWS_DEFAULT_REGION"] == "eu-west-1"
 
     def test_path_without_client_uses_s3_context(self):
         """

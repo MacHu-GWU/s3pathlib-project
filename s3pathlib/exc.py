@@ -19,6 +19,7 @@ Each one also inherits from the matching builtin exception, so
     ├── S3PermissionDenied(PermissionError)
     ├── S3DeleteObjectsError
     ├── S3ObjectChangedError
+    ├── S3SyncError
     ├── S3ValidationError(ValueError)
     └── S3PathTypeError(TypeError)
         ├── S3PathIsNotBucketError
@@ -91,6 +92,23 @@ class S3ObjectChangedError(S3PathlibError):
     its metadata, and the object was overwritten in between. Get a new
     ``S3Path`` (e.g. list again) to read the new object.
     """
+
+
+class S3SyncError(S3PathlibError):
+    """
+    The ``aws s3 sync`` command run by ``S3Path.sync`` failed.
+
+    :param returncode: the exit code of the command.
+    :param stderr: what the command wrote to stderr.
+    :param command: the command line (it has no credentials, they are passed
+        as environment variables).
+    """
+
+    def __init__(self, message: str, returncode: int, stderr: str, command: list[str]):
+        super().__init__(message)
+        self.returncode = returncode
+        self.stderr = stderr
+        self.command = command
 
 
 class S3DeleteObjectsError(S3PathlibError):

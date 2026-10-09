@@ -15,6 +15,7 @@ from s3pathlib.exc import S3FileAlreadyExist
 from s3pathlib.exc import S3PermissionDenied
 from s3pathlib.exc import S3DeleteObjectsError
 from s3pathlib.exc import S3ObjectChangedError
+from s3pathlib.exc import S3SyncError
 from s3pathlib.exc import S3ValidationError
 from s3pathlib.exc import S3PathTypeError
 from s3pathlib.exc import S3PathIsNotBucketError
@@ -42,6 +43,7 @@ from s3pathlib.tests import run_cov_test
         (S3PermissionDenied, [S3PathlibError, PermissionError]),
         (S3DeleteObjectsError, [S3PathlibError]),
         (S3ObjectChangedError, [S3PathlibError]),
+        (S3SyncError, [S3PathlibError]),
         (S3ValidationError, [S3PathlibError, ValueError]),
         (S3PathTypeError, [S3PathlibError, TypeError]),
         (S3PathIsNotBucketError, [S3PathTypeError, S3PathlibError, TypeError]),

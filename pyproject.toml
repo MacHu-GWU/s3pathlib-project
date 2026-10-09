@@ -68,6 +68,8 @@ test = [
     "pytest>=8.2.2,<9.0.0", # Testing framework
     "pytest-cov>=6.0.0,<7.0.0", # Coverage reporting
     "moto>=5.1.22,<6.0.0", # mock AWS services
+    "flask>=3.0.0,<4.0.0", # moto server (a local endpoint for the aws CLI in the sync tests)
+    "flask-cors>=5.0.0,<7.0.0", # moto server
     "rich>=14.0.0,<15.0.0", # pretty print
 ]
 

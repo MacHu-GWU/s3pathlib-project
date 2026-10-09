@@ -74,6 +74,10 @@ Backlog (TODO)
 - ``S3Path.copy_dir`` copies every key under the folder, folder markers included (the marker of the folder itself becomes the marker of the target), so empty folders are copied too; the returned count includes them. Before, folder markers were skipped.
 - ``S3Path.delete`` always returns a new ``S3Path`` and no longer changes the path it is called on (see ``s3pathlib.core.metadata``). Before, it returned the path itself with its cached metadata cleared, except for a file with versioning. With versioning, the returned path is the new delete marker; with ``version_id``, the deleted version.
 - ``S3Path.delete`` raises ``ValueError`` for ``version_id`` on a folder, or together with ``is_hard_delete=True``; it was ignored.
+- ``S3Path.sync``, ``sync_from`` and ``sync_to`` run ``aws s3 sync`` with the identity of the S3 client of the call, like every other method: the credentials and the region of ``bsm`` (an S3 client, or an object with an ``s3_client`` such as a ``BotoSesManager``) or of the client of ``s3_context``, and its endpoint when it is not an AWS endpoint (``--endpoint-url``). Environment variables such as ``AWS_PROFILE`` no longer decide which credentials the command uses; attach a client of that profile instead. Before, the command used the default credentials of the environment and ignored the attached client. See ``s3pathlib.core.sync`` for the limits (temporary credentials are not refreshed during the sync).
+- ``S3Path.sync`` raises ``s3pathlib.exc.S3SyncError`` (with the exit code and stderr of the command) instead of ``SystemError`` when the command fails.
+- ``S3Path.sync`` raises ``S3PathIsNotFolderError`` for an ``S3Path`` of a file (``aws s3 sync`` syncs folders) and ``S3PathTypeError`` for a relative path or the void path.
+- By default (``quiet=True``), ``S3Path.sync`` runs the command with ``--only-show-errors`` instead of ``--quiet``: nothing is printed either way when it succeeds, but ``--quiet`` also hid the error, so a failure had no message.
 
 **Features and Improvements**
 
@@ -111,6 +115,9 @@ Backlog (TODO)
 - ``S3Path.touch`` makes one conditional ``put_object`` call instead of ``head_object`` + ``put_object``, so it is atomic: an object written by someone else in between is never replaced.
 - ``S3Path.upload_file`` returns a new ``S3Path`` of the uploaded object, the same as ``write_bytes``; it returned ``None`` before.
 - ``S3Path.copy_file`` (and the other copy methods) with ``overwrite=False`` copy conditionally (``IfNoneMatch="*"``) after checking the target, so on AWS an object written by someone else in between is not replaced either.
+- Add the ``quiet`` argument to ``S3Path.sync``, ``sync_from`` and ``sync_to``. The misspelled ``quite`` is deprecated: passing it emits a ``DeprecationWarning``; it will be removed in 4.0.0.
+- ``S3Path.sync`` supports S3 compatible endpoints (the endpoint of the client is passed to the CLI) and unsigned clients (``--no-sign-request``).
+- Add ``s3pathlib.exc.S3SyncError``.
 
 **Bugfixes**
 
@@ -180,6 +187,8 @@ Backlog (TODO)
 - The delete marker returned by ``S3Path.delete()`` with versioning had ``is_delete_marker()`` ``False``, and reading its ``size`` raised ``S3FileNotExist``. It is now a delete marker whose properties never call AWS.
 - ``S3Path("bucket", "folder/").delete()`` ignored ``check_sum_algorithm`` (it was only used with ``is_hard_delete=True``).
 - ``S3Path.delete`` on a relative path raised a botocore ``TypeError``, and a bare ``ValueError`` on the void path; both now raise ``S3PathTypeError`` before calling AWS.
+- ``S3Path.sync(..., bsm=s3_client)`` always failed, because it called ``bsm.awscli()``, which only a ``BotoSesManager`` has.
+- ``S3Path.sync`` raises ``FileNotFoundError`` with a message telling to install the AWS CLI when the ``aws`` command is not found, and ``ValueError`` with a message when neither path is in S3 (it was a bare ``ValueError``).
 
 **Minor Improvements**
 
@@ -222,6 +231,7 @@ Backlog (TODO)
 - Document ``S3Path.upload_file`` and ``S3Path.upload_dir``: ``overwrite=False`` checks then uploads (not atomic, boto3's ``upload_file`` has no conditional write), the allowed ``extra_args``, and the errors they raise. Fix the ``upload_dir`` docstring example, which used a ``path`` argument that does not exist.
 - Document the copy methods of ``S3Path`` (``s3pathlib.core.copy``): how metadata and content headers are copied, that ``copy_object`` copies objects up to 5 GB, which version is copied, and the errors they raise as is.
 - Document ``S3Path.delete``: what each kind of path and argument deletes, what it returns, that deleting a missing key adds a delete marker with versioning, and that emptying a bucket asks for confirmation.
+- Document ``S3Path.sync``: which identity the AWS CLI uses and its limits, every argument, and the errors.
 
 **Miscellaneous**
 
@@ -241,6 +251,8 @@ Backlog (TODO)
 - The tests of ``S3Path.open`` use ``s3pathlib.tests.mock_aws``; they no longer always run against real AWS (the old test class ignored ``S3PATHLIB_TEST_REAL_AWS``).
 - ``s3pathlib.type.PathType`` is ``str | os.PathLike``; the library code no longer imports ``pathlib_mate`` (a ``pathlib_mate.Path`` is still accepted, it is an ``os.PathLike``). ``S3Path.upload_file`` uses the standard library ``pathlib``.
 - The tests of ``S3Path.delete`` with versioning also run on moto (moto 5 handles versioned deletes).
+- The ``S3Path.sync`` tests run ``aws s3 sync`` end to end, against a moto server in moto mode and against AWS, when the AWS CLI is installed (they are skipped otherwise); the other tests check the command line and its environment. Add ``flask`` and ``flask-cors`` to the test dependencies, for the moto server.
+- The library code no longer imports ``boto_session_manager`` at runtime (``S3Path.sync`` used ``BotoSesManager.awscli()``); it is only used in type hints.
 
 
 
