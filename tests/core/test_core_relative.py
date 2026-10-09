@@ -25,7 +25,7 @@ from s3pathlib.api import S3Path
 from s3pathlib.exc import S3PathIsNotRelpathError
 from s3pathlib.exc import S3PathTypeError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 pytestmark = pytest.mark.filterwarnings("error::DeprecationWarning")
 
@@ -376,12 +376,12 @@ class RelativePathAPIMixin(BaseTest):
             S3Path().ensure_not_relpath()
 
 
-# class Test(RelativePathAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(RelativePathAPIMixin):
+class TestMock(RelativePathAPIMixin):
     use_mock = True
+
+
+class TestRealAws(RelativePathAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

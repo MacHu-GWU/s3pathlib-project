@@ -6,7 +6,7 @@ READTHEDOCS_TOKEN = "{{ exec(command='uvx --from home-secret-toml hst get readth
 PYPI_TOKEN = "{{ exec(command='uvx --from home-secret-toml hst get pypi.accounts.sh.token') }}"
 # AWS profiles for the unit tests that run against real AWS (see .mise/tasks/aws_ci.py)
 # - dev: powerful profile that creates the test buckets and the test IAM user
-# - test: profile of the test IAM user, used by s3pathlib/tests/mock.py
+# - test: profile of the test IAM user, used by s3pathlib/tests/mock_aws.py
 S3PATHLIB_DEV_AWS_PROFILE = "project_s3pathlib_dev"
 S3PATHLIB_TEST_AWS_PROFILE = "project_s3pathlib_test"
 

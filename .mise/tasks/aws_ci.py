@@ -70,7 +70,7 @@ GITHUB_SECRET_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI"
 
 def get_bucket_name(aws_account_id: str, name: str) -> str:
     """
-    Keep in sync with ``get_bucket_name`` in ``s3pathlib/tests/mock.py``,
+    Keep in sync with ``get_bucket_name`` in ``s3pathlib/tests/mock_aws.py``,
     which the tests use to find the buckets.
     """
     return f"{aws_account_id}-{AWS_REGION}-{name}"

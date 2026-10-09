@@ -8,21 +8,19 @@ Test order:
 1. the truth table of ``is_void`` / ``is_relpath`` / ``is_bucket`` /
    ``is_dir`` / ``is_file`` for the six valid states;
 2. every ``ensure_*`` on the six states: pass, or the exception and message;
-3. ``is_delete_marker``, against moto (it must never call the AWS API).
+3. ``is_delete_marker``, against S3 (it must never call the AWS API).
 """
-
-import contextlib
 
 import pytest
 
 from s3pathlib.api import S3Path
-from s3pathlib.api import s3_context
 from s3pathlib.exc import S3PathIsNotBucketError
 from s3pathlib.exc import S3PathIsNotFileError
 from s3pathlib.exc import S3PathIsNotFolderError
 from s3pathlib.exc import S3PathTypeError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.aws_helpers import record_api_calls
+from s3pathlib.tests.mock_aws import BaseTest
 
 R = S3Path.make_relpath
 
@@ -89,24 +87,6 @@ ENSURE = {
         "{label} is not a bucket!",
     ),
 }
-
-@contextlib.contextmanager
-def record_api_calls():
-    """
-    Record the name of every S3 API call made by ``S3Path`` (through the
-    client of ``s3_context``).
-    """
-    calls = list()
-
-    def record(model, **kwargs):
-        calls.append(model.name)
-
-    events = s3_context.s3_client.meta.events
-    events.register("before-call.s3.*", record)
-    try:
-        yield calls
-    finally:
-        events.unregister("before-call.s3.*", record)
 
 
 ENSURE_CASES = [
@@ -208,7 +188,7 @@ class IsTestAPIMixin(BaseTest):
         In the versions of a deleted object, the delete marker is the latest
         version and is the only one that is a delete marker.
         """
-        p = self.s3dir_root_with_versioning.joinpath("delete-marker", "file.txt")
+        p = self.s3dir_test_with_versioning.joinpath("file.txt")
         self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"v1")
         self.s3_client.delete_object(Bucket=p.bucket, Key=p.key)
 
@@ -233,13 +213,13 @@ class IsTestAPIMixin(BaseTest):
         raised ``S3FileNotExist`` for a missing object and, worse, for an
         object whose latest version is a delete marker.
         """
-        p = self.s3dir_root_with_versioning.joinpath("no-api-call", key)
+        p = self.s3dir_test_with_versioning.joinpath(key)
         if setup in ("put", "put-and-delete"):
             self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"v1")
         if setup == "put-and-delete":
             self.s3_client.delete_object(Bucket=p.bucket, Key=p.key)
 
-        with record_api_calls() as calls:
+        with record_api_calls(self.s3_client) as calls:
             assert p.is_delete_marker() is False
         assert calls == []
 
@@ -263,20 +243,20 @@ class IsTestAPIMixin(BaseTest):
         """
         Metadata from ``head_object`` never marks a delete marker.
         """
-        p = self.s3dir_root.joinpath("is-delete-marker", "file.txt")
+        p = self.s3dir_test.joinpath("file.txt")
         self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"hello")
-        with record_api_calls() as calls:
+        with record_api_calls(self.s3_client) as calls:
             p.head_object()
         assert calls == ["HeadObject"]  # the recorder works
         assert p.is_delete_marker() is False
 
 
-# class Test(IsTestAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(IsTestAPIMixin):
+class TestMock(IsTestAPIMixin):
     use_mock = True
+
+
+class TestRealAws(IsTestAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

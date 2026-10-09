@@ -21,7 +21,7 @@ from s3pathlib.exc import S3PathIsNotFileError
 from s3pathlib.exc import S3PathIsNotFolderError
 from s3pathlib.exc import S3PathTypeError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 R = S3Path.make_relpath
 
@@ -367,12 +367,12 @@ class AttributeAPIMixin(BaseTest):
             setattr(FILE, attr, "x")
 
 
-# class Test(AttributeAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(AttributeAPIMixin):
+class TestMock(AttributeAPIMixin):
     use_mock = True
+
+
+class TestRealAws(AttributeAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

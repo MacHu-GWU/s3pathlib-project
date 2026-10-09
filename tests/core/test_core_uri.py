@@ -20,7 +20,7 @@ from s3pathlib.api import S3Path
 from s3pathlib.constants import AwsPartitionEnum
 from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 OBJECT = S3Path("bucket", "folder", "file.txt")
 DIRECTORY = S3Path("bucket", "folder/")
@@ -273,7 +273,7 @@ class UriAPIMixin(BaseTest):
         Once the metadata is loaded from a versioned bucket, the console url
         opens that exact version.
         """
-        p = self.s3dir_root_with_versioning.joinpath("console-url", "file.txt")
+        p = self.s3dir_test_with_versioning.joinpath("file.txt")
         res = self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"hello")
         version_id = res["VersionId"]
 
@@ -291,7 +291,7 @@ class UriAPIMixin(BaseTest):
         Without loaded metadata there is no version id: the console url is
         built locally, it never calls ``head_object``.
         """
-        p = self.s3dir_root_with_versioning.joinpath("console-url-no-meta", "file.txt")
+        p = self.s3dir_test_with_versioning.joinpath("file.txt")
         self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"hello")
         assert "versionId" not in p.console_url
         assert p.response is None
@@ -300,7 +300,7 @@ class UriAPIMixin(BaseTest):
         """
         An object in a bucket without versioning has no version id to open.
         """
-        p = self.s3dir_root.joinpath("console-url", "file.txt")
+        p = self.s3dir_test.joinpath("file.txt")
         self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"hello")
         p.head_object()
         assert "versionId" not in p.console_url
@@ -436,12 +436,12 @@ class UriAPIMixin(BaseTest):
         assert filter_(S3Path("other-bucket", "other.txt")) is False
 
 
-# class Test(UriAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(UriAPIMixin):
+class TestMock(UriAPIMixin):
     use_mock = True
+
+
+class TestRealAws(UriAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

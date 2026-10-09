@@ -50,9 +50,6 @@ after ``module`` in the test buckets, and each test under its own
 ``s3dir_root`` (all object versions) is deleted when the class starts, so a run
 never sees objects left by a previous run. With moto, each class starts from
 empty buckets.
-
-``s3pathlib.tests.mock`` is the older version of this module, kept for the
-tests that are not migrated yet.
 """
 
 from __future__ import annotations

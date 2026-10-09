@@ -18,7 +18,7 @@ import pytest
 
 from s3pathlib.api import S3Path
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 R = S3Path.make_relpath
 
@@ -251,7 +251,7 @@ class ComparisonAPIMixin(BaseTest):
         Two versions of the same object are the same path: equal, same hash,
         and a set keeps one. Use ``(p, p.version_id)`` to tell them apart.
         """
-        s3path = self.s3dir_root_with_versioning.joinpath("eq-ignores-version.txt")
+        s3path = self.s3dir_test_with_versioning.joinpath("file.txt")
         self.s3_client.put_object(Bucket=s3path.bucket, Key=s3path.key, Body=b"v1")
         self.s3_client.put_object(Bucket=s3path.bucket, Key=s3path.key, Body=b"v2")
         v1, v2 = list(s3path.list_object_versions())
@@ -263,12 +263,12 @@ class ComparisonAPIMixin(BaseTest):
         assert len({(v1, v1.version_id), (v2, v2.version_id)}) == 2
 
 
-# class Test(ComparisonAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(ComparisonAPIMixin):
+class TestMock(ComparisonAPIMixin):
     use_mock = True
+
+
+class TestRealAws(ComparisonAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

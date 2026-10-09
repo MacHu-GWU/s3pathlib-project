@@ -44,9 +44,6 @@ class PathEnum:
     dir_htmlcov = dir_project_root / "htmlcov"
     path_cov_index_html = dir_htmlcov / "index.html"
     dir_unit_test = dir_project_root / "tests"
-    dir_test_data = dir_unit_test / "data"
-    dir_test_list_objects_folder = dir_test_data / "list_objects_folder"
-    dir_test_upload_dir_folder = dir_test_data / "upload_dir_folder"
     dir_int_test = dir_project_root / "tests_int"
     dir_load_test = dir_project_root / "tests_load"
 

@@ -16,7 +16,7 @@ import pytest
 from s3pathlib.api import S3Path
 from s3pathlib.exc import S3PathIsNotFileError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 R = S3Path.make_relpath
 
@@ -56,7 +56,7 @@ class MutateAPIMixin(BaseTest):
         """
         The metadata loaded from S3 is not copied.
         """
-        p = self.s3dir_root.joinpath("copy-clears-metadata.txt")
+        p = self.s3dir_test.joinpath("file.txt")
         self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=b"hello")
         p.head_object()
         assert p.response is not None
@@ -348,12 +348,12 @@ class MutateAPIMixin(BaseTest):
             BUCKET.to_file()
 
 
-# class Test(MutateAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(MutateAPIMixin):
+class TestMock(MutateAPIMixin):
     use_mock = True
+
+
+class TestRealAws(MutateAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

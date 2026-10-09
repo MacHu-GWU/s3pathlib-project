@@ -19,7 +19,7 @@ import pytest
 
 from s3pathlib.api import S3Path
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 pytestmark = pytest.mark.filterwarnings("error::DeprecationWarning")
 
@@ -258,12 +258,12 @@ class JoinPathAPIMixin(BaseTest):
             FILE.joinpath(BUCKET)
 
 
-# class Test(JoinPathAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(JoinPathAPIMixin):
+class TestMock(JoinPathAPIMixin):
     use_mock = True
+
+
+class TestRealAws(JoinPathAPIMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

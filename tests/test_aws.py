@@ -17,7 +17,6 @@ Except in 5 and 6, every test uses its own ``S3Context()``, so it does not
 change the global client the other tests use.
 """
 
-import contextlib
 import importlib
 import subprocess
 import sys
@@ -31,9 +30,11 @@ import pytest
 from s3pathlib.api import s3_context
 from s3pathlib.aws import S3Context
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
-from s3pathlib.tests.mock import make_refreshable_s3_client
-from s3pathlib.tests.mock import record_signing_access_keys
+from s3pathlib.tests.aws_helpers import make_refreshable_s3_client
+from s3pathlib.tests.aws_helpers import record_api_calls
+from s3pathlib.tests.aws_helpers import record_signing_access_keys
+from s3pathlib.tests.mock_aws import BaseTest
+from s3pathlib.tests.mock_aws import mock_only
 
 
 class FakeS3Client:
@@ -64,23 +65,6 @@ def count_new_sessions(monkeypatch, delay: float = 0) -> list:
     monkeypatch.setattr(boto3.session, "Session", FakeSession)
     return sessions
 
-
-@contextlib.contextmanager
-def record_api_calls():
-    """
-    Record the name of every S3 API call made through ``s3_context``.
-    """
-    calls = list()
-
-    def record(model, **kwargs):
-        calls.append(model.name)
-
-    events = s3_context.s3_client.meta.events
-    events.register("before-call.s3.*", record)
-    try:
-        yield calls
-    finally:
-        events.unregister("before-call.s3.*", record)
 
 
 class AwsMixin(BaseTest):
@@ -288,14 +272,15 @@ class AwsMixin(BaseTest):
         An ``S3Path`` method without an explicit client calls AWS through
         ``s3_context.s3_client``.
         """
-        p = self.s3dir_root.joinpath("s3path-uses-s3-context", "file.txt")
-        with record_api_calls() as calls:
+        p = self.s3dir_test.joinpath("file.txt")
+        with record_api_calls(s3_context.s3_client) as calls:
             p.write_text("hello")
         assert calls == ["PutObject"]
 
     # --------------------------------------------------------------------------
     # 6. Refreshable credentials
     # --------------------------------------------------------------------------
+    @mock_only("the refreshable credentials are fake")
     def test_refreshable_credentials(self):
         """
         A client with refreshable credentials (e.g. from an assumed role) gets
@@ -303,7 +288,7 @@ class AwsMixin(BaseTest):
         attached to ``s3_context``. This is why attaching a client is enough,
         without keeping a boto session.
         """
-        p = self.s3dir_root.joinpath("refreshable-credentials", "file.txt")
+        p = self.s3dir_test.joinpath("file.txt")
         original = s3_context.s3_client
         s3_client, fetched_keys = make_refreshable_s3_client()
         s3_context.attach_s3_client(s3_client)
@@ -317,12 +302,12 @@ class AwsMixin(BaseTest):
         assert access_keys == ["AK1", "AK2", "AK3"]
 
 
-# class Test(AwsMixin):
-#     use_mock = False
-
-
-class TestUseMock(AwsMixin):
+class TestMock(AwsMixin):
     use_mock = True
+
+
+class TestRealAws(AwsMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

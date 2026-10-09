@@ -243,7 +243,7 @@ Backlog (TODO)
 - Add ``s3pathlib.paths`` to centralize project paths, and simplify the test helpers in ``s3pathlib.tests``.
 - Disable unit tests that run against real AWS; only the moto-mocked tests run by default.
 - Add the idempotent mise tasks ``setup-aws-ci`` and ``teardown-aws-ci``, which create / delete the test S3 buckets, the test IAM user (its policy is built in code, replacing ``.github/workflows/iam-policy.json``) and its GitHub Actions secrets. The AWS profiles used by the tasks and by the tests against real AWS are defined in ``mise.toml``.
-- The test helper ``s3pathlib.tests.mock.BaseTest`` no longer uses ``boto_session_manager``: ``cls.bsm`` is replaced by ``cls.boto_ses``, ``cls.aws_account_id`` and ``cls.aws_region``, and the S3 client is ``self.s3_client`` (``s3_context.s3_client``).
+- Remove the old test helper ``s3pathlib.tests.mock`` (its ``BaseTest`` used ``cls.bsm``); use ``s3pathlib.tests.mock_aws.BaseTest``, which has ``cls.boto_ses``, ``cls.aws_account_id``, ``cls.aws_region`` and ``self.s3_client``.
 - Add ``s3pathlib.tests.mock_aws``, the new base class for tests that call AWS. Every test module runs against moto (``TestMock``) and, when ``S3PATHLIB_TEST_REAL_AWS=true`` (``mise run cov-aws``), against real AWS (``TestRealAws``); ``@mock_only`` / ``@real_aws_only`` mark tests that only work in one mode. Each test gets its own S3 folder, and the real AWS folder of a test class is emptied when it starts. ``mise run setup-aws-ci`` also adds a lifecycle rule that expires the unit test objects after one day. Shared helpers moved to ``s3pathlib.tests.aws_helpers``.
 - ``mise run setup-aws-ci`` updates the inline policy of an existing test IAM user (without touching its access key), and the policy allows bucket tagging on temporary buckets.
 - The IAM policy of the test user (``mise run setup-aws-ci``) gives full access to the temporary buckets the tests create, named ``s3pathlib-test-tmp-*``.
@@ -255,6 +255,7 @@ Backlog (TODO)
 - The ``S3Path.sync`` tests run ``aws s3 sync`` end to end, against a moto server in moto mode and against AWS, when the AWS CLI is installed (they are skipped otherwise); the other tests check the command line and its environment. Add ``flask`` and ``flask-cors`` to the test dependencies, for the moto server.
 - The library code no longer imports ``boto_session_manager`` at runtime (``S3Path.sync`` used ``BotoSesManager.awscli()``); it is only used in type hints.
 - A test locks the exact set of public names of ``s3pathlib.api``, so any change of the public API is deliberate.
+- Every test module that calls AWS uses ``s3pathlib.tests.mock_aws``, so the whole test suite also runs against real AWS (``mise run cov-aws``). Remove the unused test data ``tests/data/``, ``tests/core/test_upload_dir/`` and ``tests/better_client/dummy_data.py``, and their entries in ``s3pathlib.paths``.
 
 
 

@@ -22,7 +22,7 @@ import pytest
 from s3pathlib.api import S3Path
 from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 
 def state(p: S3Path) -> tuple:
@@ -40,6 +40,8 @@ def relpath(key: str) -> S3Path:
 
 
 class BaseS3PathMixin(BaseTest):
+    module = "core.base"
+
     # --------------------------------------------------------------------------
     # 1. the four kinds of path
     # --------------------------------------------------------------------------
@@ -460,12 +462,12 @@ class BaseS3PathMixin(BaseTest):
             S3Path._from_parsed_parts(bucket="b", parts=[], is_dir=False)
 
 
-# class Test(BaseS3PathMixin):
-#     use_mock = False
-
-
-class TestUseMock(BaseS3PathMixin):
+class TestMock(BaseS3PathMixin):
     use_mock = True
+
+
+class TestRealAws(BaseS3PathMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":

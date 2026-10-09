@@ -18,7 +18,7 @@ The unit tests can run against real AWS (test classes with ``use_mock = False``)
 The AWS profiles are defined in the ``[env]`` section of ``mise.toml``:
 
 - ``S3PATHLIB_DEV_AWS_PROFILE`` (``project_s3pathlib_dev``): a powerful profile that can create S3 buckets and IAM users. The tasks run with it. Create it yourself; the tasks print what to paste into ``~/.aws`` when it is missing.
-- ``S3PATHLIB_TEST_AWS_PROFILE`` (``project_s3pathlib_test``): the profile of the test IAM user. ``s3pathlib/tests/mock.py`` uses it to run the tests locally against real AWS. ``mise run setup-aws-ci`` prints it after creating the user.
+- ``S3PATHLIB_TEST_AWS_PROFILE`` (``project_s3pathlib_test``): the profile of the test IAM user. ``s3pathlib/tests/mock_aws.py`` uses it to run the tests locally against real AWS. ``mise run setup-aws-ci`` prints it after creating the user.
 
 Resources (``${aws_account_id}`` is the account of the dev profile):
 

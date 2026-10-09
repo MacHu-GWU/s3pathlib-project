@@ -27,7 +27,7 @@ from s3pathlib.api import not_
 from s3pathlib.core.filterable_property import FilterableProperty
 from s3pathlib.core.iter_objects import S3PathIterProxy
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.mock_aws import BaseTest
 
 
 class User:
@@ -248,12 +248,12 @@ class FilterablePropertyMixin(BaseTest):
             filter_(S3Path.make_relpath("a.txt"))
 
 
-# class Test(FilterablePropertyMixin):
-#     use_mock = False
-
-
-class TestUseMock(FilterablePropertyMixin):
+class TestMock(FilterablePropertyMixin):
     use_mock = True
+
+
+class TestRealAws(FilterablePropertyMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":
