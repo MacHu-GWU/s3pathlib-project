@@ -3,7 +3,6 @@
 """
 List object versions related API.
 
-.. _bsm: https://github.com/aws-samples/boto-session-manager-project
 .. _ListObjectVersions: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectVersions.html
 """
 
@@ -15,12 +14,10 @@ from .._arg import OPT
 from ..aws import s3_context
 from ..better_client.list_object_versions import paginate_list_object_versions
 from .iter_objects import S3PathIterProxy
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -36,7 +33,7 @@ class IterObjectVersionsAPIMixin:
         delimiter: str = OPT,
         encoding_type: str = OPT,
         expected_bucket_owner: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> S3PathIterProxy:
         """
         Iterate the versions and delete markers, yield :class:`S3Path` objects
@@ -67,7 +64,8 @@ class IterObjectVersionsAPIMixin:
             are not returned.
         :param encoding_type: See ListObjectVersions_.
         :param expected_bucket_owner: See ListObjectVersions_.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
             negative.
@@ -75,7 +73,7 @@ class IterObjectVersionsAPIMixin:
         if limit is not None:
             if limit < 0:
                 raise ValueError(f"``limit`` must not be negative, got {limit}.")
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         bucket = self.bucket
         if self.is_file():
             exact_key = self.key
@@ -84,7 +82,7 @@ class IterObjectVersionsAPIMixin:
         # ``limit`` is applied here, to the yielded paths: for a file, the
         # versions of other keys that start with it must not count
         proxy = paginate_list_object_versions(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=bucket,
             prefix=self.key,
             batch_size=batch_size,
@@ -109,7 +107,7 @@ class IterObjectVersionsAPIMixin:
                     response
                 )
                 s3path_list = list()
-                explicit_client = explicit_s3_client(s3_client, bsm)
+                explicit_client = s3_client
                 for dct in versions:
                     s3path_list.append(
                         self._from_version_dict(bucket, dct=dct, s3_client=explicit_client)

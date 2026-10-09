@@ -3,7 +3,6 @@
 """
 Smart open library integration.
 
-.. _bsm: https://github.com/aws-samples/boto-session-manager-project
 .. _smart_open: https://github.com/RaRe-Technologies/smart_open
 .. _get_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object
 .. _put_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
@@ -30,7 +29,6 @@ from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -114,7 +112,7 @@ class OpenerAPIMixin:
         checksum_mode: str = OPT,
         # other parameters
         transport_params: dict | None = None,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> T.IO:
         """
         Open the object as a file object, with smart_open_: the content is
@@ -232,7 +230,8 @@ class OpenerAPIMixin:
         :param transport_params: See smart_open_. Its ``client`` is replaced
             by the S3 client of this call; its ``client_kwargs`` are merged
             with the arguments above (which win).
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: a file object; use it in a ``with`` block, a write is only
             finished when it is closed.
@@ -257,7 +256,7 @@ class OpenerAPIMixin:
         if is_write_mode and (version_id is not OPT):
             raise ValueError("version_id is only for reading, not for writing")
 
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         if transport_params is None:
             transport_params = dict()
         else:
@@ -266,7 +265,7 @@ class OpenerAPIMixin:
                 transport_params["client_kwargs"] = copy.deepcopy(
                     transport_params["client_kwargs"]
                 )
-        transport_params["client"] = s3_client
+        transport_params["client"] = client
         transport_params["multipart_upload"] = multipart_upload
         if version_id is not OPT:
             transport_params["version_id"] = version_id

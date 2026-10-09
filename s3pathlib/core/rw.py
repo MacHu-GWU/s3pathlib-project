@@ -17,7 +17,6 @@ check ``e.response["Error"]["Code"]``), e.g. ``NoSuchKey``, ``NoSuchBucket``,
 ``if_match`` not met when reading), ``304`` (``if_none_match`` met when
 reading).
 
-.. _bsm: https://github.com/aws-samples/boto-session-manager-project
 .. _get_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object
 .. _put_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
 .. _decode: https://docs.python.org/3/library/stdtypes.html#bytes.decode
@@ -39,12 +38,10 @@ from ..type import TagType, MetadataType
 from ..tag import encode_url_query
 from ..aws import s3_context
 
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -72,7 +69,7 @@ class ReadAndWriteAPIMixin:
         part_number: int = OPT,
         expected_bucket_owner: str = OPT,
         checksum_mode: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> bytes:
         """
         Read the content of the object, a wrapper of get_object_.
@@ -112,7 +109,8 @@ class ReadAndWriteAPIMixin:
         :param part_number: See get_object_.
         :param expected_bucket_owner: See get_object_.
         :param checksum_mode: See get_object_.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: the binary data.
 
@@ -120,8 +118,8 @@ class ReadAndWriteAPIMixin:
             path.
         """
         self._ensure_has_object()
-        s3_client = resolve_s3_client(s3_context, bsm)
-        response = s3_client.get_object(
+        client = resolve_s3_client(s3_context, s3_client)
+        response = client.get_object(
             **remove_optional(
                 Bucket=self.bucket,
                 Key=self.key,
@@ -157,7 +155,7 @@ class ReadAndWriteAPIMixin:
             self._set_meta(
                 response,
                 complete=True,
-                s3_client=explicit_s3_client(s3_client, bsm),
+                s3_client=s3_client,
             )
         return data
 
@@ -183,7 +181,7 @@ class ReadAndWriteAPIMixin:
         part_number: int = OPT,
         expected_bucket_owner: str = OPT,
         checksum_mode: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> str:
         """
         Read the content of the object as text, see :meth:`read_bytes`.
@@ -221,7 +219,8 @@ class ReadAndWriteAPIMixin:
         :param part_number: See get_object_.
         :param expected_bucket_owner: See get_object_.
         :param checksum_mode: See get_object_.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: the string data.
 
@@ -247,7 +246,7 @@ class ReadAndWriteAPIMixin:
             part_number=part_number,
             expected_bucket_owner=expected_bucket_owner,
             checksum_mode=checksum_mode,
-            bsm=bsm,
+            s3_client=s3_client,
         )
         return data.decode(encoding, errors=errors)
 
@@ -289,7 +288,7 @@ class ReadAndWriteAPIMixin:
         expected_bucket_owner: str = OPT,
         if_match: str = OPT,
         if_none_match: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> S3Path:
         """
         Write ``data`` to the object (replacing it if it exists), a wrapper of
@@ -344,7 +343,8 @@ class ReadAndWriteAPIMixin:
         :param if_none_match: ``"*"`` only writes if the object does not exist
             (a delete marker as the latest version counts as not existing),
             See put_object_.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: a new :class:`~s3pathlib.core.s3path.S3Path` with the metadata
             snapshot of the written object (``size``, ``etag``, ``metadata``,
@@ -354,10 +354,10 @@ class ReadAndWriteAPIMixin:
             path.
         """
         self._ensure_has_object()
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         if metadata is not OPT:
             warn_upper_case_in_metadata_key(metadata)
-        response = s3_client.put_object(
+        response = client.put_object(
             **remove_optional(
                 Bucket=self.bucket,
                 Key=self.key,
@@ -411,7 +411,7 @@ class ReadAndWriteAPIMixin:
         s3path._set_meta(
             response,
             complete=False,
-            s3_client=explicit_s3_client(s3_client, bsm),
+            s3_client=s3_client,
         )
         return s3path
 
@@ -455,7 +455,7 @@ class ReadAndWriteAPIMixin:
         expected_bucket_owner: str = OPT,
         if_match: str = OPT,
         if_none_match: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> S3Path:
         """
         Write the text ``data`` to the object, see :meth:`write_bytes`.
@@ -508,7 +508,8 @@ class ReadAndWriteAPIMixin:
         :param if_none_match: ``"*"`` only writes if the object does not exist
             (a delete marker as the latest version counts as not existing),
             See put_object_.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: a new :class:`~s3pathlib.core.s3path.S3Path` with the metadata
             snapshot of the written object (``size``, ``etag``, ``metadata``,
@@ -522,7 +523,7 @@ class ReadAndWriteAPIMixin:
             data=body,
             metadata=metadata,
             tags=tags,
-            bsm=bsm,
+            s3_client=s3_client,
             acl=acl,
             cache_control=cache_control,
             content_disposition=content_disposition,
@@ -594,7 +595,7 @@ class ReadAndWriteAPIMixin:
         object_lock_retain_until_datetime: datetime = OPT,
         object_lock_legal_hold_status: str = OPT,
         expected_bucket_owner: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> None:
         """
         Create an empty object if it does not exist, with one conditional
@@ -661,7 +662,7 @@ class ReadAndWriteAPIMixin:
                 object_lock_legal_hold_status=object_lock_legal_hold_status,
                 expected_bucket_owner=expected_bucket_owner,
                 if_none_match="*",
-                bsm=bsm,
+                s3_client=s3_client,
             )
         except botocore.exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "PreconditionFailed":
@@ -674,7 +675,7 @@ class ReadAndWriteAPIMixin:
 
     def _write_folder_marker(
         self: S3Path,
-        bsm: BotoSesManager | S3Client | None,
+        s3_client: S3Client | None,
     ) -> bool:
         """
         Write the folder marker object of this folder, unless it exists.
@@ -682,7 +683,7 @@ class ReadAndWriteAPIMixin:
         :return: ``True`` if it was written.
         """
         try:
-            self.write_bytes(data=b"", if_none_match="*", bsm=bsm)
+            self.write_bytes(data=b"", if_none_match="*", s3_client=s3_client)
             return True
         except botocore.exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "PreconditionFailed":
@@ -694,7 +695,7 @@ class ReadAndWriteAPIMixin:
         self: S3Path,
         exist_ok: bool = False,
         parents: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> None:
         """
         Create the folder marker object of this folder (an empty object whose
@@ -718,7 +719,8 @@ class ReadAndWriteAPIMixin:
             marker); if ``True``, only write the markers that do not exist.
         :param parents: if ``True``, also write the markers of the parent
             folders (up to the bucket).
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :raises S3PathTypeError: for a relative path, the void path, or a
             bucket (use ``create_bucket()``).
@@ -734,13 +736,13 @@ class ReadAndWriteAPIMixin:
                 f"create it"
             )
         if exist_ok is False:
-            if self.exists(bsm=bsm):
+            if self.exists(s3_client=s3_client):
                 raise exc.S3FolderAlreadyExist.make(self.uri)
-        written = self._write_folder_marker(bsm=bsm)
+        written = self._write_folder_marker(s3_client=s3_client)
         # a marker written by someone else after the exists() check
         if (written is False) and (exist_ok is False):
             raise exc.S3FolderAlreadyExist.make(self.uri)
         if parents:
             for p in self.parents:
                 if p.is_bucket() is False:
-                    p._write_folder_marker(bsm=bsm)
+                    p._write_folder_marker(s3_client=s3_client)

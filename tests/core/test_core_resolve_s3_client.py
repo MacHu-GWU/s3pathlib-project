@@ -2,25 +2,28 @@
 
 """
 Test ``resolve_s3_client``: which S3 client an API call uses, and the explicit
-``bsm`` argument of ``S3Path`` methods.
+``s3_client`` argument of ``S3Path`` methods.
 
-This is the only test file that passes a client explicitly (``bsm=``); the
-other tests rely on ``s3_context``. When ``bsm`` is renamed, only this file
-changes.
+This is the only test file that passes a client explicitly (``s3_client=``);
+the other tests rely on ``s3_context``.
 
 Test order:
 
-1. ``resolve_s3_client`` with nothing, a client, and an object holding a client;
-2. an ``S3Path`` method with ``bsm=`` calls AWS through that client only;
-3. an ``S3Path`` produced with ``bsm=`` loads its missing metadata with that
-   client (see ``s3pathlib.core.metadata``);
+1. ``resolve_s3_client`` with nothing, an S3 client, and anything else;
+2. an ``S3Path`` method with ``s3_client=`` calls AWS through that client
+   only; the 2.x name ``bsm`` is gone;
+3. an ``S3Path`` produced with ``s3_client=`` loads its missing metadata with
+   that client, but its other methods do not use it (see
+   ``s3pathlib.core.metadata``);
 4. an explicit client with refreshable credentials keeps working.
 """
 
+import inspect
 import subprocess
 import types
 
 import boto3
+import pytest
 
 from s3pathlib.api import S3Path
 from s3pathlib.api import s3_context
@@ -55,43 +58,90 @@ class ResolveS3ClientMixin(BaseTest):
         s3_client = self.boto_ses.client("s3")
         assert resolve_s3_client(s3_context, s3_client) is s3_client
 
-    def test_resolve_object_with_s3_client(self):
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            pytest.param("bsm", id="object-with-s3_client"),
+            pytest.param("sts", id="other-boto3-client"),
+            pytest.param("str", id="str"),
+        ],
+    )
+    def test_resolve_not_an_s3_client(self, kind):
         """
-        An object with an ``s3_client`` attribute (e.g. a ``BotoSesManager``)
-        gives that client.
+        Anything but a boto3 S3 client raises ``TypeError``, before any call.
+        A ``BotoSesManager`` (2.x accepted it) is not accepted: pass its
+        ``s3_client``.
         """
-        s3_client = self.boto_ses.client("s3")
-        bsm = types.SimpleNamespace(s3_client=s3_client)
-        assert resolve_s3_client(s3_context, bsm) is s3_client
+        if kind == "bsm":
+            value = types.SimpleNamespace(s3_client=self.boto_ses.client("s3"))
+        elif kind == "sts":
+            value = self.boto_ses.client("sts")
+        else:
+            value = "s3"
+        with pytest.raises(TypeError, match="s3_client must be a boto3 S3 client.*bsm.s3_client"):
+            resolve_s3_client(s3_context, value)
 
     # --------------------------------------------------------------------------
-    # 2. S3Path methods with bsm=
+    # 2. S3Path methods with s3_client=
     # --------------------------------------------------------------------------
     def test_s3path_explicit_client(self):
         """
-        ``bsm=`` sends the call through the given client, not through
+        ``s3_client=`` sends the call through the given client, not through
         ``s3_context``.
         """
         p = self.s3dir_test / "file.txt"
         s3_client = self.boto_ses.client("s3")
         with record_api_calls(s3_context.s3_client) as default_calls:
             with record_api_calls(s3_client) as explicit_calls:
-                p.write_text("hello", bsm=s3_client)
+                p.write_text("hello", s3_client=s3_client)
         assert explicit_calls == ["PutObject"]
         assert default_calls == []
+
+    def test_s3path_not_an_s3_client(self):
+        """
+        A ``BotoSesManager`` passed as ``s3_client`` raises ``TypeError``
+        before any call, not an ``AttributeError`` at the first call.
+        """
+        p = self.s3dir_test / "file.txt"
+        bsm = types.SimpleNamespace(s3_client=self.boto_ses.client("s3"))
+        with record_api_calls(s3_context.s3_client) as calls:
+            with pytest.raises(TypeError, match="bsm.s3_client"):
+                p.write_text("hello", s3_client=bsm)
+        assert calls == []
+
+    def test_bsm_removed(self):
+        """
+        No ``S3Path`` method has the 2.x argument ``bsm``; every method that
+        calls AWS takes ``s3_client`` instead.
+        """
+        with_bsm = list()
+        with_s3_client = list()
+        for name in dir(S3Path):
+            if name.startswith("_"):
+                continue
+            func = getattr(S3Path, name)
+            if not inspect.isfunction(func) and not inspect.ismethod(func):
+                continue
+            parameters = inspect.signature(func).parameters
+            if "bsm" in parameters:
+                with_bsm.append(name)
+            if "s3_client" in parameters:
+                with_s3_client.append(name)
+        assert with_bsm == []
+        assert len(with_s3_client) == 35
 
     # --------------------------------------------------------------------------
     # 3. Metadata loaded with the client that produced the path
     # --------------------------------------------------------------------------
     def test_listed_path_loads_metadata_with_its_client(self):
         """
-        A path listed with ``bsm=`` loads its missing metadata with that
+        A path listed with ``s3_client=`` loads its missing metadata with that
         client, not with ``s3_context`` (2.x always used ``s3_context``, the
         wrong account when listing with the client of another account).
         """
         self.put(self.s3dir_test / "file.txt")
         s3_client = self.boto_ses.client("s3")
-        p = self.s3dir_test.iter_objects(bsm=s3_client).one()
+        p = self.s3dir_test.iter_objects(s3_client=s3_client).one()
         with record_api_calls(s3_context.s3_client) as default_calls:
             with record_api_calls(s3_client) as explicit_calls:
                 assert p.metadata == {}
@@ -100,13 +150,13 @@ class ResolveS3ClientMixin(BaseTest):
 
     def test_head_object_remembers_its_client(self):
         """
-        ``head_object(bsm=...)`` remembers the client: after ``clear_cache()``,
+        ``head_object(s3_client=...)`` remembers the client: after ``clear_cache()``,
         the next property read loads the metadata with it.
         """
         p = self.s3dir_test / "file.txt"
         self.put(p)
         s3_client = self.boto_ses.client("s3")
-        p.head_object(bsm=s3_client)
+        p.head_object(s3_client=s3_client)
         p.clear_cache()
         with record_api_calls(s3_context.s3_client) as default_calls:
             with record_api_calls(s3_client) as explicit_calls:
@@ -116,13 +166,13 @@ class ResolveS3ClientMixin(BaseTest):
 
     def test_uploaded_path_loads_metadata_with_its_client(self, tmp_path):
         """
-        The path returned by ``upload_file(bsm=...)`` has no snapshot, and
+        The path returned by ``upload_file(s3_client=...)`` has no snapshot, and
         loads it with that client.
         """
         local_file = tmp_path / "file.txt"
         local_file.write_bytes(b"hello")
         s3_client = self.boto_ses.client("s3")
-        new = (self.s3dir_test / "file.txt").upload_file(local_file, bsm=s3_client)
+        new = (self.s3dir_test / "file.txt").upload_file(local_file, s3_client=s3_client)
         with record_api_calls(s3_context.s3_client) as default_calls:
             with record_api_calls(s3_client) as explicit_calls:
                 assert new.size == 5
@@ -131,7 +181,7 @@ class ResolveS3ClientMixin(BaseTest):
 
     def test_sync_uses_explicit_client(self, monkeypatch):
         """
-        ``S3Path.sync(bsm=...)`` runs the AWS CLI with the credentials and the
+        ``S3Path.sync(s3_client=...)`` runs the AWS CLI with the credentials and the
         region of that client, not of ``s3_context``.
         """
         calls = list()
@@ -147,7 +197,7 @@ class ResolveS3ClientMixin(BaseTest):
             aws_secret_access_key="secret",
             region_name="eu-west-1",
         ).client("s3")
-        S3Path.sync(self.s3dir_test, "/tmp/data", bsm=s3_client, verbose=False)
+        S3Path.sync(self.s3dir_test, "/tmp/data", s3_client=s3_client, verbose=False)
         assert calls[0]["AWS_ACCESS_KEY_ID"] == "EXPLICIT"
         assert calls[0]["AWS_DEFAULT_REGION"] == "eu-west-1"
 
@@ -160,13 +210,31 @@ class ResolveS3ClientMixin(BaseTest):
         p = self.s3dir_test / "file.txt"
         self.put(p)
         s3_client = self.boto_ses.client("s3")
-        listed = self.s3dir_test.iter_objects(bsm=s3_client).one()
+        listed = self.s3dir_test.iter_objects(s3_client=s3_client).one()
         derived = listed.parent / "file.txt"
         with record_api_calls(s3_context.s3_client) as default_calls:
             with record_api_calls(s3_client) as explicit_calls:
                 assert derived.size == 5
                 assert S3Path(p.uri).size == 5
         assert default_calls == ["HeadObject", "HeadObject"]
+        assert explicit_calls == []
+
+    def test_operations_do_not_use_remembered_client(self):
+        """
+        The remembered client is only for the snapshot: the other methods of a
+        listed path use ``s3_context`` unless given ``s3_client``, the same as
+        a derived path, so the client never depends on where the path came
+        from.
+        """
+        p = self.s3dir_test / "file.txt"
+        self.put(p)
+        s3_client = self.boto_ses.client("s3")
+        listed = self.s3dir_test.iter_objects(s3_client=s3_client).one()
+        with record_api_calls(s3_context.s3_client) as default_calls:
+            with record_api_calls(s3_client) as explicit_calls:
+                assert listed.read_bytes() == b"hello"
+                listed.get_tags()
+        assert default_calls == ["GetObject", "GetObjectTagging"]
         assert explicit_calls == []
 
     # --------------------------------------------------------------------------
@@ -182,7 +250,7 @@ class ResolveS3ClientMixin(BaseTest):
         s3_client, fetched_keys = make_refreshable_s3_client()
         with record_signing_access_keys(s3_client) as access_keys:
             for _ in range(3):
-                p.write_text("hello", bsm=s3_client)
+                p.write_text("hello", s3_client=s3_client)
         assert fetched_keys == ["AK1", "AK2", "AK3"]
         assert access_keys == ["AK1", "AK2", "AK3"]
 

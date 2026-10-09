@@ -39,7 +39,6 @@ from ..tag import parse_tags, encode_tag_set
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -62,7 +61,7 @@ class TaggingAPIMixin:
         version_id: str = OPT,
         expected_bucket_owner: str = OPT,
         request_payer: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> tuple[str | None, TagType]:
         """
         Get the tags of the object, see get_object_tagging_.
@@ -82,8 +81,8 @@ class TaggingAPIMixin:
         :raises S3PathIsNotFileError: for a folder or a bucket.
         """
         self._ensure_taggable()
-        s3_client = resolve_s3_client(s3_context, bsm)
-        res = s3_client.get_object_tagging(
+        client = resolve_s3_client(s3_context, s3_client)
+        res = client.get_object_tagging(
             **remove_optional(
                 Bucket=self.bucket,
                 Key=self.key,
@@ -104,7 +103,7 @@ class TaggingAPIMixin:
         checksum_algorithm: str = OPT,
         expected_bucket_owner: str = OPT,
         request_payer: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> tuple[str | None, TagType]:
         """
         Replace all the tags of the object with ``tags``, see
@@ -126,8 +125,8 @@ class TaggingAPIMixin:
         :raises S3PathIsNotFileError: for a folder or a bucket.
         """
         self._ensure_taggable()
-        s3_client = resolve_s3_client(s3_context, bsm)
-        res = s3_client.put_object_tagging(
+        client = resolve_s3_client(s3_context, s3_client)
+        res = client.put_object_tagging(
             **remove_optional(
                 Bucket=self.bucket,
                 Key=self.key,
@@ -150,7 +149,7 @@ class TaggingAPIMixin:
         checksum_algorithm: str = OPT,
         expected_bucket_owner: str = OPT,
         request_payer: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> tuple[str | None, TagType]:
         """
         Update the tags of the object like ``dict.update``: add the new keys,
@@ -176,9 +175,9 @@ class TaggingAPIMixin:
         :raises S3PathIsNotFileError: for a folder or a bucket.
         """
         self._ensure_taggable()
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         return update_object_tagging(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=self.bucket,
             key=self.key,
             tags=tags,

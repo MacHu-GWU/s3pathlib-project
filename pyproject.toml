@@ -38,7 +38,6 @@ dependencies = [
     "boto3>=1.41.0,<2.0.0",
     "iterproxy>=0.3.1,<1.0.0",
     "pathlib-mate>=1.0.1,<2.0.0",
-    "boto-session-manager>=2.0.1,<3.0.0",
     "smart-open>=7.0.0,<9.0.0",
     "typing-extensions>=4.5.0; python_version < '3.13'", # backport of warnings.deprecated
 ]

@@ -3,7 +3,6 @@
 """
 Upload local files to S3.
 
-.. _bsm: https://github.com/aws-samples/boto-session-manager-project
 .. _upload_file: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html
 """
 
@@ -14,7 +13,6 @@ from pathlib import Path
 
 from .._arg import OPT
 from .._arg import remove_optional
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 from ..better_client.upload import upload_dir
 from ..type import PathType
@@ -23,7 +21,6 @@ from ..aws import s3_context
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
     from boto3.s3.transfer import TransferConfig
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -39,7 +36,7 @@ class UploadAPIMixin:
         extra_args: dict = OPT,
         callback: T.Callable[[int], T.Any] = OPT,
         config: TransferConfig = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> S3Path:
         """
         Upload a local file to this S3 object, with boto3's upload_file_
@@ -67,7 +64,8 @@ class UploadAPIMixin:
             of bytes sent.
         :param config: ``Config`` of upload_file_, a
             ``boto3.s3.transfer.TransferConfig``.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: a new :class:`~s3pathlib.core.s3path.S3Path` of the uploaded
             object, without metadata snapshot (the first property read loads
@@ -92,9 +90,9 @@ class UploadAPIMixin:
         if p.is_dir():
             raise IsADirectoryError(f"local path '{p}' is a directory, not a file")
         if overwrite is False:
-            self.ensure_not_exists(bsm=bsm)
-        s3_client = resolve_s3_client(s3_context, bsm)
-        s3_client.upload_file(
+            self.ensure_not_exists(s3_client=s3_client)
+        client = resolve_s3_client(s3_context, s3_client)
+        client.upload_file(
             Filename=str(p.absolute()),
             Bucket=self.bucket,
             Key=self.key,
@@ -107,7 +105,7 @@ class UploadAPIMixin:
         s3path = self.copy()
         # no snapshot (upload_file returns nothing), but remember the client
         # that loads it, see core.metadata
-        s3path._s3_client = explicit_s3_client(s3_client, bsm)
+        s3path._s3_client = s3_client
         return s3path
 
     def upload_dir(
@@ -115,7 +113,7 @@ class UploadAPIMixin:
         local_dir: PathType,
         pattern: str = "**/*",
         overwrite: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> int:
         """
         Upload the files of a local directory and its subdirectories to this
@@ -135,7 +133,8 @@ class UploadAPIMixin:
             Default ``"**/*"``: every file, in every subdirectory.
         :param overwrite: if ``False`` (default), check every target key
             first, and upload nothing if any of them exists (not atomic).
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: the number of files uploaded.
 
@@ -147,9 +146,9 @@ class UploadAPIMixin:
         """
         self.ensure_not_relpath()
         self.ensure_dir()
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         return upload_dir(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=self.bucket,
             prefix=self.key,
             local_dir=local_dir,

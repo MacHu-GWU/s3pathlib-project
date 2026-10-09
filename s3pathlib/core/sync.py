@@ -6,8 +6,8 @@ Sync folders between S3 and S3, S3 and local, local and S3, with the
 command of the AWS CLI, which must be installed.
 
 **The CLI uses the identity of the S3 client.** The command runs with the
-credentials and the region of the S3 client of the call (``bsm=...``, or the
-client of ``s3_context``), passed as environment variables, and with its
+credentials and the region of the S3 client of the call (``s3_client=...``, or
+the client of ``s3_context``), passed as environment variables, and with its
 endpoint (``--endpoint-url``) when it is not an AWS endpoint. The environment
 variables that would make the CLI use another identity (``AWS_PROFILE``,
 ``AWS_ACCESS_KEY_ID``, ...) are removed from the environment of the command,
@@ -42,7 +42,6 @@ from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 # environment variables that would give the CLI another identity, region or
@@ -123,7 +122,7 @@ def _make_env(s3_client: S3Client) -> tuple[dict[str, str], list[str]]:
 def _sync(
     src: S3Path | PathType,
     dst: S3Path | PathType,
-    bsm: BotoSesManager | S3Client | None,
+    s3_client: S3Client | None,
     quite: bool,
     include: str | None,
     exclude: str | None,
@@ -164,8 +163,8 @@ def _sync(
             "https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
         )
 
-    s3_client = resolve_s3_client(s3_context, bsm)
-    env, extra_args = _make_env(s3_client)
+    client = resolve_s3_client(s3_context, s3_client)
+    env, extra_args = _make_env(client)
     args = ["aws", "s3", "sync", src_arg, dst_arg]
     args.extend(extra_args)
     # not --quiet, which also hides the errors: they go into S3SyncError
@@ -214,7 +213,7 @@ class SyncAPIMixin:
         cls: type[S3Path],
         src: S3Path | PathType,
         dst: S3Path | PathType,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
         quite: bool = NOT_GIVEN,
         include: str | None = None,
         exclude: str | None = None,
@@ -238,8 +237,8 @@ class SyncAPIMixin:
             ``s3://`` URI, or a local path (``str`` or ``os.PathLike``).
         :param dst: the target folder, the same kinds as ``src``. At least
             one of them is in S3.
-        :param bsm: the S3 client whose identity the CLI uses, default the
-            client of ``s3_context``.
+        :param s3_client: the boto3 S3 client whose identity the CLI uses,
+            default the client of ``s3_context``.
         :param quite: deprecated, use ``quiet``. When given, it is used
             instead of ``quiet``.
         :param include: ``--include`` pattern.
@@ -268,7 +267,7 @@ class SyncAPIMixin:
         _sync(
             src=src,
             dst=dst,
-            bsm=bsm,
+            s3_client=s3_client,
             quite=quite,
             include=include,
             exclude=exclude,
@@ -284,7 +283,7 @@ class SyncAPIMixin:
     def sync_from(
         self: S3Path,
         src: S3Path | PathType,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
         quite: bool = NOT_GIVEN,
         include: str | None = None,
         exclude: str | None = None,
@@ -302,7 +301,7 @@ class SyncAPIMixin:
         _sync(
             src=src,
             dst=self,
-            bsm=bsm,
+            s3_client=s3_client,
             quite=quite,
             include=include,
             exclude=exclude,
@@ -318,7 +317,7 @@ class SyncAPIMixin:
     def sync_to(
         self: S3Path,
         dst: S3Path | PathType,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
         quite: bool = NOT_GIVEN,
         include: str | None = None,
         exclude: str | None = None,
@@ -336,7 +335,7 @@ class SyncAPIMixin:
         _sync(
             src=self,
             dst=dst,
-            bsm=bsm,
+            s3_client=s3_client,
             quite=quite,
             include=include,
             exclude=exclude,

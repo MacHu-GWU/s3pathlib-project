@@ -21,7 +21,6 @@ Otherwise the copy keeps all of them, without the extra call.
 source, ``NoSuchBucket``.
 
 .. _copy_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/copy_object.html
-.. _bsm: https://github.com/aws-samples/boto-session-manager-project
 """
 
 from __future__ import annotations
@@ -43,13 +42,11 @@ from ..better_client.list_objects import paginate_list_objects_v2
 from ..better_client.delete_object import _delete_objects
 from ..better_client.delete_object import delete_object
 
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 from ..aws import s3_context
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 # copy_object parameters that S3 only applies with MetadataDirective=REPLACE,
@@ -161,7 +158,7 @@ class CopyAPIMixin:
         metadata: MetadataType = OPT,
         tags: TagType = OPT,
         overwrite: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
         acl: str = OPT,
         cache_control: str = OPT,
         content_disposition: str = OPT,
@@ -230,8 +227,8 @@ class CopyAPIMixin:
         dst.ensure_not_relpath()
         dst.ensure_object()
         if overwrite is False:
-            dst.ensure_not_exists(bsm=bsm)
-        s3_client = resolve_s3_client(s3_context, bsm)
+            dst.ensure_not_exists(s3_client=s3_client)
+        client = resolve_s3_client(s3_context, s3_client)
         replace_kwargs, other_kwargs, head_kwargs = _make_copy_kwargs(
             cache_control=cache_control,
             content_disposition=content_disposition,
@@ -266,7 +263,7 @@ class CopyAPIMixin:
             expected_source_bucket_owner=expected_source_bucket_owner,
         )
         response = _copy_object(
-            s3_client=s3_client,
+            s3_client=client,
             src_bucket=self.bucket,
             src_key=self.key,
             dst_bucket=dst.bucket,
@@ -293,7 +290,7 @@ class CopyAPIMixin:
         s3path._set_meta(
             meta,
             complete=False,
-            s3_client=explicit_s3_client(s3_client, bsm),
+            s3_client=s3_client,
         )
         return s3path
 
@@ -303,7 +300,7 @@ class CopyAPIMixin:
         metadata: MetadataType,
         tags: TagType,
         overwrite: bool,
-        bsm: BotoSesManager | S3Client | None,
+        s3_client: S3Client | None,
         kwargs: dict,
     ) -> list[str]:
         """
@@ -328,13 +325,13 @@ class CopyAPIMixin:
                     f"{name} only applies to copying a file, not a folder"
                 )
         _ensure_no_overlap(self, dst)
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         replace_kwargs, other_kwargs, head_kwargs = _make_copy_kwargs(**kwargs)
 
         # every key under the folder, folder markers included
         src_keys = list()
         for content in paginate_list_objects_v2(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=self.bucket,
             prefix=self.key,
         ).contents():
@@ -346,12 +343,12 @@ class CopyAPIMixin:
 
         if overwrite is False:
             for _, dst_key in todo:
-                if is_object_exists(s3_client, dst.bucket, dst_key):
+                if is_object_exists(client, dst.bucket, dst_key):
                     raise exc.S3FileAlreadyExist.make(f"s3://{dst.bucket}/{dst_key}")
 
         for src_key, dst_key in todo:
             _copy_object(
-                s3_client=s3_client,
+                s3_client=client,
                 src_bucket=self.bucket,
                 src_key=src_key,
                 dst_bucket=dst.bucket,
@@ -372,7 +369,7 @@ class CopyAPIMixin:
         metadata: MetadataType = OPT,
         tags: TagType = OPT,
         overwrite: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
         acl: str = OPT,
         cache_control: str = OPT,
         content_disposition: str = OPT,
@@ -433,7 +430,7 @@ class CopyAPIMixin:
             metadata=metadata,
             tags=tags,
             overwrite=overwrite,
-            bsm=bsm,
+            s3_client=s3_client,
             kwargs=dict(
                 acl=acl,
                 cache_control=cache_control,
@@ -477,7 +474,7 @@ class CopyAPIMixin:
         metadata: MetadataType = OPT,
         tags: TagType = OPT,
         overwrite: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
         acl: str = OPT,
         cache_control: str = OPT,
         content_disposition: str = OPT,
@@ -525,7 +522,7 @@ class CopyAPIMixin:
             metadata=metadata,
             tags=tags,
             overwrite=overwrite,
-            bsm=bsm,
+            s3_client=s3_client,
             acl=acl,
             cache_control=cache_control,
             content_disposition=content_disposition,
@@ -572,7 +569,7 @@ class CopyAPIMixin:
         metadata: MetadataType = OPT,
         tags: TagType = OPT,
         overwrite: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
         acl: str = OPT,
         cache_control: str = OPT,
         content_disposition: str = OPT,
@@ -656,21 +653,21 @@ class CopyAPIMixin:
             expected_bucket_owner=expected_bucket_owner,
             expected_source_bucket_owner=expected_source_bucket_owner,
         )
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         if self.is_dir():
             src_keys = self._copy_dir(
                 dst=dst,
                 metadata=metadata,
                 tags=tags,
                 overwrite=overwrite,
-                bsm=bsm,
+                s3_client=s3_client,
                 kwargs=kwargs,
             )
             n_deleted = 0
             for keys in utils.grouper_list(src_keys, 1000):
                 objects = [{"Key": key} for key in keys]
                 n_deleted += _delete_objects(
-                    s3_client=s3_client,
+                    s3_client=client,
                     bucket=self.bucket,
                     objects=objects,
                     n_deleted=n_deleted,
@@ -689,10 +686,10 @@ class CopyAPIMixin:
                 metadata=metadata,
                 tags=tags,
                 overwrite=overwrite,
-                bsm=bsm,
+                s3_client=s3_client,
                 **kwargs,
             )
-            delete_object(s3_client, self.bucket, self.key)
+            delete_object(client, self.bucket, self.key)
             return 1
 
 

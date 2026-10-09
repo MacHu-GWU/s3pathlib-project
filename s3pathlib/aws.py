@@ -3,8 +3,8 @@
 """
 The default S3 client that ``s3pathlib`` uses to call the AWS API.
 
-Every ``S3Path`` method that calls AWS takes an optional ``bsm`` argument. When
-it is not given, the method uses ``s3_context.s3_client``::
+Every ``S3Path`` method that calls AWS takes an optional ``s3_client`` argument.
+When it is not given, the method uses ``s3_context.s3_client``::
 
     import boto3
     from s3pathlib.api import S3Path

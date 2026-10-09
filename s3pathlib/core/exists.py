@@ -17,12 +17,10 @@ from ..better_client.head_object import head_object
 from ..better_client.list_objects import paginate_list_objects_v2
 from ..aws import s3_context
 
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -41,7 +39,7 @@ class ExistsAPIMixin:
     def exists(
         self: S3Path,
         version_id: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> bool:
         """
         Test if this path exists in S3.
@@ -79,12 +77,12 @@ class ExistsAPIMixin:
         self.ensure_not_relpath()
         self._ensure_version_id_on_file(version_id)
         if self.is_bucket():
-            s3_client = resolve_s3_client(s3_context, bsm)
-            return is_bucket_exists(s3_client, self.bucket)
+            client = resolve_s3_client(s3_context, s3_client)
+            return is_bucket_exists(client, self.bucket)
         elif self.is_file():
-            s3_client = resolve_s3_client(s3_context, bsm)
+            client = resolve_s3_client(s3_context, s3_client)
             dct = head_object(
-                s3_client=s3_client,
+                s3_client=client,
                 bucket=self.bucket,
                 key=self.key,
                 version_id=version_id,
@@ -99,14 +97,14 @@ class ExistsAPIMixin:
                     self._set_meta(
                         dct,
                         complete=True,
-                        s3_client=explicit_s3_client(s3_client, bsm),
+                        s3_client=s3_client,
                     )
                 return True
         else:  # a folder
-            s3_client = resolve_s3_client(s3_context, bsm)
+            client = resolve_s3_client(s3_context, s3_client)
             # any key under the folder, its folder marker included
             proxy = paginate_list_objects_v2(
-                s3_client=s3_client,
+                s3_client=client,
                 bucket=self.bucket,
                 prefix=self.key,
                 batch_size=1,
@@ -127,7 +125,7 @@ class ExistsAPIMixin:
     def ensure_not_exists(
         self: S3Path,
         version_id: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> None:
         """
         A validator method that ensures this path does not exist, see
@@ -141,7 +139,7 @@ class ExistsAPIMixin:
 
         It also raises the errors of :meth:`exists`.
         """
-        if self.exists(version_id=version_id, bsm=bsm):
+        if self.exists(version_id=version_id, s3_client=s3_client):
             if self.is_bucket():
                 raise exc.S3BucketAlreadyExist.make(self.uri)
             elif self.is_file():

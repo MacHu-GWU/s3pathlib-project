@@ -57,11 +57,19 @@ path built from this one (``joinpath``, ``parent``, ``change``, ``copy()``,
 
 **The S3 client used to load the snapshot**
 
-An ``S3Path`` produced by a call with an explicit client (``bsm=...``)
-remembers that client, and loads the missing fields with it, so that a path
-listed with the client of another AWS account is not loaded with the default
-client. Otherwise, the client of ``s3_context`` at the time of the call is
-used. Pickle does not keep the client (``copy.copy`` / ``copy.deepcopy`` do).
+An ``S3Path`` produced by a call with an explicit client (``s3_client=...``)
+remembers that client, and loads the missing fields (and ``head_object()``
+without a client) with it, so that a path listed with the client of another
+AWS account is not loaded with the default client. Otherwise, the client of
+``s3_context`` at the time of the call is used. Pickle does not keep the
+client (``copy.copy`` / ``copy.deepcopy`` do).
+
+The remembered client is only used for the snapshot. Every other method
+(``read_bytes``, ``write_bytes``, ``delete``, ``copy_file``, ...) uses its
+``s3_client`` argument, or else ``s3_context``, however the path was made:
+a derived path (``parent``, ``/``, ``change``) has no snapshot and no
+remembered client, so using it for operations would make the same code call
+different accounts depending on where the path came from.
 
 **Properties return copies**
 
@@ -89,24 +97,8 @@ from .filterable_property import FilterableProperty
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
     from mypy_boto3_s3.type_defs import HeadObjectOutputTypeDef, PutObjectOutputTypeDef
-
-
-def explicit_s3_client(
-    s3_client: S3Client,
-    bsm: BotoSesManager | S3Client | None,
-) -> S3Client | None:
-    """
-    The client to remember in a new metadata snapshot (see the module
-    docstring): ``s3_client`` if it was given explicitly with ``bsm``,
-    ``None`` if it came from ``s3_context``.
-    """
-    if bsm is None:
-        return None
-    else:
-        return s3_client
 
 
 class MetadataAPIMixin:
@@ -152,7 +144,7 @@ class MetadataAPIMixin:
     def head_object(
         self: S3Path,
         version_id: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> dict:
         """
         Load the latest metadata of the object (or of ``version_id``) with
@@ -160,8 +152,8 @@ class MetadataAPIMixin:
         with it. See the module docstring.
 
         :param version_id: the version to load, default the latest one.
-        :param bsm: the client to use. Default: the client that loaded the
-            current snapshot, if any, otherwise ``s3_context``.
+        :param s3_client: the boto3 S3 client to use. Default: the client that
+            loaded the current snapshot, if any, otherwise ``s3_context``.
 
         :return: the ``head_object`` response.
 
@@ -172,17 +164,17 @@ class MetadataAPIMixin:
         :raises S3PermissionDenied: if S3 answers 403.
         """
         self._ensure_has_object()
-        if bsm is None:
+        if s3_client is None:
             explicit_client = self._s3_client
         else:
-            explicit_client = resolve_s3_client(s3_context, bsm)
+            explicit_client = resolve_s3_client(s3_context, s3_client)
         if explicit_client is None:
-            s3_client = resolve_s3_client(s3_context, None)
+            client = resolve_s3_client(s3_context, None)
         else:
-            s3_client = explicit_client
+            client = explicit_client
         try:
             response = head_object(
-                s3_client,
+                client,
                 self.bucket,
                 self.key,
                 version_id=version_id,

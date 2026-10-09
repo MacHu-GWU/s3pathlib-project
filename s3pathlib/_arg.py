@@ -12,7 +12,7 @@ The rule for argument defaults:
   with ``ParamValidationError`` before sending the request. Treating ``None`` as
   "not given" would silently drop a condition such as ``if_match=p.etag`` when
   ``p.etag`` is ``None``.
-- An argument of s3pathlib itself (``bsm``, ``limit``, ``region``, ...)
+- An argument of s3pathlib itself (``s3_client``, ``limit``, ``region``, ...)
   defaults to ``None`` or a plain value, so users who wrap s3pathlib never need
   to import :data:`OPT`.
 

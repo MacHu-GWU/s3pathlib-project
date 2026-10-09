@@ -26,13 +26,11 @@ from .._arg import remove_optional
 from ..aws import s3_context
 from ..constants import S3_LIST_BUCKETS_MAX_BUCKETS
 from ..exc import S3ValidationError
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -70,7 +68,7 @@ class BucketAPIMixin:
         grant_write_acp: str = OPT,
         object_lock_enabled_for_bucket: bool = OPT,
         object_ownership: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> dict:
         """
         Create this bucket, see `create_bucket`_.
@@ -103,15 +101,15 @@ class BucketAPIMixin:
             (a legacy behavior of S3).
         """
         self.ensure_bucket()
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         if region is None:
-            region = s3_client.meta.region_name
+            region = client.meta.region_name
         # us-east-1 is the default location, S3 rejects it as a LocationConstraint
         if region == "us-east-1":
             create_bucket_configuration = OPT
         else:
             create_bucket_configuration = dict(LocationConstraint=region)
-        response = s3_client.create_bucket(
+        response = client.create_bucket(
             **remove_optional(
                 Bucket=self.bucket,
                 ACL=acl,
@@ -130,7 +128,7 @@ class BucketAPIMixin:
     def delete_bucket(
         self: S3Path,
         expected_bucket_owner: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> dict:
         """
         Delete this bucket, see `delete_bucket`_. The bucket must be empty
@@ -147,8 +145,8 @@ class BucketAPIMixin:
             and ``BucketNotEmpty`` when the bucket is not empty.
         """
         self.ensure_bucket()
-        s3_client = resolve_s3_client(s3_context, bsm)
-        response = s3_client.delete_bucket(
+        client = resolve_s3_client(s3_context, s3_client)
+        response = client.delete_bucket(
             **remove_optional(
                 Bucket=self.bucket,
                 ExpectedBucketOwner=expected_bucket_owner,
@@ -160,7 +158,7 @@ class BucketAPIMixin:
     def get_bucket_versioning(
         self: S3Path,
         expected_bucket_owner: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> dict:
         """
         Get the versioning state of this bucket, see `get_bucket_versioning`_.
@@ -176,8 +174,8 @@ class BucketAPIMixin:
         :raises botocore.exceptions.ClientError: as is, e.g. ``NoSuchBucket``.
         """
         self.ensure_bucket()
-        s3_client = resolve_s3_client(s3_context, bsm)
-        response = s3_client.get_bucket_versioning(
+        client = resolve_s3_client(s3_context, s3_client)
+        response = client.get_bucket_versioning(
             **remove_optional(
                 Bucket=self.bucket,
                 ExpectedBucketOwner=expected_bucket_owner,
@@ -187,7 +185,7 @@ class BucketAPIMixin:
 
     def is_versioning_enabled(
         self: S3Path,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> bool:
         """
         Check if the versioning of this bucket is enabled. ``False`` if it is
@@ -196,12 +194,12 @@ class BucketAPIMixin:
         :raises S3PathIsNotBucketError: if this path is not a bucket.
         :raises botocore.exceptions.ClientError: as is, e.g. ``NoSuchBucket``.
         """
-        res = self.get_bucket_versioning(bsm=bsm)
+        res = self.get_bucket_versioning(s3_client=s3_client)
         return res.get("Status", "UNKNOWN") == "Enabled"
 
     def is_versioning_suspended(
         self: S3Path,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> bool:
         """
         Check if the versioning of this bucket is suspended. ``False`` if it
@@ -210,7 +208,7 @@ class BucketAPIMixin:
         :raises S3PathIsNotBucketError: if this path is not a bucket.
         :raises botocore.exceptions.ClientError: as is, e.g. ``NoSuchBucket``.
         """
-        res = self.get_bucket_versioning(bsm=bsm)
+        res = self.get_bucket_versioning(s3_client=s3_client)
         return res.get("Status", "UNKNOWN") == "Suspended"
 
     def put_bucket_versioning(
@@ -220,7 +218,7 @@ class BucketAPIMixin:
         check_sum_algorithm: str = OPT,
         mfa: str = OPT,
         expected_bucket_owner: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> dict:
         """
         Enable or suspend the versioning of this bucket, see
@@ -245,7 +243,7 @@ class BucketAPIMixin:
         :raises botocore.exceptions.ClientError: as is, e.g. ``NoSuchBucket``.
         """
         self.ensure_bucket()
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         if enable_versioning:
             status = "Enabled"
         else:
@@ -256,7 +254,7 @@ class BucketAPIMixin:
                 versioning_configuration["MFADelete"] = "Enabled"
             else:
                 versioning_configuration["MFADelete"] = "Disabled"
-        response = s3_client.put_bucket_versioning(
+        response = client.put_bucket_versioning(
             **remove_optional(
                 Bucket=self.bucket,
                 ChecksumAlgorithm=check_sum_algorithm,
@@ -270,7 +268,7 @@ class BucketAPIMixin:
     @classmethod
     def list_buckets(
         cls: type[S3Path],
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> list[S3Path]:
         """
         List all buckets of the AWS account, see `list_buckets`_. It fetches
@@ -284,11 +282,11 @@ class BucketAPIMixin:
 
         :raises botocore.exceptions.ClientError: as is, e.g. ``AccessDenied``.
         """
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         kwargs = dict(MaxBuckets=S3_LIST_BUCKETS_MAX_BUCKETS)
         s3bucket_list = list()
         while True:
-            response = s3_client.list_buckets(**kwargs)
+            response = client.list_buckets(**kwargs)
             for dct in response.get("Buckets", []):
                 s3bucket = cls.from_bucket(dct["Name"])
                 meta = {"LastModified": dct["CreationDate"]}
@@ -297,7 +295,7 @@ class BucketAPIMixin:
                 s3bucket._set_meta(
                     meta,
                     complete=False,
-                    s3_client=explicit_s3_client(s3_client, bsm),
+                    s3_client=s3_client,
                 )
                 s3bucket_list.append(s3bucket)
             continuation_token = response.get("ContinuationToken")

@@ -25,7 +25,7 @@ Backlog (TODO)
 
 - Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11.
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
-- Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``, ``boto-session-manager>=2.0.1,<3.0.0``.
+- Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``.
 - Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none`` and ``s3pathlib.exc.ensure_all_none``; the library no longer uses them.
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
@@ -49,6 +49,7 @@ Backlog (TODO)
 - ``relative_to`` (and ``-``) is now the exact inverse of ``/``: ``base / target.relative_to(base) == target``. When both paths have the same parts but one is a file and the other a dir (e.g. ``S3Path("b", "a/").relative_to(S3Path("b", "a"))``), it raises ``ValueError``. Before, it returned the void path, and ``base / void`` was not ``target``.
 - ``s3pathlib.context`` is renamed to ``s3_context`` (``from s3pathlib.api import s3_context``), and its class ``Context`` to ``S3Context``. ``context`` was too generic and is shadowed by the ``context`` argument of AWS Lambda handlers (``def lambda_handler(event, context)``). The old names ``context`` and ``Context`` are removed.
 - ``s3_context`` only holds the default S3 client. Remove ``attach_boto_session``, ``attach_sts_client``, ``boto_ses``, ``sts_client``, ``aws_account_id`` and ``aws_region``. Replace ``context.attach_boto_session(boto_ses)`` with ``s3_context.attach_s3_client(boto_ses.client("s3"))``. For the account id, call ``boto_ses.client("sts").get_caller_identity()["Account"]``; for the region, read ``s3_client.meta.region_name``.
+- Rename the ``bsm`` argument of every ``S3Path`` method that calls AWS to ``s3_client``. It only accepts a boto3 S3 client; anything else, such as a ``BotoSesManager`` (accepted in 2.x), raises ``TypeError`` before any call: replace ``bsm=bsm`` with ``s3_client=bsm.s3_client``. The ``better_client`` functions already took ``s3_client``.
 - ``better_client.is_bucket_exists`` (and ``S3Path("bucket").exists()``, which uses it) raises ``S3PermissionDenied`` (a ``PermissionError``) when S3 returns 403, i.e. the bucket exists but belongs to another AWS account, or you lack the ``s3:ListBucket`` permission. Before, it raised the ``botocore.exceptions.ClientError`` as is; the ``ClientError`` is now the ``__cause__``.
 - ``better_client.head_object`` and ``better_client.is_object_exists`` (and the ``S3Path`` methods built on them, such as ``exists()`` on a file and the metadata properties) raise ``S3PermissionDenied`` when S3 returns 403, even with ``ignore_not_found=True``: no permission is not "not found". Before, they raised the ``botocore.exceptions.ClientError`` as is; it is now the ``__cause__``.
 - Rename the misspelled ``ListObjectsV2OutputTypeDefIterproxy.common_prefixs()`` and ``contents_and_common_prefixs()`` (returned by ``better_client.paginate_list_objects_v2``) to ``common_prefixes()`` and ``contents_and_common_prefixes()``, the same names as in ``better_client.list_object_versions``.
@@ -74,7 +75,7 @@ Backlog (TODO)
 - ``S3Path.copy_dir`` copies every key under the folder, folder markers included (the marker of the folder itself becomes the marker of the target), so empty folders are copied too; the returned count includes them. Before, folder markers were skipped.
 - ``S3Path.delete`` always returns a new ``S3Path`` and no longer changes the path it is called on (see ``s3pathlib.core.metadata``). Before, it returned the path itself with its cached metadata cleared, except for a file with versioning. With versioning, the returned path is the new delete marker; with ``version_id``, the deleted version.
 - ``S3Path.delete`` raises ``ValueError`` for ``version_id`` on a folder, or together with ``is_hard_delete=True``; it was ignored.
-- ``S3Path.sync``, ``sync_from`` and ``sync_to`` run ``aws s3 sync`` with the identity of the S3 client of the call, like every other method: the credentials and the region of ``bsm`` (an S3 client, or an object with an ``s3_client`` such as a ``BotoSesManager``) or of the client of ``s3_context``, and its endpoint when it is not an AWS endpoint (``--endpoint-url``). Environment variables such as ``AWS_PROFILE`` no longer decide which credentials the command uses; attach a client of that profile instead. Before, the command used the default credentials of the environment and ignored the attached client. See ``s3pathlib.core.sync`` for the limits (temporary credentials are not refreshed during the sync).
+- ``S3Path.sync``, ``sync_from`` and ``sync_to`` run ``aws s3 sync`` with the identity of the S3 client of the call, like every other method: the credentials and the region of ``s3_client`` or of the client of ``s3_context``, and its endpoint when it is not an AWS endpoint (``--endpoint-url``). Environment variables such as ``AWS_PROFILE`` no longer decide which credentials the command uses; attach a client of that profile instead. Before, the command used the default credentials of the environment and ignored the attached client. See ``s3pathlib.core.sync`` for the limits (temporary credentials are not refreshed during the sync).
 - ``S3Path.sync`` raises ``s3pathlib.exc.S3SyncError`` (with the exit code and stderr of the command) instead of ``SystemError`` when the command fails.
 - ``S3Path.sync`` raises ``S3PathIsNotFolderError`` for an ``S3Path`` of a file (``aws s3 sync`` syncs folders) and ``S3PathTypeError`` for a relative path or the void path.
 - By default (``quiet=True``), ``S3Path.sync`` runs the command with ``--only-show-errors`` instead of ``--quiet``: nothing is printed either way when it succeeds, but ``--quiet`` also hid the error, so a failure had no message.
@@ -109,7 +110,7 @@ Backlog (TODO)
 - Add ``s3pathlib.exc.S3DeleteObjectsError``, raised when S3 fails to delete some objects of a ``delete_objects`` call; it has the ``errors`` S3 returned and the number of objects deleted so far (``n_deleted``).
 - ``S3Path.list_buckets()`` keeps the region of each bucket when S3 returns it, in ``response["BucketRegion"]``. Add ``s3pathlib.constants.S3_LIST_BUCKETS_MAX_BUCKETS``, the page size of ListBuckets (10,000).
 - ``S3Path.head_object`` accepts ``version_id``, to load the metadata of one version.
-- An ``S3Path`` produced by a call with an explicit client (``bsm=...``), e.g. by ``iter_objects(bsm=...)`` or ``head_object(bsm=...)``, remembers that client and loads its missing metadata with it, instead of the default client of ``s3_context``. Pickle does not keep the client; ``copy.copy`` / ``copy.deepcopy`` do.
+- An ``S3Path`` produced by a call with an explicit client (``s3_client=...``), e.g. by ``iter_objects(s3_client=...)`` or ``head_object(s3_client=...)``, remembers that client and loads its missing metadata with it, instead of the default client of ``s3_context``. The other methods do not use it: without ``s3_client`` they use ``s3_context``, however the path was made. Pickle does not keep the client; ``copy.copy`` / ``copy.deepcopy`` do.
 - Add ``s3pathlib.exc.S3ObjectChangedError``.
 - ``S3Path.write_bytes`` and ``S3Path.write_text`` accept ``if_match`` and ``if_none_match``, the conditional writes of S3: ``if_none_match="*"`` only writes a new object, ``if_match=<etag>`` only replaces the object if nobody changed it.
 - ``S3Path.touch`` makes one conditional ``put_object`` call instead of ``head_object`` + ``put_object``, so it is atomic: an object written by someone else in between is never replaced.
@@ -194,7 +195,6 @@ Backlog (TODO)
 **Minor Improvements**
 
 - Support ``smart_open`` 8.x.
-- Support ``boto_session_manager`` 2.x, which moved ``BotoSesManager`` to ``boto_session_manager.api``.
 - ``S3Path.create_bucket`` is no longer beta and no longer emits a warning.
 - Encode spaces in object tags as ``%20`` instead of ``+`` when sending the ``Tagging`` parameter, the same as the official AWS SDKs, so S3 cannot read them as a literal plus sign.
 - ``S3Path(...)`` raises ``TypeError`` with a message naming the wrong argument type, instead of a bare ``TypeError``. ``joinpath``, ``/`` and ``make_relpath`` use the same message for an invalid part.
@@ -255,7 +255,7 @@ Backlog (TODO)
 - ``s3pathlib.type.PathType`` is ``str | os.PathLike``; the library code no longer imports ``pathlib_mate`` (a ``pathlib_mate.Path`` is still accepted, it is an ``os.PathLike``). ``S3Path.upload_file`` uses the standard library ``pathlib``.
 - The tests of ``S3Path.delete`` with versioning also run on moto (moto 5 handles versioned deletes).
 - The ``S3Path.sync`` tests run ``aws s3 sync`` end to end, against a moto server in moto mode and against AWS, when the AWS CLI is installed (they are skipped otherwise); the other tests check the command line and its environment. Add ``flask`` and ``flask-cors`` to the test dependencies, for the moto server.
-- The library code no longer imports ``boto_session_manager`` at runtime (``S3Path.sync`` used ``BotoSesManager.awscli()``); it is only used in type hints.
+- Remove the ``boto-session-manager`` dependency; the library no longer uses it (``S3Path.sync`` used ``BotoSesManager.awscli()``).
 - A test locks the exact set of public names of ``s3pathlib.api``, so any change of the public API is deliberate.
 - Every test module that calls AWS uses ``s3pathlib.tests.mock_aws``, so the whole test suite also runs against real AWS (``mise run cov-aws``). Remove the unused test data ``tests/data/``, ``tests/core/test_upload_dir/`` and ``tests/better_client/dummy_data.py``, and their entries in ``s3pathlib.paths``.
 - Remove the ``func-args`` dependency; its "not given" value is now the private ``s3pathlib._arg.OPT``. Arguments passed on to boto3 still default to "not given", and ``None`` is still not the same: botocore rejects it with ``ParamValidationError`` (S3 has no ``None`` value), so a condition such as ``if_match=p.etag`` is never silently dropped.

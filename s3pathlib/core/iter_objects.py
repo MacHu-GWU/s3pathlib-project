@@ -3,7 +3,6 @@
 """
 List objects related API.
 
-.. _bsm: https://github.com/aws-samples/boto-session-manager-project
 .. _ListObjectsV2: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectsV2.html
 """
 
@@ -22,12 +21,10 @@ from ..better_client.list_objects import (
     calculate_total_size,
     count_objects,
 )
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -131,7 +128,7 @@ class IterObjectsAPIMixin:
         request_payer: str = OPT,
         expected_bucket_owner: str = OPT,
         recursive: bool = True,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> S3PathIterProxy:
         """
         Iterate the objects under this folder (or bucket), yield
@@ -172,7 +169,8 @@ class IterObjectsAPIMixin:
         :param recursive: ``True`` (default) for all the objects under this
             folder, ``False`` for the objects directly in it only (not in sub
             folders).
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :raises S3PathTypeError: for a relative path or the void path.
         :raises S3PathIsNotFolderError: for a file.
@@ -181,10 +179,10 @@ class IterObjectsAPIMixin:
         """
         self._ensure_s3_dir()
         _ensure_limit(limit)
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         bucket = self.bucket
         kwargs = dict(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=bucket,
             prefix=self.key,
             batch_size=_get_page_size(batch_size, limit),
@@ -199,7 +197,7 @@ class IterObjectsAPIMixin:
         # ``limit`` is applied here, to the yielded paths: the folder markers
         # and the folders (common prefixes) are skipped, they must not count
         proxy = paginate_list_objects_v2(**kwargs)
-        explicit_client = explicit_s3_client(s3_client, bsm)
+        explicit_client = s3_client
 
         def _iter_s3path() -> T.Iterable[S3Path]:
             if limit is None:
@@ -232,7 +230,7 @@ class IterObjectsAPIMixin:
         start_after: str = OPT,
         request_payer: str = OPT,
         expected_bucket_owner: str = OPT,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> S3PathIterProxy:
         """
         Iterate the files and the folders directly in this folder (or bucket),
@@ -268,7 +266,8 @@ class IterObjectsAPIMixin:
         :param start_after: See ListObjectsV2_.
         :param request_payer: See ListObjectsV2_.
         :param expected_bucket_owner: See ListObjectsV2_.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :raises S3PathTypeError: for a relative path or the void path.
         :raises S3PathIsNotFolderError: for a file.
@@ -277,13 +276,13 @@ class IterObjectsAPIMixin:
         """
         self._ensure_s3_dir()
         _ensure_limit(limit)
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         bucket = self.bucket
         root = self.root
         # ``limit`` is applied here, to the yielded paths: the folder marker
         # of this folder is skipped, it must not count
         proxy = paginate_list_objects_v2(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=bucket,
             prefix=self.key,
             batch_size=_get_page_size(batch_size, limit),
@@ -294,7 +293,7 @@ class IterObjectsAPIMixin:
             request_payer=request_payer,
             expected_bucket_owner=expected_bucket_owner,
         )
-        explicit_client = explicit_s3_client(s3_client, bsm)
+        explicit_client = s3_client
 
         def _iter_s3path() -> T.Iterable[S3Path]:
             if limit is None:
@@ -336,7 +335,7 @@ class IterObjectsAPIMixin:
         self: S3Path,
         for_human: bool = False,
         include_folder: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> tuple[int, int | str]:
         """
         Count the objects under this folder (or bucket), recursively, and sum
@@ -361,7 +360,8 @@ class IterObjectsAPIMixin:
 
         :param for_human: if ``True``, the size is a human readable string.
         :param include_folder: if ``True``, also count the folder markers.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: ``(count, total_size)``, the size in bytes (or a string with
             ``for_human=True``).
@@ -370,9 +370,9 @@ class IterObjectsAPIMixin:
         :raises S3PathIsNotFolderError: for a file.
         """
         self._ensure_s3_dir()
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         count, size = calculate_total_size(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=self.bucket,
             prefix=self.key,
             include_folder=include_folder,
@@ -384,7 +384,7 @@ class IterObjectsAPIMixin:
     def count_objects(
         self: S3Path,
         include_folder: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> int:
         """
         Count the objects under this folder (or bucket), recursively.
@@ -399,15 +399,16 @@ class IterObjectsAPIMixin:
             4
 
         :param include_folder: if ``True``, also count the folder markers.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :raises S3PathTypeError: for a relative path or the void path.
         :raises S3PathIsNotFolderError: for a file.
         """
         self._ensure_s3_dir()
-        s3_client = resolve_s3_client(s3_context, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
         return count_objects(
-            s3_client=s3_client,
+            s3_client=client,
             bucket=self.bucket,
             prefix=self.key,
             include_folder=include_folder,

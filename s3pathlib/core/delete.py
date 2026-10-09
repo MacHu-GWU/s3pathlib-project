@@ -3,7 +3,6 @@
 """
 Delete S3 file or folder.
 
-.. _bsm: https://github.com/aws-samples/boto-session-manager-project
 .. _delete_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_object.html
 .. _delete_objects: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_objects.html
 """
@@ -14,7 +13,6 @@ import typing as T
 
 from .._arg import OPT
 from ..constants import IS_DELETE_MARKER
-from .metadata import explicit_s3_client
 from .resolve_s3_client import resolve_s3_client
 from ..aws import s3_context
 from ..better_client.delete_object import delete_object
@@ -25,7 +23,6 @@ from ..better_client.delete_object import delete_object_all_versions
 
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
-    from boto_session_manager.api import BotoSesManager
     from mypy_boto3_s3 import S3Client
 
 
@@ -44,7 +41,7 @@ class DeleteAPIMixin:
         check_sum_algorithm: str = OPT,
         is_hard_delete: bool = False,
         skip_prompt: bool = False,
-        bsm: BotoSesManager | S3Client | None = None,
+        s3_client: S3Client | None = None,
     ) -> S3Path:
         """
         Delete this file, or every object under this folder (or bucket).
@@ -94,7 +91,8 @@ class DeleteAPIMixin:
             marker permanently, see above.
         :param skip_prompt: if ``True``, do not ask to confirm before
             deleting everything in a bucket.
-        :param bsm: See bsm_.
+        :param s3_client: the boto3 S3 client to use, default the client of
+            ``s3_context``.
 
         :return: a new ``S3Path`` equal to this one; this ``S3Path`` is not
             changed (see :mod:`s3pathlib.core.metadata`). When S3 answers with
@@ -126,8 +124,8 @@ class DeleteAPIMixin:
                     "version_id deletes one version, is_hard_delete=True deletes "
                     "all versions: give only one of them"
                 )
-        s3_client = resolve_s3_client(s3_context, bsm)
-        explicit_client = explicit_s3_client(s3_client, bsm)
+        client = resolve_s3_client(s3_context, s3_client)
+        explicit_client = s3_client
         bucket = self.bucket
         s3path = self.copy()
         s3path._s3_client = explicit_client
@@ -135,7 +133,7 @@ class DeleteAPIMixin:
             if is_hard_delete:
                 # only this key: a prefix would also match "file.txt.bak"
                 delete_object_all_versions(
-                    s3_client=s3_client,
+                    s3_client=client,
                     bucket=bucket,
                     key=self.key,
                     mfa=mfa,
@@ -146,7 +144,7 @@ class DeleteAPIMixin:
                 )
             else:
                 response = delete_object(
-                    s3_client=s3_client,
+                    s3_client=client,
                     bucket=bucket,
                     key=self.key,
                     version_id=version_id,
@@ -165,7 +163,7 @@ class DeleteAPIMixin:
         else:
             if is_hard_delete:
                 delete_object_versions(
-                    s3_client=s3_client,
+                    s3_client=client,
                     bucket=bucket,
                     prefix=self.key,
                     mfa=mfa,
@@ -177,7 +175,7 @@ class DeleteAPIMixin:
                 )
             else:
                 delete_dir(
-                    s3_client=s3_client,
+                    s3_client=client,
                     bucket=bucket,
                     prefix=self.key,
                     mfa=mfa,
