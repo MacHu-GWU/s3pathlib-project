@@ -21,12 +21,25 @@ from pathlib import Path
 import botocore.exceptions
 import pytest
 from boto3.exceptions import S3UploadFailedError
-from pathlib_mate import Path as PathMate
 
 from s3pathlib.better_client.upload import upload_dir
 from s3pathlib.exc import S3FileAlreadyExist
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.mock_aws import BaseTest
+
+
+class CustomPathLike:
+    """
+    A local path that is only an ``os.PathLike``: neither a ``str`` nor a
+    ``pathlib.Path`` (2.x users pass e.g. a ``pathlib_mate.Path``).
+    """
+
+    def __init__(self, path: str):
+        self._path = path
+
+    def __fspath__(self) -> str:
+        return self._path
+
 
 # relative path -> content
 FILES = {
@@ -144,19 +157,19 @@ class UploadMixin(BaseTest):
         upload_dir(self.s3_client, self.bucket, prefix, local_dir)
         assert self.read_all(self.bucket, prefix) == files
 
-    @pytest.mark.parametrize("kind", ["str", "pathlib", "pathlib_mate", "relative"])
+    @pytest.mark.parametrize("kind", ["str", "pathlib", "os.PathLike", "relative"])
     def test_local_dir_types(self, tmp_path, monkeypatch, kind):
         """
-        ``local_dir`` can be a ``str``, a ``pathlib.Path``, a
-        ``pathlib_mate.Path``, or a path relative to the current directory.
+        ``local_dir`` can be a ``str``, a ``pathlib.Path``, any other
+        ``os.PathLike``, or a path relative to the current directory.
         """
         local_dir = make_local_dir(tmp_path, {"1.txt": "one"})
         if kind == "str":
             arg = str(local_dir)
         elif kind == "pathlib":
             arg = local_dir
-        elif kind == "pathlib_mate":
-            arg = PathMate(local_dir)
+        elif kind == "os.PathLike":
+            arg = CustomPathLike(str(local_dir))
         else:
             monkeypatch.chdir(tmp_path)
             arg = os.path.join(".", "local")

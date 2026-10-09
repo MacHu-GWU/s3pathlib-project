@@ -26,6 +26,7 @@ Backlog (TODO)
 - Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11.
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
 - Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``.
+- Remove the runtime dependencies ``pathlib-mate``, ``func-args`` and ``boto-session-manager``. The runtime dependencies are now ``boto3``, ``smart-open``, ``iterproxy`` and ``typing-extensions`` (Python < 3.13 only). If your code imports one of the removed packages, add it to your own dependencies.
 - Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none`` and ``s3pathlib.exc.ensure_all_none``; the library no longer uses them.
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
@@ -256,6 +257,8 @@ Backlog (TODO)
 - The tests of ``S3Path.delete`` with versioning also run on moto (moto 5 handles versioned deletes).
 - The ``S3Path.sync`` tests run ``aws s3 sync`` end to end, against a moto server in moto mode and against AWS, when the AWS CLI is installed (they are skipped otherwise); the other tests check the command line and its environment. Add ``flask`` and ``flask-cors`` to the test dependencies, for the moto server.
 - Remove the ``boto-session-manager`` dependency; the library no longer uses it (``S3Path.sync`` used ``BotoSesManager.awscli()``).
+- Regenerate ``requirements*.txt`` with ``mise run export`` (``uv export``), and add ``requirements-mise.txt``. Remove the stale ``requirements-poetry.txt``, ``requirements-automation.txt`` and ``requirements-furo-sphinx-search.txt``, and the old ``.readthedocs.yaml``, which competed with the uv based ``.readthedocs.yml`` (Read the Docs picks either one when both exist).
+- The documentation notebooks use the standard library ``pathlib`` instead of ``pathlib_mate``.
 - A test locks the exact set of public names of ``s3pathlib.api``, so any change of the public API is deliberate.
 - Every test module that calls AWS uses ``s3pathlib.tests.mock_aws``, so the whole test suite also runs against real AWS (``mise run cov-aws``). Remove the unused test data ``tests/data/``, ``tests/core/test_upload_dir/`` and ``tests/better_client/dummy_data.py``, and their entries in ``s3pathlib.paths``.
 - Remove the ``func-args`` dependency; its "not given" value is now the private ``s3pathlib._arg.OPT``. Arguments passed on to boto3 still default to "not given", and ``None`` is still not the same: botocore rejects it with ``ParamValidationError`` (S3 has no ``None`` value), so a condition such as ``if_match=p.etag`` is never silently dropped.

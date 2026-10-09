@@ -12,5 +12,5 @@ TagType = dict[str, str]  # {"Key": "Value"}
 TagSetType = list[dict[str, str]]  # [{"Key": "Value"}, ...]
 
 MetadataType = dict[str, str]  # {"Key": "Value"}
-# a local path: str, pathlib.Path, or any os.PathLike (e.g. pathlib_mate.Path)
+# a local path: str, pathlib.Path, or any other os.PathLike
 PathType = str | os.PathLike
