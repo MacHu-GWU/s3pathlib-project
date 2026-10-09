@@ -72,6 +72,8 @@ Backlog (TODO)
 - ``S3Path.copy_dir`` and ``S3Path.move_to`` raise ``ValueError`` when the source and target folders overlap (the same folder, or one inside the other, in the same bucket): copying could overwrite source objects before they are copied. ``S3Path.move_to`` also raises ``ValueError`` for a file moved to itself.
 - ``S3Path.copy_dir`` (and ``copy_to`` / ``move_to`` on a folder) raise ``ValueError`` for ``copy_source_if_match``, ``copy_source_if_none_match``, ``copy_source_if_modified_since`` and ``copy_source_if_unmodified_since``, which applied to every object (an ETag can match one object only), and ``copy_to`` raises ``ValueError`` for ``version_id`` on a folder, which was ignored.
 - ``S3Path.copy_dir`` copies every key under the folder, folder markers included (the marker of the folder itself becomes the marker of the target), so empty folders are copied too; the returned count includes them. Before, folder markers were skipped.
+- ``S3Path.delete`` always returns a new ``S3Path`` and no longer changes the path it is called on (see ``s3pathlib.core.metadata``). Before, it returned the path itself with its cached metadata cleared, except for a file with versioning. With versioning, the returned path is the new delete marker; with ``version_id``, the deleted version.
+- ``S3Path.delete`` raises ``ValueError`` for ``version_id`` on a folder, or together with ``is_hard_delete=True``; it was ignored.
 
 **Features and Improvements**
 
@@ -174,6 +176,10 @@ Backlog (TODO)
 - ``S3Path.copy_dir`` failed with ``S3PathIsNotFileError`` when the folder had an object whose key ends with ``/`` and that has content.
 - ``S3Path.copy_file`` ignored ``content_type``, ``cache_control``, ``content_disposition``, ``content_encoding``, ``content_language``, ``expires_datetime`` and ``website_redirect_location`` unless ``metadata`` was also given, and ``metadata`` reset the ones not given (e.g. ``ContentType`` became ``binary/octet-stream``). Now only what is given changes: the others are read from the source (one more ``head_object`` call, only when one of them is given).
 - ``S3Path.copy_file``, ``copy_dir``, ``copy_to`` and ``move_to`` raise ``S3PathTypeError`` for a relative path or the void path, before calling AWS; ``copy_to`` on the void path raised a bare ``TypeError``.
+- **Data loss**: ``S3Path("bucket", "file.txt").delete(version_id=v, is_hard_delete=True)`` ignored ``version_id`` and permanently deleted every version of the object, instead of one. It now raises ``ValueError`` before calling AWS.
+- The delete marker returned by ``S3Path.delete()`` with versioning had ``is_delete_marker()`` ``False``, and reading its ``size`` raised ``S3FileNotExist``. It is now a delete marker whose properties never call AWS.
+- ``S3Path("bucket", "folder/").delete()`` ignored ``check_sum_algorithm`` (it was only used with ``is_hard_delete=True``).
+- ``S3Path.delete`` on a relative path raised a botocore ``TypeError``, and a bare ``ValueError`` on the void path; both now raise ``S3PathTypeError`` before calling AWS.
 
 **Minor Improvements**
 
@@ -215,6 +221,7 @@ Backlog (TODO)
 - Document ``S3Path.open``: it reads and writes whole objects as streams, how ``compression`` works (inferred from the extension by default), that an exception inside the ``with`` block of a write leaves no partial object (tested), that reading a missing object raises ``OSError`` with the boto3 error as its ``__cause__``, and which arguments smart_open ignores for S3 (``buffering``, ``closefd``, ``opener``).
 - Document ``S3Path.upload_file`` and ``S3Path.upload_dir``: ``overwrite=False`` checks then uploads (not atomic, boto3's ``upload_file`` has no conditional write), the allowed ``extra_args``, and the errors they raise. Fix the ``upload_dir`` docstring example, which used a ``path`` argument that does not exist.
 - Document the copy methods of ``S3Path`` (``s3pathlib.core.copy``): how metadata and content headers are copied, that ``copy_object`` copies objects up to 5 GB, which version is copied, and the errors they raise as is.
+- Document ``S3Path.delete``: what each kind of path and argument deletes, what it returns, that deleting a missing key adds a delete marker with versioning, and that emptying a bucket asks for confirmation.
 
 **Miscellaneous**
 
@@ -233,6 +240,7 @@ Backlog (TODO)
 - Remove the local test data folder ``tests/core/test_iter_objects``; the tests write their data to S3 directly.
 - The tests of ``S3Path.open`` use ``s3pathlib.tests.mock_aws``; they no longer always run against real AWS (the old test class ignored ``S3PATHLIB_TEST_REAL_AWS``).
 - ``s3pathlib.type.PathType`` is ``str | os.PathLike``; the library code no longer imports ``pathlib_mate`` (a ``pathlib_mate.Path`` is still accepted, it is an ``os.PathLike``). ``S3Path.upload_file`` uses the standard library ``pathlib``.
+- The tests of ``S3Path.delete`` with versioning also run on moto (moto 5 handles versioned deletes).
 
 
 

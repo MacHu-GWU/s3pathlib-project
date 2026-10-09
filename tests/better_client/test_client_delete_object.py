@@ -26,7 +26,6 @@ import pytest
 from botocore.stub import ANY
 from botocore.stub import Stubber
 
-from s3pathlib.api import S3Path
 from s3pathlib.better_client.delete_object import delete_dir
 from s3pathlib.better_client.delete_object import delete_object
 from s3pathlib.better_client.delete_object import delete_object_all_versions
@@ -311,19 +310,6 @@ class DeleteObjectMixin(BaseTest):
         """
         with pytest.raises(ValueError, match="key must not be empty"):
             delete_object_all_versions(self.s3_client, self.bucket, "")
-
-    def test_s3path_hard_delete_keeps_similar_keys(self):
-        """
-        Regression test of ``S3Path.delete(is_hard_delete=True)`` on a file,
-        which deleted every key starting with it. Move it to
-        ``tests/core/test_core_delete.py`` when that file is migrated (#37).
-        """
-        bucket, prefix = self.put(
-            ["file.txt", "file.txt.bak", "file.txt2/x.csv"],
-            versioning=True,
-        )
-        S3Path(bucket, prefix + "file.txt").delete(is_hard_delete=True)
-        assert self.versions(bucket, prefix) == ["file.txt.bak", "file.txt2/x.csv"]
 
     # --------------------------------------------------------------------------
     # 5. Deleting a whole bucket (temporary bucket only)

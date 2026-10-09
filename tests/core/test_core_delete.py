@@ -1,148 +1,340 @@
 # -*- coding: utf-8 -*-
 
+"""
+Test ``S3Path.delete``.
+
+Test order:
+
+1. a file: without versioning, with versioning (delete marker),
+   ``version_id``, ``is_hard_delete``; the returned path;
+2. a folder: without versioning, with versioning, ``is_hard_delete``;
+3. a bucket (temporary bucket only): the prompt;
+4. the arguments, invalid input, AWS errors.
+
+The details of the batch deletes are tested in
+``tests/better_client/test_client_delete_object.py``.
+"""
+
+import contextlib
+import uuid
+
+import botocore.exceptions
 import pytest
 
-from s3pathlib import exc
-from s3pathlib.core import S3Path
+from s3pathlib.api import S3Path
+from s3pathlib.exc import S3PathTypeError
 from s3pathlib.tests import run_cov_test
-from s3pathlib.tests.mock import BaseTest
+from s3pathlib.tests.aws_helpers import record_api_calls
+from s3pathlib.tests.mock_aws import BaseTest
+from s3pathlib.tests.mock_aws import delete_s3_prefix
 
 
-class DeleteAPIMixin(BaseTest):
+class Captured(Exception):
+    """
+    Raised to stop an API call once its parameters are recorded.
+    """
+
+
+@contextlib.contextmanager
+def capture_params(s3_client, operation: str):
+    """
+    Record the parameters of the first ``operation`` call made through
+    ``s3_client`` and stop it with ``Captured``: no request is sent.
+    """
+    captured = dict()
+
+    def record(params: dict, **kwargs):
+        captured.update(params)
+        raise Captured
+
+    events = s3_client.meta.events
+    events.register(f"provide-client-params.s3.{operation}", record)
+    try:
+        yield captured
+    finally:
+        events.unregister(f"provide-client-params.s3.{operation}", record)
+
+
+class DeleteMixin(BaseTest):
     module = "core.delete"
 
-    def _test_delete(self):
-        s3dir_root = self.s3dir_root
+    def put(self, p: S3Path, body: bytes = b"hello") -> str | None:
+        res = self.s3_client.put_object(Bucket=p.bucket, Key=p.key, Body=body)
+        return res.get("VersionId")
 
-        # --- file
-        # prepare
-        s3path = S3Path(s3dir_root, "delete-if-exists", "test.txt")
-        s3path.write_text("hello")
+    def keys(self, s3dir: S3Path) -> list[str]:
+        res = self.s3_client.list_objects_v2(Bucket=s3dir.bucket, Prefix=s3dir.key)
+        return sorted(dct["Key"][len(s3dir.key):] for dct in res.get("Contents", []))
 
-        # should exist
-        assert s3path.exists() is True
-        assert s3path.version_id == "null"
+    def versions(self, s3dir: S3Path) -> tuple[list[str], list[str]]:
+        """
+        :return: the keys (relative to ``s3dir``) of the versions, and of the
+            delete markers.
+        """
+        res = self.s3_client.list_object_versions(Bucket=s3dir.bucket, Prefix=s3dir.key)
+        versions = sorted(dct["Key"][len(s3dir.key):] for dct in res.get("Versions", []))
+        markers = sorted(dct["Key"][len(s3dir.key):] for dct in res.get("DeleteMarkers", []))
+        return versions, markers
 
-        # should not exist
-        s3path_new = s3path.delete()
-        assert s3path.exists() is False
-        assert s3path_new is s3path
-        with pytest.raises(exc.S3FileNotExist):
-            _ = s3path.version_id
+    @pytest.fixture
+    def tmp_bucket(self):
+        """
+        A new empty bucket, emptied and deleted after the test.
+        """
+        bucket = f"s3pathlib-test-tmp-{uuid.uuid4().hex}"
+        self.s3_client.create_bucket(Bucket=bucket)
+        yield bucket
+        delete_s3_prefix(self.s3_client, bucket, "")
+        self.s3_client.delete_bucket(Bucket=bucket)
 
-        # should not exist
-        s3path_new = s3path.delete()
-        assert s3path.exists() is False
+    # --------------------------------------------------------------------------
+    # 1. A file
+    # --------------------------------------------------------------------------
+    def test_file(self):
+        """
+        The object is deleted; it returns a new path without snapshot, and
+        this path is not changed (2.x returned this path, its cache cleared).
+        """
+        p = self.s3dir_test / "file.txt"
+        self.put(p)
+        p.head_object()
+        new = p.delete()
+        assert self.keys(self.s3dir_test) == []
+        assert new == p
+        assert new is not p
+        assert new.response is None
+        assert p.response["ContentLength"] == 5
 
-        # --- dir
-        # prepare
-        s3dir = S3Path(s3dir_root, "delete-if-exists", "test/")
-        s3dir.joinpath("1.txt").write_text("alice")
-        s3dir.joinpath("folder/1.txt").write_text("bob")
+    def test_file_missing(self):
+        """
+        Deleting a missing object is not an error.
+        """
+        p = self.s3dir_test / "missing.txt"
+        assert p.delete() == p
 
-        # should exist
-        assert s3dir.exists() is True
+    def test_file_with_versioning(self):
+        """
+        With versioning, a delete marker is added and returned: its
+        properties never call AWS. 2.x returned a path whose
+        ``is_delete_marker()`` was ``False`` and whose ``size`` raised
+        ``S3FileNotExist``.
+        """
+        p = self.s3dir_test_with_versioning / "file.txt"
+        self.put(p)
+        marker = p.delete()
+        res = self.s3_client.list_object_versions(Bucket=p.bucket, Prefix=p.key)
+        assert len(res["Versions"]) == 1
+        assert len(res["DeleteMarkers"]) == 1
+        with record_api_calls(self.s3_client) as calls:
+            assert marker.is_delete_marker() is True
+            assert marker.version_id == res["DeleteMarkers"][0]["VersionId"]
+            assert marker.size == 0
+        assert calls == []
 
-        # should exist
-        s3dir_new = s3dir.delete()
-        assert s3dir.exists() is False
-        assert s3dir_new is s3dir
-        with pytest.raises(exc.S3FileNotExist):
-            _ = s3dir_new.version_id
+    def test_file_version(self):
+        """
+        ``version_id`` deletes that version permanently; the returned path
+        has its version id.
+        """
+        p = self.s3dir_test_with_versioning / "file.txt"
+        v1 = self.put(p, b"v1")
+        v2 = self.put(p, b"v2")
+        deleted = p.delete(version_id=v1)
+        res = self.s3_client.list_object_versions(Bucket=p.bucket, Prefix=p.key)
+        assert [dct["VersionId"] for dct in res["Versions"]] == [v2]
+        with record_api_calls(self.s3_client) as calls:
+            assert deleted.version_id == v1
+            assert deleted.is_delete_marker() is False
+        assert calls == []
 
-    def _test_delete_with_versioning(self):
-        s3dir_root = self.s3dir_root_with_versioning
+    def test_file_delete_marker_version(self):
+        """
+        Deleting the delete marker brings the object back. The returned path
+        is the delete marker on AWS (moto does not say it was one).
+        """
+        p = self.s3dir_test_with_versioning / "file.txt"
+        self.put(p, b"v1")
+        marker_id = p.delete().version_id
+        deleted = p.delete(version_id=marker_id)
+        assert self.s3_client.get_object(Bucket=p.bucket, Key=p.key)["Body"].read() == b"v1"
+        assert deleted.version_id == marker_id
+        if self.use_mock:
+            assert deleted.is_delete_marker() is False
+        else:
+            assert deleted.is_delete_marker() is True
 
-        # --- file
-        s3path = S3Path(s3dir_root, "delete_with_versioning", "test.txt")
+    def test_file_hard_delete(self):
+        """
+        ``is_hard_delete=True`` deletes every version and delete marker of
+        this exact key, not of other keys starting with it. 2.x also deleted
+        ``file.txt.bak`` and ``file.txt2/...``.
+        """
+        s3dir = self.s3dir_test_with_versioning
+        for key in ["file.txt", "file.txt", "file.txt.bak", "file.txt2/x.csv"]:
+            self.put(s3dir / key)
+        self.s3_client.delete_object(Bucket=s3dir.bucket, Key=(s3dir / "file.txt").key)
+        new = (s3dir / "file.txt").delete(is_hard_delete=True)
+        assert self.versions(s3dir) == (["file.txt.bak", "file.txt2/x.csv"], [])
+        assert new.response is None
 
-        # create the first version
-        v1 = s3path.write_text("v1").version_id
-        # it should exist
-        assert s3path.exists() is True
+    # --------------------------------------------------------------------------
+    # 2. A folder
+    # --------------------------------------------------------------------------
+    def test_folder(self):
+        """
+        Every object under the folder is deleted, its marker included, and
+        not a sibling folder starting with the same name.
+        """
+        s3dir = self.s3dir_test / "folder/"
+        for key in ["folder/", "folder/a.txt", "folder/sub/b.txt", "folder2/c.txt"]:
+            self.put(self.s3dir_test / key)
+        new = s3dir.delete()
+        assert self.keys(self.s3dir_test) == ["folder2/c.txt"]
+        assert new == s3dir
+        assert new is not s3dir
 
-        # create the second version
-        v2 = s3path.write_text("v2").version_id
-        # it should exist
-        assert s3path.exists() is True
+    def test_folder_with_versioning(self):
+        """
+        With versioning, delete markers are added, the versions are kept.
+        """
+        s3dir = self.s3dir_test_with_versioning / "folder/"
+        for key in ["a.txt", "sub/b.txt"]:
+            self.put(s3dir / key)
+        s3dir.delete()
+        assert self.keys(s3dir) == []
+        assert self.versions(s3dir) == (["a.txt", "sub/b.txt"], ["a.txt", "sub/b.txt"])
 
-        # delete the latest (second) version
-        s3path_new = s3path.delete()
-        dmv2 = s3path_new.version_id  # DMV = delete marker version
-        # it should not exist
-        assert s3path.exists() is False
-
-        # versions are all different
-        assert len({v1, v2, dmv2}) == 3
-
-        # all specific versions should exist
-        assert s3path.exists(version_id=v1) is True
-        assert s3path.exists(version_id=v2) is True
-
-        s3path_new = s3path.delete(version_id=v1)
-        assert s3path.exists(version_id=v1) is False
-
-        # --- folder
-        # prepare
-        s3dir = S3Path(s3dir_root, "delete_with_versioning", "test/")
-        s3dir.joinpath("1.txt").write_text("alice")
-        s3dir.joinpath("folder/1.txt").write_text("bob")
-
-        # should exist
-        assert s3dir.exists() is True
-
-        # should not exist
-        s3dir_new = s3dir.delete()
-        assert s3dir.exists() is False
-        assert s3dir_new is s3dir
-
-    def _test_delete_with_hard_delete(self):
-        s3dir_root = self.s3dir_root_with_versioning
-
-        # --- file
-        s3path = S3Path(s3dir_root, "delete_with_hard_delete", "test.txt")
-
-        # create the first few versions
-        v1 = s3path.write_text("v1").version_id
-        v2 = s3path.write_text("v2").version_id
-
-        # delete the object and all versions
-        s3path.delete(is_hard_delete=True)
-        # folder, object, specific version should not exist
-        assert s3path.exists() is False
-        assert s3path.exists(version_id=v1) is False
-        assert len(s3path.list_object_versions().all()) == 0
-
-        # --- folder
-        # prepare
-        s3dir = S3Path(s3dir_root, "delete_with_hard_delete", "test/")
-        v11 = s3dir.joinpath("1.txt").write_text("v11").version_id
-        v12 = s3dir.joinpath("1.txt").write_text("v12").version_id
-        v21 = s3dir.joinpath("folder/1.txt").write_text("21").version_id
-        v22 = s3dir.joinpath("folder/1.txt").write_text("22").version_id
-
-        # delete the entire folder and all versions
+    def test_folder_hard_delete(self):
+        s3dir = self.s3dir_test_with_versioning / "folder/"
+        for key in ["a.txt", "a.txt", "sub/b.txt"]:
+            self.put(s3dir / key)
+        self.s3_client.delete_object(Bucket=s3dir.bucket, Key=(s3dir / "a.txt").key)
         s3dir.delete(is_hard_delete=True)
-        # folder, object, specific version should not exist
-        assert s3dir.exists() is False
-        assert s3dir.joinpath("1.txt").exists(version_id=v11) is False
-        assert s3dir.joinpath("folder/1.txt").exists(version_id=v21) is False
-        assert len(s3dir.list_object_versions().all()) == 0
+        assert self.versions(s3dir) == ([], [])
 
-    def test(self):
-        self._test_delete()
+    # --------------------------------------------------------------------------
+    # 3. A bucket
+    # --------------------------------------------------------------------------
+    @pytest.mark.parametrize("is_hard_delete", [False, True])
+    def test_bucket(self, tmp_bucket, is_hard_delete):
+        """
+        A bucket is emptied without asking with ``skip_prompt=True``.
+        """
+        self.s3_client.put_object(Bucket=tmp_bucket, Key="a/b.txt", Body=b"x")
+        S3Path(tmp_bucket).delete(is_hard_delete=is_hard_delete, skip_prompt=True)
+        assert self.keys(S3Path(tmp_bucket)) == []
 
-        if self.use_mock is False:  # moto has a bug for deleting object with versioning
-            self._test_delete_with_versioning()
-            self._test_delete_with_hard_delete()
+    def test_bucket_prompt(self, tmp_bucket, monkeypatch):
+        """
+        Without ``skip_prompt``, emptying a bucket asks to type ``YES``; any
+        other answer deletes nothing.
+        """
+        self.s3_client.put_object(Bucket=tmp_bucket, Key="a.txt", Body=b"x")
+        prompts = list()
+
+        def answer(prompt):
+            prompts.append(prompt)
+            return "no"
+
+        monkeypatch.setattr("builtins.input", answer)
+        S3Path(tmp_bucket).delete()
+        assert len(prompts) == 1
+        assert self.keys(S3Path(tmp_bucket)) == ["a.txt"]
+
+    # --------------------------------------------------------------------------
+    # 4. Arguments, invalid input, errors
+    # --------------------------------------------------------------------------
+    def test_file_arguments_passed_to_boto3(self):
+        p = self.s3dir_test / "file.txt"
+        with capture_params(self.s3_client, "DeleteObject") as params:
+            with pytest.raises(Captured):
+                p.delete(
+                    version_id="v1",
+                    mfa="serial 123456",
+                    request_payer="requester",
+                    bypass_governance_retention=True,
+                    expected_bucket_owner="111122223333",
+                )
+        assert params == {
+            "Bucket": p.bucket,
+            "Key": p.key,
+            "VersionId": "v1",
+            "MFA": "serial 123456",
+            "RequestPayer": "requester",
+            "BypassGovernanceRetention": True,
+            "ExpectedBucketOwner": "111122223333",
+        }
+
+    @pytest.mark.parametrize("is_hard_delete", [False, True])
+    def test_folder_arguments_passed_to_boto3(self, is_hard_delete):
+        """
+        The batch delete also gets ``check_sum_algorithm``.
+        """
+        s3dir = self.s3dir_test_with_versioning / "folder/"
+        self.put(s3dir / "a.txt")
+        with capture_params(self.s3_client, "DeleteObjects") as params:
+            with pytest.raises(Captured):
+                s3dir.delete(
+                    is_hard_delete=is_hard_delete,
+                    mfa="serial 123456",
+                    request_payer="requester",
+                    bypass_governance_retention=True,
+                    check_sum_algorithm="SHA256",
+                )
+        assert params["MFA"] == "serial 123456"
+        assert params["RequestPayer"] == "requester"
+        assert params["BypassGovernanceRetention"] is True
+        assert params["ChecksumAlgorithm"] == "SHA256"
+
+    @pytest.mark.parametrize(
+        "key, kwargs, match",
+        [
+            pytest.param("file.txt", {"is_hard_delete": True}, "give only one", id="hard-delete"),
+            pytest.param("folder/", {}, "only applies to deleting a file", id="folder"),
+        ],
+    )
+    def test_version_id_conflict(self, key, kwargs, match):
+        """
+        2.x ignored ``version_id`` here: with ``is_hard_delete=True`` it
+        deleted every version instead of one.
+        """
+        p = self.s3dir_test_with_versioning / key
+        with record_api_calls(self.s3_client) as calls:
+            with pytest.raises(ValueError, match=match):
+                p.delete(version_id="v1", **kwargs)
+        assert calls == []
+
+    @pytest.mark.parametrize(
+        "p",
+        [
+            pytest.param(S3Path(), id="void"),
+            pytest.param(S3Path.make_relpath("a.txt"), id="relpath-file"),
+            pytest.param(S3Path.make_relpath("a/"), id="relpath-dir"),
+        ],
+    )
+    def test_relative_path(self, p):
+        """
+        2.x raised a botocore ``TypeError``, or a bare ``ValueError`` for the
+        void path.
+        """
+        with record_api_calls(self.s3_client) as calls:
+            with pytest.raises(S3PathTypeError, match="is a relative path"):
+                p.delete()
+        assert calls == []
+
+    def test_missing_bucket(self):
+        p = S3Path(f"s3pathlib-test-tmp-{uuid.uuid4().hex}", "file.txt")
+        with pytest.raises(botocore.exceptions.ClientError) as exc_info:
+            p.delete()
+        assert exc_info.value.response["Error"]["Code"] == "NoSuchBucket"
 
 
-# class Test(DeleteAPIMixin):
-#     use_mock = False
-
-
-class TestUseMock(DeleteAPIMixin):
+class TestMock(DeleteMixin):
     use_mock = True
+
+
+class TestRealAws(DeleteMixin):
+    use_mock = False
 
 
 if __name__ == "__main__":
