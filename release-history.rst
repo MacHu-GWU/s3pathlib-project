@@ -67,6 +67,11 @@ Backlog (TODO)
 - Remove the ``ignore_ext``, ``range`` and ``part_number`` arguments of ``S3Path.open``; passing them raises ``TypeError``. None of them ever had an effect: ``ignore_ext`` was removed from smart_open 6, and smart_open sets its own ``Range`` to stream and seek (``range`` was ignored, ``part_number`` failed on AWS). ``open`` reads and writes whole objects; to read part of an object use ``read_bytes(range=...)`` or ``read_bytes(part_number=...)``, to turn off compression use ``compression="disable"``.
 - ``S3Path.open`` raises ``ValueError`` for a key containing ``?versionId=`` or ``&versionId=`` (e.g. ``page?versionId=1``); use ``read_bytes`` / ``write_bytes`` for such keys. smart_open 8 takes that part of the URI as a version id and removes it from the key, even when ``version_id`` is given, so writing failed and reading silently read another object; there is no way to escape it. The key is rejected with every smart_open version, so that code does not break when smart_open is upgraded. Other ``?`` in a key still work.
 - ``S3Path.open`` raises ``ValueError`` for ``version_id`` in write mode, and for ``content_length``, ``content_md5`` and ``checksum_crc32`` / ``checksum_crc32c`` / ``checksum_sha1`` / ``checksum_sha256`` with ``multipart_upload=True`` (the default), which only ``put_object`` (``multipart_upload=False``) supports. Before, they were silently ignored.
+- ``S3Path.copy_file`` returns a new ``S3Path`` of the copy (with ``etag``, ``last_modified_at`` and ``version_id`` from the response), the same as ``write_bytes``; it returned the ``copy_object`` response ``dict`` before.
+- Remove the ``content_md5`` argument of ``S3Path.copy_file``, ``copy_dir``, ``copy_to`` and ``move_to``; ``copy_object`` has no such parameter, so passing it always raised ``ParamValidationError``.
+- ``S3Path.copy_dir`` and ``S3Path.move_to`` raise ``ValueError`` when the source and target folders overlap (the same folder, or one inside the other, in the same bucket): copying could overwrite source objects before they are copied. ``S3Path.move_to`` also raises ``ValueError`` for a file moved to itself.
+- ``S3Path.copy_dir`` (and ``copy_to`` / ``move_to`` on a folder) raise ``ValueError`` for ``copy_source_if_match``, ``copy_source_if_none_match``, ``copy_source_if_modified_since`` and ``copy_source_if_unmodified_since``, which applied to every object (an ETag can match one object only), and ``copy_to`` raises ``ValueError`` for ``version_id`` on a folder, which was ignored.
+- ``S3Path.copy_dir`` copies every key under the folder, folder markers included (the marker of the folder itself becomes the marker of the target), so empty folders are copied too; the returned count includes them. Before, folder markers were skipped.
 
 **Features and Improvements**
 
@@ -103,6 +108,7 @@ Backlog (TODO)
 - ``S3Path.write_bytes`` and ``S3Path.write_text`` accept ``if_match`` and ``if_none_match``, the conditional writes of S3: ``if_none_match="*"`` only writes a new object, ``if_match=<etag>`` only replaces the object if nobody changed it.
 - ``S3Path.touch`` makes one conditional ``put_object`` call instead of ``head_object`` + ``put_object``, so it is atomic: an object written by someone else in between is never replaced.
 - ``S3Path.upload_file`` returns a new ``S3Path`` of the uploaded object, the same as ``write_bytes``; it returned ``None`` before.
+- ``S3Path.copy_file`` (and the other copy methods) with ``overwrite=False`` copy conditionally (``IfNoneMatch="*"``) after checking the target, so on AWS an object written by someone else in between is not replaced either.
 
 **Bugfixes**
 
@@ -163,6 +169,11 @@ Backlog (TODO)
 - ``S3Path.open`` raised ``AttributeError`` for ``mode=None`` and smart_open's ``NotImplementedError`` for ``"w+"`` / ``"r+"``; any mode other than ``r`` / ``rb`` / ``rt`` / ``w`` / ``wb`` / ``wt`` now raises ``ValueError``. A bucket, a relative path or the void path raises ``S3PathTypeError`` instead of a smart_open / botocore error.
 - ``S3Path.upload_file`` checks the local path before calling AWS: a missing file raises ``FileNotFoundError`` and a directory raises ``IsADirectoryError``. Before, it first called ``head_object``, and real AWS then raised a confusing ``botocore.exceptions.UnseekableStreamError`` for a directory.
 - ``S3Path.upload_file`` and ``S3Path.upload_dir`` on a relative path or the void path raised a botocore ``TypeError`` (with ``overwrite=True``); they now raise ``S3PathTypeError`` before calling AWS.
+- **Data loss**: ``S3Path.move_to`` on a file to itself (e.g. to change its metadata) copied the object onto itself, then deleted it. ``S3Path("bucket", "a/").move_to(S3Path("bucket", "a/b/"))`` copied the folder into ``a/b/``, then deleted all of ``a/``, copies included. Both now raise ``ValueError`` before calling AWS.
+- **Data loss**: ``S3Path.move_to`` on a folder listed the folder again to delete it, so an object written to it during the move was deleted without being copied. It now deletes exactly the keys it copied.
+- ``S3Path.copy_dir`` failed with ``S3PathIsNotFileError`` when the folder had an object whose key ends with ``/`` and that has content.
+- ``S3Path.copy_file`` ignored ``content_type``, ``cache_control``, ``content_disposition``, ``content_encoding``, ``content_language``, ``expires_datetime`` and ``website_redirect_location`` unless ``metadata`` was also given, and ``metadata`` reset the ones not given (e.g. ``ContentType`` became ``binary/octet-stream``). Now only what is given changes: the others are read from the source (one more ``head_object`` call, only when one of them is given).
+- ``S3Path.copy_file``, ``copy_dir``, ``copy_to`` and ``move_to`` raise ``S3PathTypeError`` for a relative path or the void path, before calling AWS; ``copy_to`` on the void path raised a bare ``TypeError``.
 
 **Minor Improvements**
 
@@ -203,6 +214,7 @@ Backlog (TODO)
 - Fix the docstring examples of the read and write methods of ``S3Path`` (``s3pathlib.core.rw``), and document that writing returns a new ``S3Path`` and leaves the original one unchanged, how ``touch`` and ``mkdir`` treat existing objects, and the boto3 errors they raise as is.
 - Document ``S3Path.open``: it reads and writes whole objects as streams, how ``compression`` works (inferred from the extension by default), that an exception inside the ``with`` block of a write leaves no partial object (tested), that reading a missing object raises ``OSError`` with the boto3 error as its ``__cause__``, and which arguments smart_open ignores for S3 (``buffering``, ``closefd``, ``opener``).
 - Document ``S3Path.upload_file`` and ``S3Path.upload_dir``: ``overwrite=False`` checks then uploads (not atomic, boto3's ``upload_file`` has no conditional write), the allowed ``extra_args``, and the errors they raise. Fix the ``upload_dir`` docstring example, which used a ``path`` argument that does not exist.
+- Document the copy methods of ``S3Path`` (``s3pathlib.core.copy``): how metadata and content headers are copied, that ``copy_object`` copies objects up to 5 GB, which version is copied, and the errors they raise as is.
 
 **Miscellaneous**
 
