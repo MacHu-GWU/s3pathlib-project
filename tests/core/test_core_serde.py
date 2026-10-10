@@ -13,6 +13,7 @@ Test order:
 
 import copy
 import json
+import os
 import pickle
 import subprocess
 import sys
@@ -232,13 +233,17 @@ class SerdeAPIMixin(BaseTest):
             "print(d.get(S3Path('bucket', 'a.txt'), 'NOT FOUND'))"
         )
         for code, seed in [(dump, "1"), (load, "2")]:
+            # keep the rest of the environment: on Windows, Python cannot
+            # start without system variables such as SYSTEMROOT
+            env = dict(os.environ)
+            env["PYTHONHASHSEED"] = seed
             res = subprocess.run(
                 [sys.executable, "-c", code, str(path)],
-                env={"PYTHONHASHSEED": seed},
+                env=env,
                 capture_output=True,
                 text=True,
-                check=True,
             )
+            assert res.returncode == 0, res.stderr
         assert res.stdout.strip() == "value"
 
     def test_pickle_keeps_metadata(self):
