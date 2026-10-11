@@ -6,6 +6,7 @@ Common content types for S3 objects.
 
 from __future__ import annotations
 
+
 class ContentTypeEnum:
     """
     Common content types that browsers can render. Set one of them as the
@@ -14,10 +15,11 @@ class ContentTypeEnum:
 
     Example::
 
-        >>> S3Path("bucket", "data.json").write_text(
-        ...     "{}", content_type=ContentTypeEnum.app_json
-        ... )
+        S3Path("bucket", "data.json").write_text(
+            "{}", content_type=ContentTypeEnum.app_json
+        )
     """
+
     image_jpeg = "image/jpeg"
     image_png = "image/png"
     image_gif = "image/gif"

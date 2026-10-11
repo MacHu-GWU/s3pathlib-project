@@ -55,8 +55,8 @@ from s3pathlib.tests import run_cov_test
 def test_exception_hierarchy(exc_class, parents):
     """
     Each exception can be caught by s3pathlib's base class, its group class,
-    and the builtin exception it has always inherited from (so 2.x
-    ``except FileNotFoundError`` style code keeps working).
+    and the builtin exception that matches its meaning (so a generic
+    ``except FileNotFoundError`` keeps working).
     """
     for parent in parents:
         assert issubclass(exc_class, parent)

@@ -26,6 +26,22 @@ Each one also inherits from the matching builtin exception, so
         ├── S3PathIsNotFolderError
         ├── S3PathIsNotFileError
         └── S3PathIsNotRelpathError
+
+**Design notes**
+
+*Builtin base classes.* Each exception also inherits the builtin exception
+that matches its meaning, so generic handlers such as
+``except FileNotFoundError`` catch it without knowing ``s3pathlib``.
+
+*AWS errors are not wrapped.* An error of an AWS call that has a response body
+(get, list, tagging, copy, delete, ...) is raised as boto3 raises it:
+``NoSuchKey``, ``NoSuchBucket`` and ``AccessDenied`` are named and documented,
+and ``except ClientError`` keeps working. The exceptions here are for
+``s3pathlib``'s own rules (path type, ``overwrite=False``, validation) and for
+the HEAD calls (``head_bucket``, ``head_object``), whose errors carry only a
+bare ``"404"`` or ``"403"`` code that ``s3_client.exceptions`` cannot catch.
+``S3PermissionDenied`` comes from the 403 of a HEAD call. The original error
+is always the ``__cause__``.
 """
 
 from __future__ import annotations
@@ -44,7 +60,7 @@ class _UriRelatedError:
     def make(
         cls: type[Exception | _UriRelatedError],
         uri: str,
-    ):
+    ) -> Exception:
         return cls(cls._tpl.format(uri=uri))
 
 
@@ -146,7 +162,7 @@ class S3PathTypeError(S3PathlibError, TypeError):
     def make(
         cls: type[Exception | S3PathTypeError],
         uri: str,
-    ):
+    ) -> Exception:
         return cls(f"{uri!r} is not a {cls._expected_type}!")
 
 

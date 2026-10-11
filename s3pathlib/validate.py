@@ -3,7 +3,14 @@
 """
 Optional tools to check S3 bucket names, keys, URIs and ARNs.
 
-``s3pathlib`` itself never calls these validators. Checking is split in two:
+``s3pathlib`` itself never calls these validators. Call them yourself when you
+want an early, clear error, for example to check a bucket name typed by a user
+before creating the bucket. Every validator raises
+:class:`~s3pathlib.exc.S3ValidationError`, which is also a ``ValueError``.
+
+**Design notes**
+
+*Checking is split in two.*
 
 - **Format**: whether a string is a well formed S3 URI or ARN that can be
   split into bucket and key. Only the client can check this, because S3 APIs
@@ -16,12 +23,6 @@ Optional tools to check S3 bucket names, keys, URIs and ARNs.
   legacy buckets created before March 2018 (uppercase letters, underscores),
   access point aliases and directory buckets. So ``s3pathlib`` does not check
   them when it reads from or sends to S3.
-
-Call these validators yourself when you want an early, clear error, for
-example to check a bucket name typed by a user before creating the bucket.
-
-Every validator raises :class:`~s3pathlib.exc.S3ValidationError`, which is
-also a ``ValueError``.
 """
 
 from __future__ import annotations
@@ -37,8 +38,8 @@ from .exc import S3ValidationError
 from .utils import split_s3_uri
 from .utils import split_s3_arn
 
-valid_bucket_charset: set = set(string.ascii_lowercase + string.digits + ".-")
-letter_and_number: set = set(string.ascii_lowercase + string.digits)
+_VALID_BUCKET_CHARSET = set(string.ascii_lowercase + string.digits + ".-")
+_LETTER_AND_NUMBER = set(string.ascii_lowercase + string.digits)
 
 
 def _is_ip_address_like(bucket: str) -> bool:
@@ -90,16 +91,14 @@ def validate_s3_bucket(bucket: str) -> None:
             f"{S3_BUCKET_MAX_LENGTH} characters long."
         )
 
-    invalid_chars = set(bucket).difference(valid_bucket_charset)
+    invalid_chars = sorted(set(bucket).difference(_VALID_BUCKET_CHARSET))
     if len(invalid_chars) != 0:
         raise S3ValidationError(
-            (
-                "Bucket names can consist only of lowercase letters, numbers, "
-                "dots (.), and hyphens (-). invalid char found {}"
-            ).format(invalid_chars)
+            "Bucket names can consist only of lowercase letters, numbers, "
+            f"dots (.), and hyphens (-). invalid char found {invalid_chars}"
         )
 
-    if (bucket[0] not in letter_and_number) or (bucket[-1] not in letter_and_number):
+    if (bucket[0] not in _LETTER_AND_NUMBER) or (bucket[-1] not in _LETTER_AND_NUMBER):
         raise S3ValidationError(
             "Bucket names must begin and end with a letter or number."
         )

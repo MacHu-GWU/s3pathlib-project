@@ -39,6 +39,7 @@ Backlog (TODO)
 - ``validate_s3_bucket`` now checks the naming rules for a *new* general purpose bucket, as documented by AWS: it also rejects two adjacent periods, the reserved prefixes ``sthree-`` and ``amzn-s3-demo-``, and the reserved suffixes ``-s3alias``, ``--ol-s3``, ``.mrap``, ``--x-s3`` and ``--table-s3``.
 - ``S3Path(...)`` and ``utils.split_s3_uri`` reject a malformed URI such as ``https://bucket/key`` or ``s3:/bucket/key`` with ``S3ValidationError``, instead of silently parsing it into a wrong bucket and key. An empty bucket (e.g. ``S3Path("")``, ``s3://``) also raises ``S3ValidationError`` instead of ``IndexError``.
 - Remove ``s3pathlib.utils.validate_s3_bucket`` and ``s3pathlib.utils.validate_s3_key``, two placeholders that did nothing. The real validators are in ``s3pathlib.validate``.
+- ``s3pathlib.validate.valid_bucket_charset`` and ``letter_and_number``, two helper sets of ``validate_s3_bucket``, are now private (``_VALID_BUCKET_CHARSET``, ``_LETTER_AND_NUMBER``).
 - Remove ``hash_binary``, ``md5_binary``, ``sha256_binary``, ``hash_file`` and ``DEFAULT_CHUNK_SIZE`` from ``s3pathlib.utils``; they were not used by the library. Use the standard library ``hashlib`` instead, e.g. ``hashlib.md5(data).hexdigest()``.
 - The low level helpers that were available as ``s3pathlib.api.*`` in 2.x (``is_bucket_exists``, ``upload_dir``, ``paginate_list_objects_v2``, ...) moved to ``s3pathlib.api.better_client.*``.
 - Remove the S3 console URL variants from ``S3Path``: ``get_regional_console_url(region)``, ``us_gov_cloud_console_url`` and ``get_regional_us_gov_cloud_console_url(region)``. Use ``S3Path.get_console_url(region=..., partition=...)`` instead, e.g. ``p.get_console_url(partition="aws-us-gov")``. ``S3Path.console_url`` is kept.
@@ -206,6 +207,8 @@ Backlog (TODO)
 - ``ensure_relpath`` raises ``S3PathIsNotRelpathError`` and ``ensure_not_relpath`` raises ``S3PathTypeError``, instead of a bare ``TypeError`` (both are still ``TypeError``).
 - ``relative_to`` raises ``TypeError`` with a message for an argument that is not an ``S3Path``, instead of ``AttributeError``, and its ``ValueError`` messages say why the path is not under the other one.
 - ``S3Path() / [a, b]`` joins the list at once, the same as ``joinpath(a, b)``.
+- ``validate_s3_bucket`` lists the invalid characters in sorted order, so the error message is the same in every process.
+- ``s3pathlib.tag.parse_tags`` no longer checks its argument: a non-list (e.g. the whole response dict) raises the ``TypeError`` of the failed lookup instead of ``NotImplementedError``.
 - ``S3Path.get_arn``, ``S3Path.get_console_url`` and ``utils.make_s3_console_url`` raise ``S3ValidationError`` (still a ``ValueError``) for an unsupported partition, with a message listing the supported ones. An empty region (``""``) also raises ``S3ValidationError`` instead of building a URL whose host starts with ``.``.
 - Document every argument of ``S3Path.change`` and the order they are applied in.
 - Fix the ``S3Path.to_file`` docstring example, which called ``to_dir``.

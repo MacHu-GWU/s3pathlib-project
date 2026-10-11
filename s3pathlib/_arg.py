@@ -3,21 +3,20 @@
 """
 The "not given" value of the arguments that are passed on to boto3.
 
-The rule for argument defaults:
+An argument passed on to a boto3 call defaults to :data:`OPT`, which means
+"do not send this parameter"; :func:`remove_optional` drops it before the call.
+The rule is in ``CLAUDE.md`` ("Argument Defaults").
 
-- An argument passed on to a boto3 call (``version_id``, ``if_match``,
-  ``metadata``, ...) defaults to :data:`OPT`, which means "do not send this
-  parameter". :func:`remove_optional` drops it before the call.
-- ``None`` is not "not given": S3 has no ``None`` value, so botocore rejects it
-  with ``ParamValidationError`` before sending the request. Treating ``None`` as
-  "not given" would silently drop a condition such as ``if_match=p.etag`` when
-  ``p.etag`` is ``None``.
-- An argument of s3pathlib itself (``s3_client``, ``limit``, ``region``, ...)
-  defaults to ``None`` or a plain value, so users who wrap s3pathlib never need
-  to import :data:`OPT`.
+**Design notes**
 
-This module is private: users leave an argument out instead of passing
-:data:`OPT`.
+*``None`` is not "not given".* S3 has no ``None`` value, so botocore rejects
+it with ``ParamValidationError`` before sending the request. Treating ``None``
+as "not given" would silently drop a condition such as ``if_match=p.etag``
+when ``p.etag`` is ``None``.
+
+*The sentinel is private.* An argument of ``s3pathlib`` itself defaults to
+``None`` or a plain value, so users who wrap ``s3pathlib`` never need to
+import :data:`OPT`; they leave an argument out instead.
 """
 
 from __future__ import annotations

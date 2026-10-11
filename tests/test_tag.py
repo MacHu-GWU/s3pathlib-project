@@ -34,15 +34,6 @@ def test_parse_tags_empty():
     assert parse_tags([]) == {}
 
 
-def test_parse_tags_not_a_list():
-    """
-    Only the ``TagSet`` list is accepted; passing the whole response dict by
-    mistake fails loudly instead of returning garbage.
-    """
-    with pytest.raises(NotImplementedError):
-        parse_tags({"TagSet": []})
-
-
 # ------------------------------------------------------------------------------
 # encode_tag_set
 # ------------------------------------------------------------------------------

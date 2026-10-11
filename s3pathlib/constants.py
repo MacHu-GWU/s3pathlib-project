@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import enum
 
+# The key in the metadata snapshot of an ``S3Path`` that marks a delete marker.
+# S3 has no such field in a HEAD / GET response, because those APIs can never
+# return a delete marker; only list_object_versions and delete know it.
 IS_DELETE_MARKER = "IsDeleteMarker"
 
 # The maximum length of an S3 object key, in UTF-8 encoded bytes.

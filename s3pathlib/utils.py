@@ -70,13 +70,13 @@ def split_s3_arn(
         >>> split_s3_arn("arn:aws-cn:s3:::my-bucket/my-folder/data.json")
         (<AwsPartitionEnum.aws_cn: 'aws-cn'>, 'my-bucket', 'my-folder/data.json')
 
-    :param s3_arn: ``arn:{partition}:s3:::{bucket}`` or
-        ``arn:{partition}:s3:::{bucket}/{key}``, where partition is one of
-        :class:`~s3pathlib.constants.AwsPartitionEnum`.
-
     This only checks the format (partition, ``s3`` service, non-empty bucket).
     It does not check bucket naming rules; use
     :func:`~s3pathlib.validate.validate_s3_arn` for that.
+
+    :param s3_arn: ``arn:{partition}:s3:::{bucket}`` or
+        ``arn:{partition}:s3:::{bucket}/{key}``, where partition is one of
+        :class:`~s3pathlib.constants.AwsPartitionEnum`.
 
     :raises S3ValidationError: if it is not an S3 ARN of a supported partition.
     """
@@ -376,6 +376,8 @@ def grouper_list(
 
     :raises ValueError: if ``n`` is less than 1.
     """
+    # this is a plain function that returns a generator, so that a bad ``n`` is
+    # reported when it is called, not when the iteration starts
     if n < 1:
         raise ValueError(f"n must be at least 1, got {n}")
     return _grouper_list(l, n)

@@ -17,6 +17,7 @@ class PathEnum:
     absolute paths to eliminate current directory dependencies and ensure consistent path
     resolution across different execution contexts and DevOps workflows.
     """
+
     @cached_property
     def dir_home(self):
         return Path.home()

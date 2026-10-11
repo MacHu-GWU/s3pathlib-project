@@ -96,10 +96,20 @@ def test_validate_s3_bucket_error_names_bad_chars():
     assert "'_'" in str(e.value)
 
 
+def test_validate_s3_bucket_error_chars_are_sorted():
+    """
+    The offending characters are listed in a fixed order, so the message is the
+    same in every process (a ``set`` prints in a different order each run).
+    """
+    with pytest.raises(S3ValidationError) as e:
+        validate_s3_bucket("ab_Cd!x")
+    assert str(e.value).endswith("invalid char found ['!', 'C', '_']")
+
+
 def test_validate_s3_bucket_ip_check_without_assert():
     """
     The IP address check gives the same result under ``python -O``, which
-    strips ``assert`` statements (2.x relied on them and rejected valid names
+    strips ``assert`` statements (relying on them would reject valid names
     such as ``1.2.3``).
     """
     code = (
@@ -271,7 +281,7 @@ def test_validate_s3_arn_invalid(arn, message):
 def test_validator_error_is_value_error(validator, value):
     """
     Validation errors are ``S3ValidationError`` and still ``ValueError``, so
-    2.x ``except ValueError`` code keeps working.
+    a generic ``except ValueError`` keeps working.
     """
     with pytest.raises(ValueError) as e:
         validator(value)
