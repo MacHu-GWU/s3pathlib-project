@@ -33,13 +33,12 @@ import botocore.exceptions
 from .._arg import OPT
 from .._arg import remove_optional
 from .. import exc
-from .. import utils
 from ..type import TagType, MetadataType
 from ..tag import encode_url_query
 from ..better_client.head_object import head_object
 from ..better_client.head_object import is_object_exists
 from ..better_client.list_objects import paginate_list_objects_v2
-from ..better_client.delete_object import _delete_objects
+from ..better_client.delete_object import delete_in_batches
 from ..better_client.delete_object import delete_object
 
 from .resolve_s3_client import resolve_s3_client
@@ -665,20 +664,12 @@ class CopyAPIMixin:
                 s3_client=s3_client,
                 kwargs=kwargs,
             )
-            n_deleted = 0
-            for keys in utils.grouper_list(src_keys, 1000):
-                objects = [{"Key": key} for key in keys]
-                n_deleted += _delete_objects(
-                    s3_client=client,
-                    bucket=self.bucket,
-                    objects=objects,
-                    n_deleted=n_deleted,
-                    mfa=OPT,
-                    request_payer=request_payer,
-                    bypass_governance_retention=OPT,
-                    expected_bucket_owner=OPT,
-                    check_sum_algorithm=OPT,
-                )
+            delete_in_batches(
+                s3_client=client,
+                bucket=self.bucket,
+                objects=({"Key": key} for key in src_keys),
+                request_payer=request_payer,
+            )
             return len(src_keys)
         else:
             if dst == self:

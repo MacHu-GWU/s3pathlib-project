@@ -414,7 +414,7 @@ class BucketMixin(BaseTest):
             S3Path.from_bucket("my-bucket").put_bucket_versioning(
                 enable_versioning,
                 enable_mfa_delete=enable_mfa_delete,
-                check_sum_algorithm="SHA256",
+                checksum_algorithm="SHA256",
                 mfa="arn:aws:iam::111122223333:mfa/root 123456",
                 expected_bucket_owner="111122223333",
             )

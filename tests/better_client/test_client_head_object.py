@@ -214,7 +214,7 @@ class HeadObjectMixin(BaseTest):
     def test_not_found_by_code(self):
         """
         404 is recognized by its code, not by the message (a HEAD response has
-        no body). Before 3.0 a 404 without "Not Found" raised ``ClientError``.
+        no body).
         """
         s3_client, stubber = self.stub()
         stubber.add_client_error("head_object", "404", http_status_code=404)

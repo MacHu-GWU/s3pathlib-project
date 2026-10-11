@@ -270,7 +270,7 @@ class DeleteObjectMixin(BaseTest):
     def test_delete_object_versions_prefix_must_be_a_folder(self):
         """
         A prefix that does not end with ``/`` is rejected: ``data/file.txt``
-        would also match ``data/file.txt.bak``. Before 3.0 it deleted those.
+        would also match ``data/file.txt.bak`` and delete its versions.
         """
         bucket, prefix = self.put(["file.txt", "file.txt.bak"], versioning=True)
         with pytest.raises(S3ValidationError, match="doesn't represent s3 dir"):
@@ -379,8 +379,8 @@ class DeleteObjectMixin(BaseTest):
         """
         S3 answers HTTP 200 with the failed keys in ``Errors``; that raises
         ``S3DeleteObjectsError`` with the errors and the number deleted so far
-        (the first batch of 1000 succeeded here). Before 3.0 the failures were
-        ignored and counted as deleted.
+        (the first batch of 1000 succeeded here); the failures are not counted
+        as deleted.
         """
         s3_client = self.boto_ses.client("s3")
         stubber = Stubber(s3_client)
@@ -446,7 +446,7 @@ class DeleteObjectMixin(BaseTest):
                 request_payer="requester",
                 bypass_governance_retention=True,
                 expected_bucket_owner="111122223333",
-                check_sum_algorithm="SHA256",
+                checksum_algorithm="SHA256",
             )
         assert count == 1
         stubber.assert_no_pending_responses()

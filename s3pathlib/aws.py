@@ -18,19 +18,23 @@ When it is not given, the method uses ``s3_context.s3_client``::
 
 If no client is attached, the first call creates one from the default
 credentials and region (environment variables, ``~/.aws``, instance role, ...),
-as ``boto3.client("s3")`` does. It is created when first used, not when
-``s3pathlib`` is imported, so environment variables set after the import are
-honored, and an error (e.g. an unknown ``AWS_PROFILE``) is raised to the caller
-instead of being hidden.
+as ``boto3.client("s3")`` does. An error (e.g. an unknown ``AWS_PROFILE``) is
+raised to the caller instead of being hidden. ``attach_s3_client`` replaces the
+client in one step, so a thread reading ``s3_client`` at the same time gets
+either the old or the new client.
 
-Thread safety: the client is created at most once, under a lock, from a new
-``boto3.session.Session`` (a session object is not thread safe, a client is).
-``attach_s3_client`` replaces the client in one step, so a thread reading
-``s3_client`` at the same time gets either the old or the new client.
+**Design notes**
 
-``s3_context`` was called ``context`` before 3.0.0. The old name was removed: it
-collides with the ``context`` argument of AWS Lambda handlers
-(``def lambda_handler(event, context)``).
+*Lazy creation.* The default client is created when first used, not at import,
+so importing ``s3pathlib`` has no side effect and the environment variables
+set after the import are honored.
+
+*A new Session per client.* A boto3 session object is not thread safe, a client
+is. The default client is created at most once, under a lock, from its own
+session.
+
+*One name,* ``s3_context``, not ``context``: that collides with the ``context``
+argument of AWS Lambda handlers (``def lambda_handler(event, context)``).
 """
 
 from __future__ import annotations

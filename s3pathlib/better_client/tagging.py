@@ -3,11 +3,10 @@
 """
 Update S3 bucket, object tagging.
 
-.. _get_bucket_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_bucket_tagging.html
-.. _put_bucket_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_bucket_tagging.html
-
-.. _get_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object_tagging.html
-.. _put_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object_tagging.html
+.. _get_bucket_tagging: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_bucket_tagging.html
+.. _put_bucket_tagging: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_bucket_tagging.html
+.. _get_object_tagging: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object_tagging.html
+.. _put_object_tagging: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object_tagging.html
 """
 
 from __future__ import annotations
@@ -18,6 +17,7 @@ import botocore.exceptions
 
 from .._arg import OPT
 from .._arg import remove_optional
+from ..type import TagType
 from .. import tag
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -27,10 +27,10 @@ if T.TYPE_CHECKING:  # pragma: no cover
 def update_bucket_tagging(
     s3_client: S3Client,
     bucket: str,
-    tags: tag.TagType,
+    tags: TagType,
     checksum_algorithm: str = OPT,
     expected_bucket_owner: str = OPT,
-) -> tag.TagType:
+) -> TagType:
     """
     Update the bucket tags like ``dict.update``: add the new keys, overwrite
     the existing ones, keep the others. It calls get_bucket_tagging_, merges,
@@ -39,17 +39,12 @@ def update_bucket_tagging(
 
     Example::
 
-        >>> update_bucket_tagging(s3_client, "my-bucket", {"team": "data"})
-        {'team': 'data'}
+        update_bucket_tagging(s3_client, "my-bucket", {"team": "data"})  # {'team': 'data'}
 
     S3 checks the limits (at most 50 tags per bucket, key and value length) and
     raises ``ClientError`` when they are broken.
 
-    :param s3_client: See put_bucket_tagging_
-    :param bucket: See put_bucket_tagging_
     :param tags: The tags to add or overwrite.
-    :param checksum_algorithm: See put_bucket_tagging_
-    :param expected_bucket_owner: See put_bucket_tagging_
 
     :return: All the tags of the bucket after the update.
 
@@ -73,7 +68,7 @@ def update_bucket_tagging(
         if e.response["Error"]["Code"] == "NoSuchTagSet":
             existing_tags = {}
         else:
-            raise e
+            raise
 
     existing_tags.update(tags)
     s3_client.put_bucket_tagging(
@@ -97,7 +92,7 @@ def update_object_tagging(
     checksum_algorithm: str = OPT,
     expected_bucket_owner: str = OPT,
     request_payer: str = OPT,
-) -> tuple[str | None, tag.TagType]:
+) -> tuple[str | None, TagType]:
     """
     Update the object tags like ``dict.update``: add the new keys, overwrite
     the existing ones, keep the others. It calls get_object_tagging_, merges,
@@ -109,21 +104,13 @@ def update_object_tagging(
 
     Example::
 
-        >>> update_object_tagging(s3_client, "my-bucket", "file.txt", {"team": "data"})
-        (None, {'team': 'data'})
+        update_object_tagging(s3_client, "my-bucket", "file.txt", {"team": "data"})
+        # (None, {'team': 'data'})
 
     S3 checks the limits (at most 10 tags per object, key and value length)
     and raises ``ClientError`` when they are broken.
 
-    :param s3_client: See put_object_tagging_
-    :param bucket: See put_object_tagging_
-    :param key: See put_object_tagging_
     :param tags: The tags to add or overwrite.
-    :param version_id: See put_object_tagging_
-    :param content_md5: See put_object_tagging_
-    :param checksum_algorithm: See put_object_tagging_
-    :param expected_bucket_owner: See put_object_tagging_
-    :param request_payer: See put_object_tagging_
 
     :return: ``(version_id, tags)``: the version that was updated (``None``
         if the bucket never had versioning), and all its tags after the update.

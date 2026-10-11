@@ -173,8 +173,7 @@ class ListObjectVersionsMixin(BaseTest):
     def test_limit(self, batch_size, limit, n_calls):
         """
         ``limit`` counts versions and delete markers together, and no page is
-        fetched after it is reached. Before 3.0 it only counted versions:
-        ``limit=3`` returned 4 entries.
+        fetched after it is reached: ``limit=3`` returns 3 entries, not 4.
         """
         with record_api_calls(self.s3_client) as calls:
             entries = self.entries(batch_size=batch_size, limit=limit)

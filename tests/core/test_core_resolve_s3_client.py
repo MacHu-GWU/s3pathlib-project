@@ -11,7 +11,7 @@ Test order:
 
 1. ``resolve_s3_client`` with nothing, an S3 client, and anything else;
 2. an ``S3Path`` method with ``s3_client=`` calls AWS through that client
-   only; the 2.x name ``bsm`` is gone;
+   only; there is no ``bsm`` argument;
 3. an ``S3Path`` produced with ``s3_client=`` loads its missing metadata with
    that client, but its other methods do not use it (see
    ``s3pathlib.core.metadata``);
@@ -69,8 +69,7 @@ class ResolveS3ClientMixin(BaseTest):
     def test_resolve_not_an_s3_client(self, kind):
         """
         Anything but a boto3 S3 client raises ``TypeError``, before any call.
-        A ``BotoSesManager`` (2.x accepted it) is not accepted: pass its
-        ``s3_client``.
+        A ``BotoSesManager`` is not accepted: pass its ``s3_client``.
         """
         if kind == "bsm":
             value = types.SimpleNamespace(s3_client=self.boto_ses.client("s3"))
@@ -111,7 +110,7 @@ class ResolveS3ClientMixin(BaseTest):
 
     def test_bsm_removed(self):
         """
-        No ``S3Path`` method has the 2.x argument ``bsm``; every method that
+        No ``S3Path`` method has a ``bsm`` argument; every method that
         calls AWS takes ``s3_client`` instead.
         """
         with_bsm = list()
@@ -136,8 +135,8 @@ class ResolveS3ClientMixin(BaseTest):
     def test_listed_path_loads_metadata_with_its_client(self):
         """
         A path listed with ``s3_client=`` loads its missing metadata with that
-        client, not with ``s3_context`` (2.x always used ``s3_context``, the
-        wrong account when listing with the client of another account).
+        client, not with ``s3_context`` (which may be another account when
+        listing with the client of one).
         """
         self.put(self.s3dir_test / "file.txt")
         s3_client = self.boto_ses.client("s3")

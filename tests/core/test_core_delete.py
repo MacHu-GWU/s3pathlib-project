@@ -268,7 +268,7 @@ class DeleteMixin(BaseTest):
     @pytest.mark.parametrize("is_hard_delete", [False, True])
     def test_folder_arguments_passed_to_boto3(self, is_hard_delete):
         """
-        The batch delete also gets ``check_sum_algorithm``.
+        The batch delete also gets ``checksum_algorithm``.
         """
         s3dir = self.s3dir_test_with_versioning / "folder/"
         self.put(s3dir / "a.txt")
@@ -279,7 +279,7 @@ class DeleteMixin(BaseTest):
                     mfa="serial 123456",
                     request_payer="requester",
                     bypass_governance_retention=True,
-                    check_sum_algorithm="SHA256",
+                    checksum_algorithm="SHA256",
                 )
         assert params["MFA"] == "serial 123456"
         assert params["RequestPayer"] == "requester"

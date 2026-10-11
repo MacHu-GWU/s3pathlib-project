@@ -40,7 +40,7 @@ class DeleteAPIMixin:
         request_payer: str = OPT,
         bypass_governance_retention: bool = OPT,
         expected_bucket_owner: str = OPT,
-        check_sum_algorithm: str = OPT,
+        checksum_algorithm: str = OPT,
         is_hard_delete: bool = False,
         skip_prompt: bool = False,
         s3_client: S3Client | None = None,
@@ -87,7 +87,7 @@ class DeleteAPIMixin:
         :param request_payer: see delete_object_.
         :param bypass_governance_retention: see delete_object_.
         :param expected_bucket_owner: see delete_object_.
-        :param check_sum_algorithm: ``ChecksumAlgorithm`` of delete_objects_,
+        :param checksum_algorithm: ``ChecksumAlgorithm`` of delete_objects_,
             used when deleting a folder or with ``is_hard_delete=True``.
         :param is_hard_delete: if ``True``, delete every version and delete
             marker permanently, see above.
@@ -142,7 +142,7 @@ class DeleteAPIMixin:
                     request_payer=request_payer,
                     bypass_governance_retention=bypass_governance_retention,
                     expected_bucket_owner=expected_bucket_owner,
-                    check_sum_algorithm=check_sum_algorithm,
+                    checksum_algorithm=checksum_algorithm,
                 )
             else:
                 response = delete_object(
@@ -172,7 +172,7 @@ class DeleteAPIMixin:
                     request_payer=request_payer,
                     bypass_governance_retention=bypass_governance_retention,
                     expected_bucket_owner=expected_bucket_owner,
-                    check_sum_algorithm=check_sum_algorithm,
+                    checksum_algorithm=checksum_algorithm,
                     skip_prompt=skip_prompt,
                 )
             else:
@@ -184,7 +184,7 @@ class DeleteAPIMixin:
                     request_payer=request_payer,
                     bypass_governance_retention=bypass_governance_retention,
                     expected_bucket_owner=expected_bucket_owner,
-                    check_sum_algorithm=check_sum_algorithm,
+                    checksum_algorithm=checksum_algorithm,
                     skip_prompt=skip_prompt,
                 )
         return s3path

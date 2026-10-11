@@ -1,10 +1,23 @@
 # -*- coding: utf-8 -*-
 
 """
-Improve the delete_object_ API.
+Improve the delete_object_ and delete_objects_ APIs.
 
-.. _delete_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_object.html
-.. _delete_objects: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_objects.html
+**Design notes**
+
+*Permanent deletion needs a folder prefix.* ``delete_dir`` and
+``delete_object_versions`` take a prefix that ends with ``/`` (or ``""`` for
+the whole bucket, after a confirmation). A prefix such as ``"data/file.txt"``
+is a string prefix: it also matches ``data/file.txt.bak``, and deleting all
+the versions of the match would lose data that is not the object. Use
+``delete_object_all_versions`` for the versions of exactly one key.
+
+*delete_objects can fail with HTTP 200.* The failed keys are in the ``Errors``
+of the response, and boto3 raises nothing, so ``delete_in_batches`` checks
+them and raises :class:`~s3pathlib.exc.S3DeleteObjectsError`.
+
+.. _delete_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/delete_object.html
+.. _delete_objects: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/delete_objects.html
 """
 
 from __future__ import annotations
@@ -45,18 +58,8 @@ def delete_object(
     does not). Errors of the AWS call (e.g. ``NoSuchBucket``,
     ``AccessDenied``) are raised as is.
 
-    :param s3_client: ``boto3.session.Session().client("s3")`` object.
-    :param bucket: See delete_object_.
-    :param key: See delete_object_.
-    :param version_id: See delete_object_.
-    :param mfa: See delete_object_.
-    :param request_payer: See delete_object_.
-    :param bypass_governance_retention: See delete_object_.
-    :param expected_bucket_owner: See delete_object_.
     :param ignore_not_found: Deprecated since 3.0.0, will be removed in 4.0.0.
         It has no effect, because S3 never reports a missing key.
-
-    :return: See delete_object_.
     """
     if ignore_not_found is not NOT_GIVEN:
         warnings.warn(
@@ -64,7 +67,7 @@ def delete_object(
             "4.0.0. It has no effect: S3 never reports a missing key when "
             "deleting. Remove the argument.",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=2,  # user -> delete_object
         )
     return s3_client.delete_object(
         **remove_optional(
@@ -88,7 +91,7 @@ def _delete_objects(
     request_payer: str,
     bypass_governance_retention: bool,
     expected_bucket_owner: str,
-    check_sum_algorithm: str,
+    checksum_algorithm: str,
 ) -> int:
     """
     Call delete_objects_ for at most 1000 objects.
@@ -109,7 +112,7 @@ def _delete_objects(
             RequestPayer=request_payer,
             BypassGovernanceRetention=bypass_governance_retention,
             ExpectedBucketOwner=expected_bucket_owner,
-            ChecksumAlgorithm=check_sum_algorithm,
+            ChecksumAlgorithm=checksum_algorithm,
         )
     )
     errors = response.get("Errors", [])
@@ -127,6 +130,44 @@ def _delete_objects(
     return n_deleted_now
 
 
+def delete_in_batches(
+    s3_client: S3Client,
+    bucket: str,
+    objects: T.Iterable[dict],
+    mfa: str = OPT,
+    request_payer: str = OPT,
+    bypass_governance_retention: bool = OPT,
+    expected_bucket_owner: str = OPT,
+    checksum_algorithm: str = OPT,
+) -> int:
+    """
+    Delete ``objects`` with delete_objects_, 1000 at a time (its limit), and
+    stop at the first batch that S3 fails to delete.
+
+    :param objects: ``{"Key": ...}`` or ``{"Key": ..., "VersionId": ...}``,
+        consumed lazily.
+
+    :return: the number of objects deleted.
+
+    :raises S3DeleteObjectsError: if S3 failed to delete some of a batch; the
+        following batches are not deleted.
+    """
+    count = 0
+    for batch in grouper_list(objects, 1000):
+        count += _delete_objects(
+            s3_client=s3_client,
+            bucket=bucket,
+            objects=batch,
+            n_deleted=count,
+            mfa=mfa,
+            request_payer=request_payer,
+            bypass_governance_retention=bypass_governance_retention,
+            expected_bucket_owner=expected_bucket_owner,
+            checksum_algorithm=checksum_algorithm,
+        )
+    return count
+
+
 def _confirm_delete_bucket(message: str, skip_prompt: bool) -> bool:
     """
     Ask the user to type ``YES`` before deleting everything in a bucket.
@@ -142,7 +183,7 @@ def _confirm_delete_bucket(message: str, skip_prompt: bool) -> bool:
 
 
 def delete_dir(
-    s3_client,
+    s3_client: S3Client,
     bucket: str,
     prefix: str,
     batch_size: int = 1000,
@@ -151,27 +192,20 @@ def delete_dir(
     request_payer: str = OPT,
     bypass_governance_retention: bool = OPT,
     expected_bucket_owner: str = OPT,
-    check_sum_algorithm: str = OPT,
+    checksum_algorithm: str = OPT,
     skip_prompt: bool = False,
 ) -> int:
     """
-    Recursively delete all objects under a s3 prefix, including the folder
-    marker itself, with delete_objects_. In a bucket with versioning, it adds
-    a delete marker to each object; use :func:`delete_object_versions` to
-    delete them permanently.
+    Recursively delete all objects under a folder, the folder marker itself
+    included, with delete_objects_. In a bucket with versioning, it adds a
+    delete marker to each object; use :func:`delete_object_versions` to delete
+    them permanently.
 
-    :param s3_client: ``boto3.session.Session().client("s3")`` object.
-    :param bucket: S3 bucket name.
     :param prefix: The folder to delete; it has to end with ``/``. ``""``
         deletes everything in the bucket, after asking you to confirm.
     :param batch_size: Number of objects listed per API call, 1 to 1000.
     :param limit: Total number of objects to delete. ``None`` (default):
         no limit.
-    :param mfa: See delete_object_.
-    :param request_payer: See delete_object_.
-    :param bypass_governance_retention: See delete_object_.
-    :param expected_bucket_owner: See delete_object_.
-    :param check_sum_algorithm: See delete_objects_.
     :param skip_prompt: Default False: with ``prefix=""``, ask you to type
         ``YES`` before deleting everything in the bucket.
 
@@ -179,8 +213,7 @@ def delete_dir(
 
     :raises S3ValidationError: if ``prefix`` is not empty and does not end
         with ``/``.
-    :raises S3DeleteObjectsError: if S3 failed to delete some objects; the
-        objects of the following batches are not deleted.
+    :raises S3DeleteObjectsError: if S3 failed to delete some objects.
     """
     if prefix == "":
         message = "You are deleting everything in an S3 Bucket"
@@ -189,7 +222,7 @@ def delete_dir(
     else:
         ensure_s3_dir(prefix)
 
-    contents_iterproxy = paginate_list_objects_v2(
+    contents = paginate_list_objects_v2(
         s3_client=s3_client,
         bucket=bucket,
         prefix=prefix,
@@ -198,21 +231,16 @@ def delete_dir(
         request_payer=request_payer,
         expected_bucket_owner=expected_bucket_owner,
     ).contents()
-
-    count = 0
-    for contents in grouper_list(contents_iterproxy, 1000):
-        count += _delete_objects(
-            s3_client=s3_client,
-            bucket=bucket,
-            objects=[dict(Key=dct["Key"]) for dct in contents],
-            n_deleted=count,
-            mfa=mfa,
-            request_payer=request_payer,
-            bypass_governance_retention=bypass_governance_retention,
-            expected_bucket_owner=expected_bucket_owner,
-            check_sum_algorithm=check_sum_algorithm,
-        )
-    return count
+    return delete_in_batches(
+        s3_client=s3_client,
+        bucket=bucket,
+        objects=(dict(Key=content["Key"]) for content in contents),
+        mfa=mfa,
+        request_payer=request_payer,
+        bypass_governance_retention=bypass_governance_retention,
+        expected_bucket_owner=expected_bucket_owner,
+        checksum_algorithm=checksum_algorithm,
+    )
 
 
 def delete_object_versions(
@@ -225,7 +253,7 @@ def delete_object_versions(
     request_payer: str = OPT,
     bypass_governance_retention: bool = OPT,
     expected_bucket_owner: str = OPT,
-    check_sum_algorithm: str = OPT,
+    checksum_algorithm: str = OPT,
     skip_prompt: bool = False,
 ) -> int:
     """
@@ -233,28 +261,19 @@ def delete_object_versions(
     under a folder, permanently, with delete_objects_. To delete all versions
     of one object, use :func:`delete_object_all_versions`.
 
-    :param s3_client: ``boto3.session.Session().client("s3")`` object.
-    :param bucket: S3 bucket name.
     :param prefix: The folder to delete; it has to end with ``/``. ``""``
         deletes everything in the bucket, after asking you to confirm.
     :param batch_size: Number of versions listed per API call, 1 to 1000.
     :param limit: Total number of versions and delete markers to delete.
         ``None`` (default): no limit.
-    :param mfa: See delete_object_.
-    :param request_payer: See delete_object_.
-    :param bypass_governance_retention: See delete_object_.
-    :param expected_bucket_owner: See delete_object_.
-    :param check_sum_algorithm: See delete_objects_.
     :param skip_prompt: Default False: with ``prefix=""``, ask you to type
         ``YES`` before deleting everything in the bucket.
 
     :return: number of deleted versions and delete markers.
 
     :raises S3ValidationError: if ``prefix`` is not empty and does not end
-        with ``/``. A prefix such as ``"data/file.txt"`` would also match
-        ``data/file.txt.bak``; before 3.0 it deleted those too.
-    :raises S3DeleteObjectsError: if S3 failed to delete some versions; the
-        versions of the following batches are not deleted.
+        with ``/``.
+    :raises S3DeleteObjectsError: if S3 failed to delete some versions.
     """
     if prefix == "":
         message = (
@@ -274,20 +293,19 @@ def delete_object_versions(
         limit=limit,
         expected_bucket_owner=expected_bucket_owner,
     )
-    count = 0
-    for pairs in grouper_list(proxy.iterate_key_and_version(), 1000):
-        count += _delete_objects(
-            s3_client=s3_client,
-            bucket=bucket,
-            objects=[dict(Key=key, VersionId=version_id) for key, version_id in pairs],
-            n_deleted=count,
-            mfa=mfa,
-            request_payer=request_payer,
-            bypass_governance_retention=bypass_governance_retention,
-            expected_bucket_owner=expected_bucket_owner,
-            check_sum_algorithm=check_sum_algorithm,
-        )
-    return count
+    return delete_in_batches(
+        s3_client=s3_client,
+        bucket=bucket,
+        objects=(
+            dict(Key=key, VersionId=version_id)
+            for key, version_id in proxy.iterate_key_and_version()
+        ),
+        mfa=mfa,
+        request_payer=request_payer,
+        bypass_governance_retention=bypass_governance_retention,
+        expected_bucket_owner=expected_bucket_owner,
+        checksum_algorithm=checksum_algorithm,
+    )
 
 
 def delete_object_all_versions(
@@ -298,21 +316,12 @@ def delete_object_all_versions(
     request_payer: str = OPT,
     bypass_governance_retention: bool = OPT,
     expected_bucket_owner: str = OPT,
-    check_sum_algorithm: str = OPT,
+    checksum_algorithm: str = OPT,
 ) -> int:
     """
     Delete all versions and delete markers of one object, permanently, with
     delete_objects_. Only the versions whose key is exactly ``key``: other
     keys that start with it (e.g. ``file.txt.bak`` for ``file.txt``) are kept.
-
-    :param s3_client: ``boto3.session.Session().client("s3")`` object.
-    :param bucket: S3 bucket name.
-    :param key: The key of the object.
-    :param mfa: See delete_object_.
-    :param request_payer: See delete_object_.
-    :param bypass_governance_retention: See delete_object_.
-    :param expected_bucket_owner: See delete_object_.
-    :param check_sum_algorithm: See delete_objects_.
 
     :return: number of deleted versions and delete markers; ``0`` if the
         object has none.
@@ -329,20 +338,17 @@ def delete_object_all_versions(
         expected_bucket_owner=expected_bucket_owner,
     )
     # the prefix also matches longer keys, keep only this key
-    pairs_of_key = (
-        (k, version_id) for k, version_id in proxy.iterate_key_and_version() if k == key
+    return delete_in_batches(
+        s3_client=s3_client,
+        bucket=bucket,
+        objects=(
+            dict(Key=k, VersionId=version_id)
+            for k, version_id in proxy.iterate_key_and_version()
+            if k == key
+        ),
+        mfa=mfa,
+        request_payer=request_payer,
+        bypass_governance_retention=bypass_governance_retention,
+        expected_bucket_owner=expected_bucket_owner,
+        checksum_algorithm=checksum_algorithm,
     )
-    count = 0
-    for pairs in grouper_list(pairs_of_key, 1000):
-        count += _delete_objects(
-            s3_client=s3_client,
-            bucket=bucket,
-            objects=[dict(Key=k, VersionId=version_id) for k, version_id in pairs],
-            n_deleted=count,
-            mfa=mfa,
-            request_payer=request_payer,
-            bypass_governance_retention=bypass_governance_retention,
-            expected_bucket_owner=expected_bucket_owner,
-            check_sum_algorithm=check_sum_algorithm,
-        )
-    return count

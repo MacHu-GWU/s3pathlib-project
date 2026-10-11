@@ -31,7 +31,7 @@ from s3pathlib.tests.mock_aws import BaseTest
 class CustomPathLike:
     """
     A local path that is only an ``os.PathLike``: neither a ``str`` nor a
-    ``pathlib.Path`` (2.x users pass e.g. a ``pathlib_mate.Path``).
+    ``pathlib.Path``, e.g. a ``pathlib_mate.Path``.
     """
 
     def __init__(self, path: str):

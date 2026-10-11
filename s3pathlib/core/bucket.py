@@ -217,7 +217,7 @@ class BucketAPIMixin:
         self: S3Path,
         enable_versioning: bool,
         enable_mfa_delete: bool | None = None,
-        check_sum_algorithm: str = OPT,
+        checksum_algorithm: str = OPT,
         mfa: str = OPT,
         expected_bucket_owner: str = OPT,
         s3_client: S3Client | None = None,
@@ -233,7 +233,7 @@ class BucketAPIMixin:
             ``"Enabled"``, ``False`` to ``"Disabled"``; ``None`` (default), it
             is not sent. Only the root user of the bucket owner account can change
             it, and it requires ``mfa``.
-        :param check_sum_algorithm: ``ChecksumAlgorithm``.
+        :param checksum_algorithm: ``ChecksumAlgorithm``.
         :param mfa: ``MFA``, the serial number of the MFA device, a space, and
             the code it shows.
         :param expected_bucket_owner: ``ExpectedBucketOwner``, the AWS account
@@ -259,7 +259,7 @@ class BucketAPIMixin:
         response = client.put_bucket_versioning(
             **remove_optional(
                 Bucket=self.bucket,
-                ChecksumAlgorithm=check_sum_algorithm,
+                ChecksumAlgorithm=checksum_algorithm,
                 VersioningConfiguration=versioning_configuration,
                 MFA=mfa,
                 ExpectedBucketOwner=expected_bucket_owner,

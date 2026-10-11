@@ -99,10 +99,10 @@ class AwsMixin(BaseTest):
 
     def test_s3_client_raises_and_recovers(self, monkeypatch):
         """
-        An unknown profile raises ``ProfileNotFound`` on access. Before 3.0
-        the error was swallowed at import time, every later call failed with
-        ``AttributeError: 'NoneType' object has no attribute 'client'``, and
-        fixing the environment did not help.
+        An unknown profile raises ``ProfileNotFound`` on access, not at
+        import time (it would be swallowed and every later call would fail
+        with ``AttributeError: 'NoneType' object has no attribute 'client'``),
+        and the next access works once the environment is fixed.
         """
         monkeypatch.setenv("AWS_PROFILE", "s3pathlib-no-such-profile")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
@@ -251,14 +251,15 @@ class AwsMixin(BaseTest):
     @pytest.mark.parametrize("module_name", ["s3pathlib.api", "s3pathlib", "s3pathlib.aws"])
     def test_removed_context_name(self, module_name):
         """
-        The 2.x name ``context`` is gone from every module; use ``s3_context``.
+        The name ``context`` is not defined in any module, it would collide
+        with the ``context`` argument of Lambda handlers; use ``s3_context``.
         """
         module = importlib.import_module(module_name)
         assert hasattr(module, "context") is False
 
     def test_removed_context_class_name(self):
         """
-        The 2.x class name ``Context`` is gone; the class is ``S3Context``.
+        The class is ``S3Context``, not ``Context``.
         """
         module = importlib.import_module("s3pathlib.aws")
         assert hasattr(module, "Context") is False

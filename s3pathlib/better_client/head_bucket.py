@@ -3,7 +3,7 @@
 """
 Improve the head_bucket_ API.
 
-.. _head_bucket: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_bucket
+.. _head_bucket: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/head_bucket.html
 """
 
 from __future__ import annotations
@@ -27,15 +27,11 @@ def is_bucket_exists(
 
     Example::
 
-        >>> is_bucket_exists(s3_client, "my-bucket")
-        True
+        is_bucket_exists(s3_client, "my-bucket")  # True
 
     S3 decides whether a name exists: a name that breaks the bucket naming
     rules (e.g. uppercase letters) simply does not exist. A bucket in another
     region is found too (botocore follows the region redirect).
-
-    :param s3_client: See head_bucket_
-    :param bucket: See head_bucket_
 
     :return: ``True`` if the bucket exists and you can access it, ``False`` if
         it does not exist (S3 returns 404).
@@ -63,4 +59,4 @@ def is_bucket_exists(
                 "s3:ListBucket permission"
             ) from e
         else:
-            raise e
+            raise

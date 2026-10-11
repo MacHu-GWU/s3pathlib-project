@@ -117,8 +117,7 @@ class HeadBucketMixin(BaseTest):
     def test_not_found_by_code(self):
         """
         404 is recognized by its code, not by the message: head_bucket has no
-        response body, so the message is not reliable. Before 3.0 a 404
-        without the "Not Found" message raised ``ClientError``.
+        response body, so the message is not reliable.
         """
         s3_client, stubber = self.stub_error("404", 404)
         with stubber:
@@ -128,8 +127,7 @@ class HeadBucketMixin(BaseTest):
         """
         403 means the bucket exists but you cannot access it; it raises
         ``S3PermissionDenied`` (a ``PermissionError``) with the reason, and
-        keeps the ``ClientError`` as the cause. Before 3.0 the ``ClientError``
-        was raised as is.
+        keeps the ``ClientError`` as the cause.
         """
         s3_client, stubber = self.stub_error("403", 403)
         with stubber:

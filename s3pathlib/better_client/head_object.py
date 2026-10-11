@@ -3,7 +3,7 @@
 """
 Improve the head_object_ API.
 
-.. _head_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
+.. _head_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/head_object.html
 """
 
 from __future__ import annotations
@@ -46,38 +46,22 @@ def head_object(
 
     Example::
 
-        >>> response = head_object(s3_client, "my-bucket", "file.txt", ignore_not_found=True)
-        >>> if response is None:
-        ...     print("Object not found")
-        ... else:
-        ...     print(response["ContentLength"])
-        5
+        response = head_object(s3_client, "my-bucket", "file.txt", ignore_not_found=True)
+        if response is None:
+            print("Object not found")
+        else:
+            print(response["ContentLength"])
 
     The object does not exist when S3 answers 404 (the key, or the bucket, does
     not exist; or the latest version is a delete marker) or 405 (``version_id``
     is a delete marker). A ``HEAD`` response has no body, so S3 cannot tell a
     missing key from a missing bucket.
 
-    :param s3_client: See head_object_
-    :param bucket: See head_object_
-    :param key: See head_object_
-    :param if_match: See head_object_
-    :param if_modified_since: See head_object_
-    :param if_none_match: See head_object_
-    :param if_unmodified_since: See head_object_
-    :param range: See head_object_
-    :param version_id: See head_object_
-    :param sse_customer_algorithm: See head_object_
-    :param sse_customer_key: See head_object_
-    :param request_payer: See head_object_
-    :param part_number: See head_object_
-    :param expected_bucket_owner: See head_object_
-    :param checksum_mode: See head_object_
-    :param ignore_not_found: Default is ``False``; if ``True``, return ``None``
-        when object is not found instead of raising an error.
+    :param ignore_not_found: if ``True``, return ``None`` when the object is
+        not found instead of raising an error.
 
-    :return: See head_object_, or ``None`` if the object does not exist and
-        ``ignore_not_found`` is ``True``.
+    :return: the head_object_ response, or ``None`` if the object does not
+        exist and ``ignore_not_found`` is ``True``.
 
     :raises S3FileNotExist: if the object does not exist and
         ``ignore_not_found`` is ``False``. The ``ClientError`` is its
@@ -138,7 +122,7 @@ def head_object(
                 "answers 403 for a missing key)"
             ) from e
         else:
-            raise e
+            raise
 
 
 def is_object_exists(
@@ -148,24 +132,10 @@ def is_object_exists(
     version_id: str = OPT,
 ) -> bool:
     """
-    Check if an object exists. If you want to use the head_object_ API response
-    immediately when the object exists, use :func:`head_object` instead.
-
-    It follows the same rules as :func:`head_object`: a missing bucket and a
-    delete marker mean ``False``, and no permission raises
-    ``S3PermissionDenied``.
-
-    Example::
-
-        >>> is_object_exists(s3_client, "my-bucket", "file.txt")
-        True
-
-    :param s3_client: See head_object_
-    :param bucket: See head_object_
-    :param key: See head_object_
-    :param version_id: See head_object_
-
-    :return: A Boolean flag to indicate whether the object exists.
+    Check if an object exists. To use the head_object_ response when it
+    exists, use :func:`head_object` instead. It follows the same rules as
+    :func:`head_object`: a missing bucket and a delete marker mean ``False``,
+    and no permission raises ``S3PermissionDenied``.
     """
     response = head_object(
         s3_client=s3_client,

@@ -3,7 +3,7 @@
 """
 Upload a local directory to S3.
 
-.. _upload_file: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html#
+.. _upload_file: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/upload_file.html
 """
 
 from __future__ import annotations
@@ -36,14 +36,11 @@ def upload_dir(
 
     Example::
 
-        >>> upload_dir(s3_client, "my-bucket", "data/", "/tmp/data")
-        3
+        upload_dir(s3_client, "my-bucket", "data/", "/tmp/data")  # 3
 
     Only files are uploaded: an empty local directory does not create
     anything in S3.
 
-    :param s3_client: A ``boto3.session.Session().client("s3")`` object.
-    :param bucket: S3 bucket name.
     :param prefix: The S3 folder to upload to, e.g. ``"data/"``. A missing
         trailing ``/`` is added (``"data"`` is the same as ``"data/"``), and
         ``""`` is the root of the bucket.
@@ -89,7 +86,7 @@ def upload_dir(
     for p in p_local_dir.glob(pattern):
         if p.is_file():
             relative_path = p.relative_to(p_local_dir)
-            key = "{}{}".format(final_prefix, "/".join(relative_path.parts))
+            key = final_prefix + "/".join(relative_path.parts)
             todo.append((str(p.absolute()), key))
 
     # make sure all target s3 location not exists
