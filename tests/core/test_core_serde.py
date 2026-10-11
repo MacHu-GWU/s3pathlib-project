@@ -8,7 +8,8 @@ Test order:
 1. ``to_dict``: the format of every kind of path;
 2. ``from_dict``: round trips, then one case per kind of bad input;
 3. pickle and ``copy``: every protocol, the hash across processes, the
-   metadata snapshot and its S3 client, pickles from 2.x, and tampered state.
+   metadata snapshot and its S3 client, pickles of older versions, and tampered
+   state.
 """
 
 import copy
@@ -307,7 +308,7 @@ class SerdeAPIMixin(BaseTest):
     )
     def test_unpickle_2x_state(self, dict_state):
         """
-        A pickle made by s3pathlib 2.x has the default ``(dict, slots)``
+        A pickle made by an older version has the default ``(dict, slots)``
         state, with ``_parts`` as a list and a cached hash; it still loads,
         and the hash is computed again.
         """

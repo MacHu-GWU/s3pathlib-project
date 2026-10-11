@@ -46,46 +46,30 @@ class IsTestAPIMixin:
 
     def is_void(self: S3Path) -> bool:
         """
-        Test if it is a void S3 path.
-
-        **Definition**
-
-        no bucket, no key, no parts, no type, no nothing.
-        A void path is also a special :meth:`relative path <is_relpath>`,
-        because any path join with void path results to itself.
+        Test if it is the void path: no bucket, no parts, neither a file nor a
+        dir. It is also a :meth:`relative path <is_relpath>`, because joining
+        it onto any path gives that path.
         """
         return (self._bucket is None) and (len(self._parts) == 0)
 
     def is_dir(self: S3Path) -> bool:
         """
-        Test if it is a S3 directory
-
-        **Definition**
-
-        A logical S3 directory that never physically exists. An S3
-        :meth:`bucket <is_bucket>` is also a special dir, which is the root dir.
-        A relative path ending with ``/`` is a dir too.
+        Test if it is a dir: a logical S3 folder, a :meth:`bucket <is_bucket>`
+        (the root dir), or a relative path ending with ``/``.
         """
         return self._is_dir is True
 
     def is_file(self: S3Path) -> bool:
         """
-        Test if it is a S3 object
-
-        **Definition**
-
-        A S3 object, or a relative path that does not end with ``/``.
+        Test if it is a file: an S3 object, or a relative path that does not
+        end with ``/``.
         """
         return self._is_dir is False
 
     def is_bucket(self: S3Path) -> bool:
         """
-        Test if it is a S3 bucket.
-
-        **Definition**
-
-        A S3 bucket, the root folder S3 path is equivalent to a S3 bucket.
-        A S3 bucket are always :meth:`is_dir() is True <is_dir>`
+        Test if it is a bucket, i.e. the root dir (so :meth:`is_dir` is also
+        ``True``).
         """
         return (self._bucket is not None) and (len(self._parts) == 0)
 

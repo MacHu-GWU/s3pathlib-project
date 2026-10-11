@@ -321,8 +321,8 @@ class BaseS3PathMixin(BaseTest):
     def test_no_new_attributes(self):
         """
         An ``S3Path`` has no ``__dict__``: a mistyped attribute such as
-        ``p.verison_id = ...`` raises instead of being silently stored. 2.x
-        declared ``__slots__`` on the base class only, so it had no effect.
+        ``p.verison_id = ...`` raises instead of being silently stored. Every
+        class in the MRO has to declare ``__slots__`` for this to hold.
         """
         p = S3Path("bucket", "a.txt")
         assert hasattr(p, "__dict__") is False

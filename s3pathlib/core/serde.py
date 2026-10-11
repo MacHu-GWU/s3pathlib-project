@@ -3,32 +3,31 @@
 """
 Serialization and deserialization: to / from a dict, and pickle.
 
-**Dict**
-
 :meth:`~SerdeAPIMixin.to_dict` gives an :class:`S3PathDict`, the three fields
 that define a path (see :mod:`s3pathlib.core.base`)::
 
     >>> S3Path("bucket", "folder", "file.txt").to_dict()
     {'bucket': 'bucket', 'parts': ['folder', 'file.txt'], 'is_dir': False}
 
-It only holds the path, not the metadata loaded from S3, and it can be stored
-as JSON as it is. ``parts`` is a ``list``, not a ``tuple`` like the internal
+Pickle and ``copy.copy`` / ``copy.deepcopy`` keep the path and the metadata
+snapshot loaded from S3 (see :mod:`s3pathlib.core.metadata`). A loaded path
+uses ``s3_context`` to load the missing metadata fields.
+
+**Design notes**
+
+*The dict only holds the path,* not the metadata, so it can be stored as JSON
+as it is. ``parts`` is a ``list``, not a ``tuple`` like the internal
 ``_parts``: the dict is a new copy on every call, so changing it can not
 change the path, and a ``list`` is what JSON (and YAML, msgpack, ...) gives
-back, so ``json.loads(json.dumps(d)) == d``. It is also the type of
-``S3Path.parts``.
+back, so ``json.loads(json.dumps(d)) == d``.
 
-**Pickle**
+*Pickle does not keep the cached hash.* The hash of a ``str`` is different in
+every Python process, so a cached hash would be wrong after loading it in
+another process (e.g. with ``multiprocessing``).
 
-Pickling keeps the path and the metadata snapshot loaded from S3 (see
-:mod:`s3pathlib.core.metadata`), but not the cached hash: the hash of a ``str``
-is different in every Python process, so a cached hash would be wrong after
-loading it in another process (e.g. with ``multiprocessing``). It does not keep
-the S3 client that loaded the metadata either (a client cannot be pickled), so
-a loaded path uses ``s3_context`` to load the missing metadata fields.
-
-``copy.copy`` and ``copy.deepcopy`` keep the same things, plus the S3 client
-(shared, not copied).
+*Pickle does not keep the S3 client* that loaded the metadata, because a
+client cannot be pickled. ``copy.copy`` and ``copy.deepcopy`` keep it (shared,
+not copied).
 """
 
 from __future__ import annotations
@@ -147,7 +146,7 @@ class SerdeAPIMixin:
         Restore the state saved by :meth:`__getstate__`, and check that it is
         a valid path.
 
-        A pickle made by s3pathlib 2.x has the default state of a class with
+        A pickle made by an older version has the default state of a class with
         ``__slots__``: a ``(dict, slots_dict)`` tuple, which also works. Its
         cached hash is ignored.
         """

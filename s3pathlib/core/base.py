@@ -91,79 +91,32 @@ def _ensure_valid_state(
 
 class BaseS3Path:
     """
-    Similar to ``pathlib.Path``. An object-oriented programming interface
-    for AWS S3 object or logical directory.
+    Similar to ``pathlib.Path``, for an S3 object or a logical S3 folder. It
+    does pure path manipulation without calling AWS, and wraps the S3 APIs of
+    an object, a folder or a bucket.
 
-    You can use this class in different way.
+    The :class:`S3Path` itself is the constructor. It takes ``str`` and
+    relative :class:`S3Path` as arguments:
 
-    1. pure s3 object / directory path manipulation without actually
-        talking to AWS API.
-    2. get metadata of an object, count objects, get statistics information
-        of a directory
-    3. enhanced s3 API that do: :meth:`upload_file <upload_file>`,
-        :meth:`upload_dir <upload_dir>`,
-        :meth:`copy <copy_to>` a file or directory,
-        :meth:`move <move_to>` a file or directory,
-        :meth:`delete <delete>`  a file or directory,
-        :meth:`iter_objects <iter_objects>` from a prefix.
+    1. The first argument is the bucket. It can also be an S3 URI
+       (``s3://...``) or an S3 ARN (``arn:{partition}:s3:::...``).
+    2. The other arguments are the parts of the key; ``/`` is collapsed.
+    3. The last non-empty argument decides the type: a trailing ``/`` makes it
+       a dir, otherwise it is a file. Empty arguments (``""`` or a void path)
+       are ignored.
 
-    **Constructor**
+    The constructor only checks the format (a well formed URI / ARN, a
+    non-empty bucket), not the bucket naming rules: S3 does that when you call
+    the API. Use :mod:`s3pathlib.validate` to check a name yourself.
 
-    The :class:`S3Path` itself is a constructor. It takes ``str`` and other
-    relative :class:`S3Path` as arguments.
+    Example::
 
-    1. The first argument defines the S3 bucket
-    2. The rest of arguments defines the path parts of the S3 key
-    3. The final argument defines the type whether is a file (object) or
-        a directory. Empty arguments (``""`` or a void path) are ignored, so
-        the last non-empty argument decides the type.
-
-    The first argument can also be an S3 URI (``s3://...``) or an S3 ARN
-    (``arn:{partition}:s3:::...``). The constructor only checks the format
-    (well formed URI / ARN, non-empty bucket); it does not check bucket naming
-    rules, S3 does that when you call the API. Use :mod:`s3pathlib.validate`
-    if you want to check a name yourself.
-
-    First let's create a S3 object path from string::
-
-        # first argument becomes the bucket
-        >>> s3path = S3Path("bucket", "folder", "file.txt")
-        # print S3Path object gives you info in S3 URI format
-        >>> s3path
+        >>> S3Path("bucket", "folder", "file.txt")
         S3Path('s3://bucket/folder/file.txt')
-
-        # If the last argument has a trailing slash ("/"), it indicates that
-        # it refers to a directory. Otherwise, it is assumed to be a file.
-        >>> s3path.is_file()
-        True
-        >>> s3path.is_dir()
-        False
-
-        # "/" separator will be automatically handled
-        >>> S3Path("bucket", "folder/file.txt")
-        S3Path('s3://bucket/folder/file.txt')
-
-        >>> S3Path("bucket/folder/file.txt")
-        S3Path('s3://bucket/folder/file.txt')
-
-    Then let's create a S3 directory path::
-
-        >>> s3path= S3Path("bucket/folder/")
-        >>> s3path
+        >>> S3Path("bucket/folder/")
         S3Path('s3://bucket/folder/')
-
-        # last argument defines that it is a directory
-        >>> s3path.is_dir()
+        >>> S3Path("s3://bucket/folder/file.txt").is_file()
         True
-        >>> s3path.is_file()
-        False
-
-    You can also create it from S3 URI or ARN::
-
-        >>> S3Path("s3://bucket/folder/file.txt")
-        S3Path('s3://bucket/folder/file.txt')
-        >>> S3Path("arn:aws:s3:::bucket/folder/file.txt")
-        S3Path('s3://bucket/folder/file.txt')
     """
 
     __slots__ = (
@@ -189,7 +142,7 @@ class BaseS3Path:
     @classmethod
     def _from_parts(
         cls: type[S3Path],
-        args: list[str | S3Path],
+        args: T.Sequence[str | S3Path],
     ) -> S3Path:
         """
         Low level implementation of the constructor.

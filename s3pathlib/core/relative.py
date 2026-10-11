@@ -2,6 +2,9 @@
 
 """
 Relative Path implementation.
+
+A relative path is a path without bucket. ``relative_to`` (and ``-``) is the
+inverse of ``/``, see the design notes in :mod:`s3pathlib.core.joinpath`.
 """
 
 from __future__ import annotations
@@ -9,6 +12,7 @@ from __future__ import annotations
 import typing as T
 import warnings
 
+from .base import BaseS3Path
 from ..exc import S3PathIsNotRelpathError
 from ..exc import S3PathTypeError
 
@@ -19,11 +23,6 @@ if T.TYPE_CHECKING:  # pragma: no cover
 class RelativePathAPIMixin:
     """
     A mixin class that implements the relative path concept.
-
-    :meth:`relative_to` is the inverse of ``/``
-    (:meth:`~s3pathlib.core.joinpath.JoinPathAPIMixin.joinpath`): for a dir
-    ``base`` and any ``target`` under it,
-    ``base / target.relative_to(base) == target``.
     """
 
     __slots__ = ()
@@ -34,32 +33,17 @@ class RelativePathAPIMixin:
         *parts: str | S3Path,
     ) -> S3Path:
         """
-        A construct method that create a relative S3 Path, from string parts
-        or other relative paths. It follows the same rules as the
+        Create a relative path from string parts or other relative paths. It
+        follows the same rules as the
         :class:`~s3pathlib.core.s3path.S3Path` constructor: ``/`` is
         collapsed, empty arguments are ignored, and the last non-empty
-        argument decides whether it is a file or a dir.
+        argument decides whether it is a file or a dir. With no parts it is
+        the void path, which is neither a file nor a dir.
 
         Example::
 
             >>> S3Path.make_relpath("folder", "file.txt")
             S3RelPath('folder/file.txt')
-            >>> S3Path.make_relpath("folder/")
-            S3RelPath('folder/')
-            >>> S3Path.make_relpath()
-            S3VoidPath()
-
-        A relative path has no bucket. With no parts it is the void path, which
-        is neither a file nor a dir. See :mod:`s3pathlib.core.base`.
-
-        **中文文档**
-
-        相对路径的概念是 p1 + p2 = p3, 其中 p1 和 p3 都是实际存在的路径, 而 p2 则是
-        相对路径.
-
-        相对路径的功能是如果 p3 - p1 = p2, 那么 p1 + p2 必须还能等于 p3. 有一个特殊情况是
-        如果 p1 - p1 = p0, 两个相同的绝对路径之间的相对路径是 p0, 我们还是需要满足
-        p1 + p0 = p1 以保证逻辑上的一致.
 
         :raises TypeError: if a part is not a str or a relative path.
         """
@@ -69,24 +53,13 @@ class RelativePathAPIMixin:
     def relative_to(self: S3Path, other: S3Path) -> S3Path:
         """
         Return the relative path from ``other`` to this path, the inverse of
-        ``/``: ``other / self.relative_to(other) == self``.
+        ``/``: ``other / self.relative_to(other) == self``. ``-`` is a syntax
+        sugar for it. The same path gives the void path.
 
-        ``-`` is a syntax sugar for ``relative_to``. See more information at
-        :meth:`~RelativePathAPIMixin.__sub__`.
-
-        Examples::
+        Example::
 
             >>> S3Path("bucket", "a/b/c").relative_to(S3Path("bucket", "a/"))
             S3RelPath('b/c')
-
-            >>> S3Path("bucket", "a/b/").relative_to(S3Path("bucket"))
-            S3RelPath('a/b/')
-
-            >>> S3Path("bucket", "a/").relative_to(S3Path("bucket", "a/"))
-            S3VoidPath()
-
-            >>> S3Path("bucket") / S3Path("new_bucket/file.txt").relative_to(S3Path("new_bucket"))
-            S3Path('s3://bucket/file.txt')
 
         Both paths are absolute paths in the same bucket, or both are relative
         paths (a relative path relative to another one).
@@ -96,10 +69,6 @@ class RelativePathAPIMixin:
         deprecated since 3.0.0: it still works, emits a ``DeprecationWarning``,
         and will raise :class:`~s3pathlib.exc.S3PathIsNotFolderError` in
         4.0.0. See :meth:`~s3pathlib.core.joinpath.JoinPathAPIMixin.joinpath`.
-
-        :param other: other :class:`S3Path` instance.
-
-        :return: a relative path object, which is a special version of S3Path
 
         :raises TypeError: if ``other`` is not an S3Path.
         :raises ValueError: if this path is not under ``other``, e.g. a
@@ -111,10 +80,9 @@ class RelativePathAPIMixin:
 
     def _relative_to(self: S3Path, other: S3Path) -> S3Path:
         """
-        Implementation of :meth:`relative_to` and ``-``. Both call it directly,
-        so the deprecation warning (``stacklevel=3``) points at the user's line.
+        Implementation of :meth:`relative_to` and ``-``.
         """
-        if not isinstance(other, RelativePathAPIMixin):
+        if not isinstance(other, BaseS3Path):
             raise TypeError(
                 f"other has to be an S3Path, got {type(other).__name__}: {other!r}"
             )
@@ -153,7 +121,7 @@ class RelativePathAPIMixin:
                 "S3PathIsNotFolderError in 4.0.0. Use a dir instead, "
                 "e.g. end it with '/' or call .to_dir().",
                 DeprecationWarning,
-                stacklevel=3,
+                stacklevel=3,  # user -> relative_to or - -> _relative_to
             )
 
         return self._from_parsed_parts(
@@ -164,26 +132,15 @@ class RelativePathAPIMixin:
 
     def is_relpath(self: S3Path) -> bool:
         """
-        Relative path is a special path supposed to join with other concrete
-        path.
-
-        **Definition**
-
-        A long full path relating to its parent directory is a relative path.
-        A :meth:`void <is_void>` path also a special relative path. In other
-        words, any path without bucket, see :mod:`s3pathlib.core.base`.
+        Test if it is a relative path, i.e. any path without bucket. The
+        :meth:`void <is_void>` path is a relative path too. See
+        :mod:`s3pathlib.core.base`.
         """
         return self._bucket is None
 
     def __sub__(self: S3Path, other: S3Path) -> S3Path:
         """
-        A syntax sugar. Basically ``s3path1 - s3path2`` is equal to
-        ``s3path1.relative_to(s3path2)``.
-
-        Example::
-
-            >>> S3Path("bucket", "a/b/c") - S3Path("bucket", "a/")
-            S3RelPath('b/c')
+        A syntax sugar. ``s3path1 - s3path2`` is ``s3path1.relative_to(s3path2)``.
         """
         return self._relative_to(other)
 

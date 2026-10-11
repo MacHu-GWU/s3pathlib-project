@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import typing as T
 import functools
+import operator
 
 FilterableType = T.TypeVar("FilterableType")
 
@@ -95,88 +96,69 @@ class FilterableProperty(T.Generic[FilterableType]):
             f"can't delete attribute {type(obj).__name__}.{self.__name__}"
         )
 
-    def __eq__(self, other):
+    def _compare(self, op: T.Callable[[T.Any, T.Any], bool], other: T.Any):
         def filter_(obj):
-            return self._func(obj) == other
+            return op(self._func(obj), other)
 
         return filter_
+
+    def __eq__(self, other):
+        return self._compare(operator.eq, other)
 
     def __ne__(self, other):
-        def filter_(obj):
-            return self._func(obj) != other
-
-        return filter_
+        return self._compare(operator.ne, other)
 
     def __gt__(self, other):
-        def filter_(obj):
-            return self._func(obj) > other
-
-        return filter_
+        return self._compare(operator.gt, other)
 
     def __lt__(self, other):
-        def filter_(obj):
-            return self._func(obj) < other
-
-        return filter_
+        return self._compare(operator.lt, other)
 
     def __ge__(self, other):
-        def filter_(obj):
-            return self._func(obj) >= other
-
-        return filter_
+        return self._compare(operator.ge, other)
 
     def __le__(self, other):
-        def filter_(obj):
-            return self._func(obj) <= other
-
-        return filter_
+        return self._compare(operator.le, other)
 
     def equal_to(self, other):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name == other``
+        The same as ``==``: a filter function for ``attribute == other``.
         """
         return self.__eq__(other)
 
     def not_equal_to(self, other):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name != other``
+        The same as ``!=``.
         """
         return self.__ne__(other)
 
     def greater(self, other):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name > other``
+        The same as ``>``.
         """
         return self.__gt__(other)
 
     def less(self, other):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name < other``
+        The same as ``<``.
         """
         return self.__lt__(other)
 
     def greater_equal(self, other):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name >= other``
+        The same as ``>=``.
         """
         return self.__ge__(other)
 
     def less_equal(self, other):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name <= other``
+        The same as ``<=``.
         """
         return self.__le__(other)
 
     def between(self, lower, upper):
         """
-        Return a filter function that returns True
-        only if ``lower <= FilterableType.attribute_name <= upper``
+        A filter function for ``lower <= attribute <= upper``.
         """
 
         def filter_(obj):
@@ -186,35 +168,20 @@ class FilterableProperty(T.Generic[FilterableType]):
 
     def startswith(self, other: str):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name.startswith(other)``.
-        The attribute has to be a string attribute.
+        A filter function for ``attribute.startswith(other)``; the attribute
+        has to be a ``str``.
         """
-
-        def filter_(obj):
-            return self._func(obj).startswith(other)
-
-        return filter_
+        return self._compare(lambda value, prefix: value.startswith(prefix), other)
 
     def endswith(self, other: str):
         """
-        Return a filter function that returns True
-        only if ``FilterableType.attribute_name.endswith(other)``.
-        The attribute has to be a string attribute.
+        A filter function for ``attribute.endswith(other)``; the attribute
+        has to be a ``str``.
         """
-
-        def filter_(obj):
-            return self._func(obj).endswith(other)
-
-        return filter_
+        return self._compare(lambda value, suffix: value.endswith(suffix), other)
 
     def contains(self, other):
         """
-        Return a filter function that returns True
-        only if ``other in FilterableType.attribute_name``
+        A filter function for ``other in attribute``.
         """
-
-        def filter_(obj):
-            return other in self._func(obj)
-
-        return filter_
+        return self._compare(lambda value, item: item in value, other)

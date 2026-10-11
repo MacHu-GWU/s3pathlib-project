@@ -134,8 +134,8 @@ class MutateAPIMixin(BaseTest):
         """
         A dir stays a dir unless ``new_basename`` says otherwise, a bucket
         root and void keep having no last part, and a relative path stays
-        relative unless ``new_bucket`` is given. Before 3.0, ``change`` on a
-        dir or a bucket always raised ``TypeError``.
+        relative unless ``new_bucket`` is given. ``change`` works on a dir and a
+        bucket, not only on a file.
         """
         assert p.change(**kwargs) == expected
 

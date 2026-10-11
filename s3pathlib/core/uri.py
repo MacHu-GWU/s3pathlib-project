@@ -19,7 +19,7 @@ relative path  ``None``    ``"a/f.txt"``  ``None``              ``None``
 void           ``None``    ``""``         ``None``              ``None``
 =============  ==========  =============  ====================  =========================
 
-**Why**
+**Design notes**
 
 The attributes are in three layers, and each layer treats "missing" in its
 own way:
@@ -80,31 +80,13 @@ class UriAPIMixin:
     @FilterableProperty
     def key(self: S3Path) -> str:
         """
-        Return object or directory key as string. A directory key ends with
-        ``/``; a bucket or void path has an empty key.
+        Return the key as a string. A dir key ends with ``/``; a bucket and
+        the void path have an empty key. See the table above.
 
-        Examples::
+        Example::
 
-            # a s3 object
-            >>> S3Path("bucket/folder/file.txt").key
-            'folder/file.txt'
-
-            # a s3 directory
             >>> S3Path("bucket/folder/").key
             'folder/'
-
-            # a relative path
-            >>> S3Path("bucket/folder/file.txt").relative_to(S3Path("bucket")).key
-            'folder/file.txt'
-
-            >>> S3Path("bucket/folder/").relative_to(S3Path("bucket")).key
-            'folder/'
-
-            # a bucket and a void path
-            >>> S3Path("bucket").key
-            ''
-            >>> S3Path().key
-            ''
         """
         if len(self._parts):
             return "/".join(self._parts) + ("/" if self._is_dir else "")
@@ -114,34 +96,13 @@ class UriAPIMixin:
     @FilterableProperty
     def uri(self: S3Path) -> str | None:
         """
-        Return AWS S3 URI.
+        Return the S3 URI, ``"s3://{bucket}/{key}"``; ``None`` if it has no
+        bucket (a relative path or the void path). The key is not URL encoded.
 
-        - for regular s3 object, it returns ``"s3://{bucket}/{key}"``
-        - if it is a directory, the s3 uri always ends with ``"/"``.
-        - if it is bucket only (no key), it returns ``"s3://{bucket}/"``
-        - if it has no bucket (a relative path or a void path), it returns
-            ``None``
-
-        The key is not URL encoded, an S3 URI keeps the key as it is.
-
-        Examples::
+        Example::
 
             >>> S3Path("bucket", "folder", "file.txt").uri
             's3://bucket/folder/file.txt'
-
-            >>> S3Path("bucket", "folder/").uri
-            's3://bucket/folder/'
-
-            >>> S3Path("bucket").uri
-            's3://bucket/'
-
-            # void path doesn't have uri
-            >>> S3Path().uri is None
-            True
-
-            # relative path doesn't have uri
-            >>> S3Path("bucket/folder/file.txt").relative_to(S3Path("bucket")).uri is None
-            True
         """
         if self._bucket is None:
             return None
@@ -150,9 +111,8 @@ class UriAPIMixin:
     @property
     def console_url(self: S3Path) -> str | None:
         """
-        Return an url that can inspect the object, directory details in the
-        global AWS Console of the ``aws`` partition. Same as
-        :meth:`get_console_url` with the default arguments.
+        The URL of the path in the global AWS console of the ``aws``
+        partition, the same as :meth:`get_console_url` with the defaults.
 
         Example::
 
@@ -167,19 +127,14 @@ class UriAPIMixin:
         partition: str = AwsPartitionEnum.aws,
     ) -> str | None:
         """
-        Return an url that can inspect the object, directory details in AWS
-        Console.
+        Return the URL of the path in the AWS console. If the metadata is
+        already loaded and has a version id, the URL opens that version. It
+        never calls the AWS API.
 
         Example::
 
-            >>> p = S3Path("bucket", "folder", "file.txt")
-            >>> p.get_console_url(region="us-east-1")
-            'https://us-east-1.console.aws.amazon.com/s3/object/bucket?region=us-east-1&prefix=folder/file.txt'
-            >>> p.get_console_url(partition="aws-us-gov")
+            >>> S3Path("bucket", "folder", "file.txt").get_console_url(partition="aws-us-gov")
             'https://console.amazonaws-us-gov.com/s3/object/bucket?prefix=folder/file.txt'
-
-        If the object metadata is already loaded and has a version id, the url
-        opens that version. It does not call the AWS API.
 
         :param region: use the regional console, e.g. ``"us-east-1"``.
             ``None`` (the default) uses the global console.
@@ -204,9 +159,8 @@ class UriAPIMixin:
     @FilterableProperty
     def arn(self: S3Path) -> str | None:
         """
-        Return the AWS S3 resource ARN in the ``aws`` partition.
-        Use :meth:`get_arn` for the other partitions.
-        See `ARN definition here <https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html>`_
+        Return the `ARN <https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html>`_
+        in the ``aws`` partition; use :meth:`get_arn` for the other partitions.
 
         Example::
 
@@ -220,7 +174,7 @@ class UriAPIMixin:
         partition: str = AwsPartitionEnum.aws,
     ) -> str | None:
         """
-        Return the AWS S3 resource ARN in the given partition.
+        Return the ARN in the given partition.
 
         Example::
 
@@ -245,18 +199,14 @@ class UriAPIMixin:
     @classmethod
     def from_s3_uri(cls: type[S3Path], uri: str) -> S3Path:
         """
-        Construct an :class:`S3Path` from S3 URI.
+        Construct an :class:`S3Path` from an S3 URI. Only the URI format is
+        checked, not the bucket naming rules, so a legacy bucket name such as
+        ``My_Bucket`` works.
 
-        >>> p = S3Path.from_s3_uri("s3://bucket/folder/file.txt")
+        Example::
 
-        >>> p
-        S3Path('s3://bucket/folder/file.txt')
-
-        >>> p.uri
-        's3://bucket/folder/file.txt'
-
-        Only the URI format is checked, not the bucket naming rules, so a
-        legacy bucket name such as ``My_Bucket`` works.
+            >>> S3Path.from_s3_uri("s3://bucket/folder/file.txt")
+            S3Path('s3://bucket/folder/file.txt')
 
         :raises S3ValidationError: if it is not an S3 URI.
         """
@@ -268,20 +218,15 @@ class UriAPIMixin:
     @classmethod
     def from_s3_arn(cls: type[S3Path], arn: str) -> S3Path:
         """
-        Construct an :class:`S3Path` from S3 ARN.
+        Construct an :class:`S3Path` from an S3 ARN of any partition in
+        :class:`~s3pathlib.constants.AwsPartitionEnum`. The partition is not
+        stored, an S3 path is identified by bucket and key. Only the ARN format
+        is checked, not the bucket naming rules.
 
-        >>> p = S3Path.from_s3_arn("arn:aws:s3:::bucket/folder/file.txt")
+        Example::
 
-        >>> p
-        S3Path('s3://bucket/folder/file.txt')
-
-        >>> p.arn
-        'arn:aws:s3:::bucket/folder/file.txt'
-
-        Every partition in :class:`~s3pathlib.constants.AwsPartitionEnum` is
-        supported. The partition is not stored, an S3 path is identified by
-        bucket and key. Only the ARN format is checked, not the bucket naming
-        rules.
+            >>> S3Path.from_s3_arn("arn:aws:s3:::bucket/folder/file.txt")
+            S3Path('s3://bucket/folder/file.txt')
 
         :raises S3ValidationError: if it is not an S3 ARN of a supported partition.
         """

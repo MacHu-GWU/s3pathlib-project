@@ -131,9 +131,9 @@ class ComparisonAPIMixin(BaseTest):
         """
         p1 = S3Path("bucket", "folder/")
         p2 = S3Path("bucket/folder/")
-        assert p1._cparts == ("bucket", "folder", "/")
+        assert p1._cparts == ("bucket", "folder", "")
         assert isinstance(p1._cparts, tuple)
-        assert hash(p1) == hash(p2) == hash(("bucket", "folder", "/"))
+        assert hash(p1) == hash(p2) == hash(("bucket", "folder", ""))
 
     # --------------------------------------------------------------------------
     # 3. order
@@ -181,6 +181,24 @@ class ComparisonAPIMixin(BaseTest):
             "a/",
             "a/b",
         ]
+
+    def test_order_dir_before_content(self):
+        """
+        A dir sorts right after the file of the same name and before all of its
+        content, even when a name in the dir starts with a character that is
+        smaller than ``/`` (``-``, ``!``, a space), the same as ``pathlib`` and
+        the S3 list order.
+        """
+        paths = [
+            S3Path("b", "a/b"),
+            S3Path("b", "a/-x"),
+            S3Path("b", "a/"),
+            S3Path("b", "a/ y"),
+            S3Path("b", "a"),
+        ]
+        keys = [p.key for p in sorted(paths)]
+        assert keys == ["a", "a/", "a/ y", "a/-x", "a/b"]
+        assert keys == sorted(keys)
 
     def test_order_between_kinds(self):
         """

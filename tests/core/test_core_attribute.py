@@ -199,8 +199,8 @@ class AttributeAPIMixin(BaseTest):
 
     def test_attribute_errors_are_type_errors(self):
         """
-        The errors are still ``TypeError``, as before 3.0 for a dir; for void
-        ``fname`` / ``ext`` used to raise ``ValueError``.
+        ``fname`` / ``ext`` on anything that is not a file, void included, raise
+        a ``TypeError`` (``S3PathIsNotFileError``), not a ``ValueError``.
         """
         with pytest.raises(TypeError):
             _ = DIRECTORY.ext
@@ -349,11 +349,17 @@ class AttributeAPIMixin(BaseTest):
             pytest.param(RELPATH, "S3RelPath('folder/file.txt')", id="relpath"),
             pytest.param(R("folder/"), "S3RelPath('folder/')", id="relpath-dir"),
             pytest.param(VOID, "S3VoidPath()", id="void"),
+            pytest.param(
+                S3Path("bucket", "it's.txt"),
+                'S3Path("s3://bucket/it\'s.txt")',
+                id="quote-in-key",
+            ),
         ],
     )
     def test_repr_str(self, p, expected):
         """
-        ``str`` is the same as ``repr``.
+        ``str`` is the same as ``repr``; a quote in the key is escaped, for a
+        path with a bucket as it is for a relative path.
         """
         assert repr(p) == expected
         assert str(p) == expected

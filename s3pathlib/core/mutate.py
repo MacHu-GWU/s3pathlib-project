@@ -23,18 +23,14 @@ class MutateAPIMixin:
 
     def copy(self: S3Path) -> S3Path:
         """
-        Create a copy of S3Path object that logically equals to this one,
-        but is actually different identity in memory. Also, the cache data
-        (the metadata loaded from S3) are cleared.
+        Return a new S3Path that equals this one, without the metadata loaded
+        from S3 (``copy.copy`` keeps it).
 
         Example::
 
             >>> p1 = S3Path("bucket", "folder", "file.txt")
-            >>> p2 = p1.copy()
-            >>> p1 == p2
+            >>> p1.copy() == p1
             True
-            >>> p1 is p2
-            False
         """
         return self._from_parsed_parts(
             bucket=self._bucket,
@@ -53,10 +49,9 @@ class MutateAPIMixin:
         new_ext: str | None = None,
     ) -> S3Path:
         """
-        Create a new S3Path by replacing part of the attributes. If no argument
-        is given, it behaves like :meth:`copy`.
-
-        Take ``s3://bucket/folder/subfolder/file.txt`` as an example:
+        Create a new S3Path by replacing part of the attributes. With no
+        argument it is :meth:`copy`. Take ``s3://bucket/folder/subfolder/file.txt``
+        as an example:
 
         - bucket: ``bucket``
         - abspath (the whole key): ``folder/subfolder/file.txt``
@@ -71,16 +66,8 @@ class MutateAPIMixin:
             >>> s3path = S3Path("bucket", "folder", "file.txt")
             >>> s3path.change(new_bucket="new-bucket")
             S3Path('s3://new-bucket/folder/file.txt')
-            >>> s3path.change(new_basename="data.json")
-            S3Path('s3://bucket/folder/data.json')
-            >>> s3path.change(new_fname="log")
-            S3Path('s3://bucket/folder/log.txt')
             >>> s3path.change(new_dirname="archive", new_ext=".json")
             S3Path('s3://bucket/archive/file.json')
-
-            # a dir keeps being a dir
-            >>> S3Path("bucket", "folder/").change(new_bucket="new-bucket")
-            S3Path('s3://new-bucket/folder/')
 
         The arguments are applied in this order:
 
@@ -161,9 +148,7 @@ class MutateAPIMixin:
         # 3.2 the last part
         if new_basename is not None:
             if (new_fname is not None) or (new_ext is not None):
-                raise ValueError(
-                    "pass new_basename, or new_fname / new_ext, not both"
-                )
+                raise ValueError("pass new_basename, or new_fname / new_ext, not both")
             if new_basename == "":
                 raise ValueError("new_basename can not be empty")
             last = new_basename
@@ -200,8 +185,7 @@ class MutateAPIMixin:
 
     def to_dir(self: S3Path) -> S3Path:
         """
-        Convert the S3Path to a directory. If the S3Path is a file, then append
-        a "/" at the end. If the S3Path is already a directory, then do nothing.
+        Convert a file to a dir by appending ``/``. A dir stays as it is.
 
         Example::
 
@@ -220,15 +204,15 @@ class MutateAPIMixin:
                 is_dir=True,
             )
         else:
-            raise ValueError(f"{self!r} is neither a file nor a dir, it can not be converted to a dir")
+            raise ValueError(
+                f"{self!r} is neither a file nor a dir, "
+                "it can not be converted to a dir"
+            )
 
     def to_file(self: S3Path) -> S3Path:
         """
-        Convert the S3Path to a file. If the S3Path is a directory, then strip
-        out the last "/". If the S3Path is already a file, then do nothing.
-
-        A bucket root can not be a file, it raises
-        :class:`~s3pathlib.exc.S3PathIsNotFileError`.
+        Convert a dir to a file by stripping the last ``/``. A file stays as
+        it is. A bucket root can not be a file.
 
         Example::
 
@@ -252,4 +236,7 @@ class MutateAPIMixin:
                 is_dir=False,
             )
         else:
-            raise ValueError(f"{self!r} is neither a file nor a dir, it can not be converted to a file")
+            raise ValueError(
+                f"{self!r} is neither a file nor a dir, "
+                "it can not be converted to a file"
+            )
