@@ -7,8 +7,8 @@ Test order:
 
 1. a file: its versions and delete markers, newest first, with metadata; only
    this exact key;
-2. a folder: every key, in S3 order, each entry once (the 2.x code yielded the
-   earlier pages again after each page);
+2. a folder: every key, in S3 order, each entry once, not again after each
+   page;
 3. ``limit``, laziness, ``delimiter``, a bucket without versioning, errors.
 
 The versions of a key are written one second apart, so that their order is
@@ -80,7 +80,6 @@ class ListObjectVersionsMixin(BaseTest):
     def test_file_only_this_key(self):
         """
         Only the versions of this exact key, not of keys that start with it.
-        Before 3.0, ``file.txt`` also listed the versions of ``file.txt.bak``.
         """
         self.put("file.txt", "a")
         self.put("file.txt", "b")

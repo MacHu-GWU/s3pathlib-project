@@ -143,8 +143,8 @@ class MetadataMixin(BaseTest):
     def test_listed_missing_field_loads_same_object(self):
         """
         A field the list API does not return is loaded with ``head_object``
-        and ``IfMatch`` set to the listed ETag. 2.x returned ``"null"`` as the
-        version id of a listed object, even with versioning.
+        and ``IfMatch`` set to the listed ETag, so the version id of a listed
+        object is the real one, not ``"null"``, with versioning.
         """
         version_id = self.put(self.s3dir_test_with_versioning / "file.txt", b"abc")
         p = self.s3dir_test_with_versioning.iter_objects().one()
@@ -171,8 +171,8 @@ class MetadataMixin(BaseTest):
     def test_version_snapshot_stays_on_its_version(self):
         """
         An old version from ``list_object_versions`` loads its missing fields
-        from that version. 2.x loaded the latest version, so the old version
-        silently got the size, metadata and version id of the latest one.
+        from that version, not from the latest one (which would give it the
+        size, metadata and version id of another object).
         """
         p = self.s3dir_test_with_versioning / "file.txt"
         v1 = self.put(p, b"one", Metadata={"n": "1"})
@@ -251,8 +251,7 @@ class MetadataMixin(BaseTest):
     def test_delete_marker_never_calls_aws(self):
         """
         A delete marker has no content: ``size`` is ``0``, the content fields
-        are ``None``. 2.x loaded the latest version and raised
-        ``S3FileNotExist`` for ``metadata``.
+        are ``None``; reading them never calls AWS.
         """
         p = self.s3dir_test_with_versioning / "file.txt"
         self.put(p, b"abc")
@@ -345,7 +344,7 @@ class MetadataMixin(BaseTest):
     def test_read_bytes_range_does_not_fill(self):
         """
         A ranged read describes a part only, it does not become the snapshot.
-        2.x stored it, so ``size`` became the length of the range.
+        Otherwise ``size`` would become the length of the range.
         """
         p = self.s3dir_test / "file.txt"
         self.put(p, b"0123456789")
@@ -371,8 +370,7 @@ class MetadataMixin(BaseTest):
     @pytest.mark.parametrize("attr", ["response", "metadata"])
     def test_returned_dict_is_a_copy(self, attr):
         """
-        Changing the returned dict does not change the snapshot (2.x returned
-        the cached dict itself).
+        Changing the returned dict does not change the snapshot.
         """
         p = self.s3dir_test / "file.txt"
         self.put(p, b"abc", Metadata={"creator": "alice"})
@@ -417,7 +415,7 @@ class MetadataMixin(BaseTest):
     def test_path_without_object(self, p, match):
         """
         A path that cannot be an object raises ``S3PathTypeError`` before any
-        AWS call (2.x raised botocore errors).
+        AWS call, not a botocore error.
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(S3PathTypeError, match=match):

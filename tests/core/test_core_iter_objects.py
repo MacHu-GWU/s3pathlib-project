@@ -170,9 +170,9 @@ class IterObjectsMixin(BaseTest):
     @pytest.mark.parametrize("limit", [1, 3, 100, None])
     def test_iter_objects_limit(self, recursive, limit):
         """
-        ``limit`` counts the returned objects; ``None`` is no limit. 2.x also
-        counted the folder markers and folders it skipped, so ``limit=3``
-        returned 1 object, or none with ``recursive=False``.
+        ``limit`` counts the returned objects; ``None`` is no limit. The folder
+        markers and folders that are skipped do not count, so ``limit=3``
+        returns 3 objects.
         """
         if recursive:
             expected = ALL_OBJECTS
@@ -227,15 +227,14 @@ class IterObjectsMixin(BaseTest):
     def test_iterdir_skips_its_folder_marker(self):
         """
         The folder marker ``hard/`` is the folder itself, not an entry in it.
-        2.x returned it.
         """
         s3dir = self.s3dir_data / "hard/"
         assert self.rel(s3dir.iterdir().all(), base=s3dir) == ["1.txt", "sub/"]
 
     def test_iterdir_batch_size(self):
         """
-        Small pages give the same order. 2.x returned the folders, then the
-        files, of each page.
+        Small pages give the same order: the key order, files and folders
+        mixed, not the folders then the files of each page.
         """
         result = self.s3dir_data.iterdir(batch_size=2).all()
         assert self.rel(result) == TOP_ENTRIES
@@ -269,7 +268,7 @@ class IterObjectsMixin(BaseTest):
     def test_filter_by_ext(self, exts, expected):
         """
         Files with one of the extensions; the folder object ``dirobj/`` is
-        skipped (2.x raised ``S3PathIsNotFileError`` on it).
+        skipped, it does not raise ``S3PathIsNotFileError``.
         """
         result = self.s3dir_data.iter_objects().filter_by_ext(*exts).all()
         assert self.rel(result) == expected
@@ -354,9 +353,9 @@ class IterObjectsMixin(BaseTest):
     def test_not_a_folder(self, method, p, error, match):
         """
         Only a folder or a bucket can be listed; anything else is rejected
-        before any AWS call. 2.x listed the keys starting with a file's key
-        (``f.txt`` gave ``f.txt.bak`` and ``f.txt/inner.txt``), and raised
-        botocore errors for relative paths.
+        before any AWS call: a file does not list the keys that start with its
+        key (``f.txt.bak``, ``f.txt/inner.txt``), and a relative path does not
+        reach botocore.
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(error, match=match):

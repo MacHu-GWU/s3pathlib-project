@@ -214,8 +214,8 @@ class ExistsMixin(BaseTest):
 
     def test_folder_in_missing_bucket(self):
         """
-        A missing bucket means the folder does not exist, the same as a file.
-        2.x raised ``NoSuchBucket``.
+        A missing bucket means the folder does not exist, the same as a file, and
+        ``NoSuchBucket`` is not raised.
         """
         assert S3Path(missing_bucket(), "folder/").exists() is False
 
@@ -233,7 +233,7 @@ class ExistsMixin(BaseTest):
     def test_path_without_bucket(self, p):
         """
         A path without bucket cannot exist in S3: ``S3PathTypeError`` before
-        any AWS call (2.x raised a different ``TypeError`` for each case).
+        any AWS call, the same error for every kind of path.
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(S3PathTypeError, match="is a relative path"):
@@ -244,7 +244,7 @@ class ExistsMixin(BaseTest):
     def test_version_id_not_on_file(self, key):
         """
         ``version_id`` on a bucket or a folder raises ``ValueError`` before any
-        AWS call (2.x ignored it).
+        AWS call, it is not ignored.
         """
         if key is None:
             p = S3Path(self.bucket)

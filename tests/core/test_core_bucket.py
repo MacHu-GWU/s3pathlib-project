@@ -186,7 +186,7 @@ class BucketMixin(BaseTest):
     ):
         """
         Without ``region``, the bucket is created in the region of the client.
-        2.x always sent ``us-east-1``, which S3 rejects from a client in any
+        Always asking for ``us-east-1`` is rejected by S3 from a client in any
         other region (``IllegalLocationConstraintException``).
         """
         p = S3Path.from_bucket(new_bucket_name())
@@ -274,7 +274,7 @@ class BucketMixin(BaseTest):
     def test_delete_bucket(self, tmp_bucket):
         """
         The bucket is deleted, and the path is not changed: a bucket from
-        ``list_buckets`` keeps its snapshot (2.x cleared it in place).
+        ``list_buckets`` keeps its snapshot.
         """
         p = [b for b in S3Path.list_buckets() if b.bucket == tmp_bucket][0]
         snapshot = p.response
@@ -351,7 +351,7 @@ class BucketMixin(BaseTest):
     def test_put_bucket_versioning_mfa_delete_disabled(self, tmp_bucket):
         """
         ``enable_mfa_delete=False`` works without MFA on a bucket whose MFA
-        delete is off. 2.x sent a bool, which botocore rejected.
+        delete is off (``MFADelete`` is sent as a string, not a bool).
         """
         p = S3Path.from_bucket(tmp_bucket)
         p.put_bucket_versioning(True, enable_mfa_delete=False)
@@ -394,7 +394,7 @@ class BucketMixin(BaseTest):
     ):
         """
         ``enable_mfa_delete`` only sets ``MFADelete`` and leaves ``Status`` as
-        given by ``enable_versioning`` (2.x overwrote ``Status`` with it);
+        given by ``enable_versioning``;
         ``None`` (the default) does not send ``MFADelete``; the
         other arguments are sent under their boto3 names. Enabling MFA delete
         needs the root user and an MFA device, so it is only stubbed.
@@ -473,7 +473,7 @@ class BucketMixin(BaseTest):
     def test_list_buckets_with_legacy_bucket(self):
         """
         A legacy bucket returned by ListBuckets does not break
-        ``list_buckets()`` (2.x raised on such a name).
+        ``list_buckets()``.
         """
         self.s3_client.create_bucket(Bucket="My_Legacy_Bucket")
         try:
@@ -484,9 +484,9 @@ class BucketMixin(BaseTest):
 
     def test_list_buckets_all_pages(self):
         """
-        Every page is fetched, 10,000 buckets at a time. 2.x made one request
-        without ``MaxBuckets``, which S3 rejects for an account allowed to
-        have more than 10,000 buckets.
+        Every page is fetched, 10,000 buckets at a time: a request without
+        ``MaxBuckets`` is rejected by S3 for an account allowed to have more
+        than 10,000 buckets.
         """
         with self.stub() as stubber:
             stubber.add_response(

@@ -32,6 +32,15 @@ def yield_items(pages: T.Iterable[dict], name: str) -> T.Iterator[dict]:
             yield item
 
 
+def validate_limit(limit: int | None) -> None:
+    """
+    :raises ValueError: if ``limit`` is negative.
+    """
+    if limit is not None:
+        if limit < 0:
+            raise ValueError(f"``limit`` must not be negative, got {limit}.")
+
+
 def validate_paging_arguments(batch_size: int, limit: int | None) -> None:
     """
     :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
@@ -39,9 +48,7 @@ def validate_paging_arguments(batch_size: int, limit: int | None) -> None:
     """
     if batch_size < 1 or batch_size > 1000:
         raise ValueError("``batch_size`` has to be 1 ~ 1000.")
-    if limit is not None:
-        if limit < 0:
-            raise ValueError(f"``limit`` must not be negative, got {limit}.")
+    validate_limit(limit)
 
 
 def iter_pages(

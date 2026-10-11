@@ -29,52 +29,51 @@ Reading a property:
 3. the snapshot is partial: load the missing fields with ``head_object`` **of
    the same object version**, with the snapshot's ``VersionId`` if it has one,
    otherwise with ``IfMatch`` set to its ``ETag``. If the object changed since
-   the snapshot (``IfMatch`` fails), raise ``S3ObjectChangedError`` instead of
-   mixing the data of two objects. The loaded fields are added, the existing
-   ones are kept;
+   the snapshot (``IfMatch`` fails), raise ``S3ObjectChangedError``. The
+   loaded fields are added, the existing ones are kept;
 4. no snapshot: load the latest version with ``head_object``.
-
-So an ``S3Path`` returned by ``list_object_versions()`` keeps describing its
-version: its ``metadata`` is the metadata of that version, not of the latest
-one.
-
-The snapshot never decides which version an operation works on: without
-``version_id``, ``read_bytes()``, ``get_tags()``, ``delete()``, ... work on the
-latest version, even for a path that describes an older one. Pass
-``version_id=p.version_id`` to work on that version. An implicit version would
-make e.g. ``delete()`` permanently delete a listed version instead of adding a
-delete marker.
 
 Loading a snapshot in steps 3 and 4 fills the cache of this ``S3Path``; it is
 the only way the snapshot changes on its own. Methods that change S3
 (``write_bytes``, ``copy_file``, ``delete``, ...) return a new ``S3Path`` with
-the new snapshot and leave this one as it was: it still describes the object
-as it was when loaded. ``exists()`` and ``read_bytes()`` only fill an empty
-snapshot. Only :meth:`~MetadataAPIMixin.head_object` (load the latest data)
-and :meth:`~MetadataAPIMixin.clear_cache` replace the snapshot in place. A new
+the new snapshot and leave this one as it was. ``exists()`` and
+``read_bytes()`` only fill an empty snapshot. Only
+:meth:`~MetadataAPIMixin.head_object` (load the latest data) and
+:meth:`~MetadataAPIMixin.clear_cache` replace the snapshot in place. A new
 path built from this one (``joinpath``, ``parent``, ``change``, ``copy()``,
 ...) has no snapshot.
 
-**The S3 client used to load the snapshot**
-
 An ``S3Path`` produced by a call with an explicit client (``s3_client=...``)
 remembers that client, and loads the missing fields (and ``head_object()``
-without a client) with it, so that a path listed with the client of another
-AWS account is not loaded with the default client. Otherwise, the client of
-``s3_context`` at the time of the call is used. Pickle does not keep the
-client (``copy.copy`` / ``copy.deepcopy`` do).
+without a client) with it. Otherwise, the client of ``s3_context`` at the time
+of the call is used. Pickle does not keep the client (``copy.copy`` /
+``copy.deepcopy`` do). ``response`` and ``metadata`` return a new ``dict`` on
+every call.
 
-The remembered client is only used for the snapshot. Every other method
-(``read_bytes``, ``write_bytes``, ``delete``, ``copy_file``, ...) uses its
-``s3_client`` argument, or else ``s3_context``, however the path was made:
-a derived path (``parent``, ``/``, ``change``) has no snapshot and no
-remembered client, so using it for operations would make the same code call
-different accounts depending on where the path came from.
+**Design notes**
 
-**Properties return copies**
+*One version at one moment.* Loading the missing fields of a listed object
+from the latest version would mix the data of two objects. So they come from
+the same version, and ``S3ObjectChangedError`` says when that is not possible.
+An ``S3Path`` returned by ``list_object_versions()`` keeps describing its
+version: its ``metadata`` is the metadata of that version.
 
-``response`` and ``metadata`` return a new ``dict`` on every call, so changing
-it does not change the snapshot.
+*The snapshot never decides which version an operation works on.* Without
+``version_id``, ``read_bytes()``, ``get_tags()``, ``delete()``, ... work on the
+latest version, even for a path that describes an older one; pass
+``version_id=p.version_id`` to work on that version. An implicit version would
+make e.g. ``delete()`` permanently delete a listed version instead of adding a
+delete marker.
+
+*The remembered client is only for the snapshot.* So that a path listed with
+the client of another AWS account is not loaded with the default client. Every
+other method uses its ``s3_client`` argument, or else ``s3_context``, however
+the path was made: a derived path (``parent``, ``/``, ``change``) has no
+snapshot and no remembered client, so using it for operations would make the
+same code call different accounts depending on where the path came from.
+
+*Properties return copies,* so that changing the returned ``dict`` does not
+change the snapshot.
 """
 
 from __future__ import annotations
@@ -99,6 +98,23 @@ if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
     from mypy_boto3_s3 import S3Client
     from mypy_boto3_s3.type_defs import HeadObjectOutputTypeDef, PutObjectOutputTypeDef
+
+
+def _object_meta(dct: dict) -> dict:
+    """
+    The snapshot fields of a ``Contents`` item of ``list_objects_v2`` or a
+    ``Versions`` item of ``list_object_versions``, under the names of a
+    ``head_object`` response.
+    """
+    return {
+        "Key": dct["Key"],
+        "LastModified": dct["LastModified"],
+        "ETag": dct["ETag"],
+        "ContentLength": dct["Size"],
+        "StorageClass": dct["StorageClass"],
+        "ChecksumAlgorithm": dct.get("ChecksumAlgorithm", []),
+        "Owner": dct.get("Owner", {}),
+    }
 
 
 class MetadataAPIMixin:
@@ -229,7 +245,7 @@ class MetadataAPIMixin:
                         f"S3Path to read the new object"
                     ) from e
                 else:
-                    raise e
+                    raise
             # keep the fields of the snapshot, only add the missing ones
             meta = dict(response)
             meta.update(self._meta)
@@ -252,15 +268,14 @@ class MetadataAPIMixin:
         return self._meta.get(key)
 
     @property
-    def response(self: S3Path) -> HeadObjectOutputTypeDef | PutObjectOutputTypeDef | dict | None:
+    def response(
+        self: S3Path,
+    ) -> HeadObjectOutputTypeDef | PutObjectOutputTypeDef | dict | None:
         """
         A copy of the metadata snapshot (see the module docstring): the
         response of the API that loaded it, without ``ResponseMetadata``, e.g.
-        the response of head_object_ or put_object_. ``None`` if no metadata
-        is loaded. It never calls AWS.
-
-        .. _head_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/head_object.html
-        .. _put_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object.html
+        the response of ``head_object`` or ``put_object``. ``None`` if no
+        metadata is loaded. It never calls AWS.
         """
         if self._meta is None:
             return None
@@ -383,27 +398,13 @@ class MetadataAPIMixin:
         s3_client: S3Client | None = None,
     ) -> S3Path:
         """
-        Construct S3Path object from a ``Contents`` item of list_objects_v2_,
-        with a partial metadata snapshot.
-
-        .. _list_objects_v2: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/list_objects_v2.html
+        Construct S3Path object from a ``Contents`` item of
+        ``list_objects_v2``, with a partial metadata snapshot.
 
         :param s3_client: the explicit client of the list call, if any.
         """
         p = cls(bucket, dct["Key"])
-        p._set_meta(
-            {
-                "Key": dct["Key"],
-                "LastModified": dct["LastModified"],
-                "ETag": dct["ETag"],
-                "ContentLength": dct["Size"],
-                "StorageClass": dct["StorageClass"],
-                "ChecksumAlgorithm": dct.get("ChecksumAlgorithm", []),
-                "Owner": dct.get("Owner", {}),
-            },
-            complete=False,
-            s3_client=s3_client,
-        )
+        p._set_meta(_object_meta(dct), complete=False, s3_client=s3_client)
         return p
 
     @classmethod
@@ -415,28 +416,15 @@ class MetadataAPIMixin:
     ) -> S3Path:
         """
         Construct S3Path object from a ``Versions`` item of
-        list_object_versions_, with a partial metadata snapshot.
-
-        .. _list_object_versions: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/list_object_versions.html
+        ``list_object_versions``, with a partial metadata snapshot.
 
         :param s3_client: the explicit client of the list call, if any.
         """
         p = cls(bucket, dct["Key"])
-        p._set_meta(
-            {
-                "Key": dct["Key"],
-                "VersionId": dct["VersionId"],
-                "LastModified": dct["LastModified"],
-                "ETag": dct["ETag"],
-                "ContentLength": dct["Size"],
-                "StorageClass": dct["StorageClass"],
-                "IsLatest": dct["IsLatest"],
-                "ChecksumAlgorithm": dct.get("ChecksumAlgorithm", []),
-                "Owner": dct.get("Owner", {}),
-            },
-            complete=False,
-            s3_client=s3_client,
-        )
+        meta = _object_meta(dct)
+        meta["VersionId"] = dct["VersionId"]
+        meta["IsLatest"] = dct["IsLatest"]
+        p._set_meta(meta, complete=False, s3_client=s3_client)
         return p
 
     @classmethod
@@ -448,8 +436,8 @@ class MetadataAPIMixin:
     ) -> S3Path:
         """
         Construct S3Path object from a ``DeleteMarkers`` item of
-        list_object_versions_. A delete marker has no content, its properties
-        never call AWS.
+        ``list_object_versions``. A delete marker has no content, its
+        properties never call AWS.
 
         :param s3_client: the explicit client of the list call, if any.
         """

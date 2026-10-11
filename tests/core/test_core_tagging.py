@@ -245,7 +245,8 @@ class TaggingMixin(BaseTest):
     def test_not_a_file(self, method, kwargs, p, error, match):
         """
         Only a file has tags; anything else is rejected before any AWS call
-        (2.x let a relative file through, and botocore raised ``TypeError``).
+        (a relative file is not passed on to botocore, which would raise
+        ``TypeError``).
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(error, match=match):

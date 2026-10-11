@@ -78,11 +78,10 @@ class ExistsAPIMixin:
         """
         self.ensure_not_relpath()
         self._ensure_version_id_on_file(version_id)
+        client = resolve_s3_client(s3_context, s3_client)
         if self.is_bucket():
-            client = resolve_s3_client(s3_context, s3_client)
             return is_bucket_exists(client, self.bucket)
         elif self.is_file():
-            client = resolve_s3_client(s3_context, s3_client)
             dct = head_object(
                 s3_client=client,
                 bucket=self.bucket,
@@ -103,7 +102,6 @@ class ExistsAPIMixin:
                     )
                 return True
         else:  # a folder
-            client = resolve_s3_client(s3_context, s3_client)
             # any key under the folder, its folder marker included
             proxy = paginate_list_objects_v2(
                 s3_client=client,
@@ -113,16 +111,13 @@ class ExistsAPIMixin:
                 limit=1,
             )
             try:
-                l = list(proxy.contents())
+                contents = list(proxy.contents())
             except botocore.exceptions.ClientError as e:
                 if e.response["Error"]["Code"] == "NoSuchBucket":
                     return False
                 else:
-                    raise e
-            if len(l):
-                return True
-            else:
-                return False
+                    raise
+            return len(contents) > 0
 
     def ensure_not_exists(
         self: S3Path,

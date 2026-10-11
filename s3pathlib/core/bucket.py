@@ -10,11 +10,11 @@ on any other path, before calling AWS.
 Errors from AWS are raised as is (``botocore.exceptions.ClientError``), e.g.
 ``NoSuchBucket`` for a missing bucket.
 
-.. _create_bucket: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_bucket.html
-.. _delete_bucket: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_bucket.html
-.. _get_bucket_versioning: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_bucket_versioning.html
-.. _put_bucket_versioning: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_bucket_versioning.html
-.. _list_buckets: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/list_buckets.html
+.. _create_bucket: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/create_bucket.html
+.. _delete_bucket: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/delete_bucket.html
+.. _get_bucket_versioning: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_bucket_versioning.html
+.. _put_bucket_versioning: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_bucket_versioning.html
+.. _list_buckets: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/list_buckets.html
 """
 
 from __future__ import annotations
@@ -79,15 +79,6 @@ class BucketAPIMixin:
             means the region of the S3 client. S3 rejects a region other than
             the one of the client with ``IllegalLocationConstraintException``,
             except when the client is in ``us-east-1``.
-        :param acl: ``ACL``, e.g. ``"private"``.
-        :param grant_full_control: ``GrantFullControl``.
-        :param grant_read: ``GrantRead``.
-        :param grant_read_acp: ``GrantReadACP``.
-        :param grant_write: ``GrantWrite``.
-        :param grant_write_acp: ``GrantWriteACP``.
-        :param object_lock_enabled_for_bucket: ``ObjectLockEnabledForBucket``.
-        :param object_ownership: ``ObjectOwnership``, e.g.
-            ``"BucketOwnerEnforced"``.
 
         :return: the response of `create_bucket`_.
 
@@ -138,9 +129,6 @@ class BucketAPIMixin:
         not changed: a bucket listed by ``list_buckets`` keeps its snapshot,
         like every other method that changes S3 (see ``core.metadata``).
 
-        :param expected_bucket_owner: ``ExpectedBucketOwner``, the AWS account
-            id that must own the bucket.
-
         :return: the response of `delete_bucket`_.
 
         :raises S3PathIsNotBucketError: if this path is not a bucket.
@@ -164,9 +152,6 @@ class BucketAPIMixin:
     ) -> dict:
         """
         Get the versioning state of this bucket, see `get_bucket_versioning`_.
-
-        :param expected_bucket_owner: ``ExpectedBucketOwner``, the AWS account
-            id that must own the bucket.
 
         :return: the response of `get_bucket_versioning`_. ``"Status"`` is
             ``"Enabled"`` or ``"Suspended"``, and missing if versioning was
@@ -233,11 +218,8 @@ class BucketAPIMixin:
             ``"Enabled"``, ``False`` to ``"Disabled"``; ``None`` (default), it
             is not sent. Only the root user of the bucket owner account can change
             it, and it requires ``mfa``.
-        :param checksum_algorithm: ``ChecksumAlgorithm``.
-        :param mfa: ``MFA``, the serial number of the MFA device, a space, and
-            the code it shows.
-        :param expected_bucket_owner: ``ExpectedBucketOwner``, the AWS account
-            id that must own the bucket.
+        :param mfa: the serial number of the MFA device, a space, and the
+            code it shows.
 
         :return: the response of `put_bucket_versioning`_.
 

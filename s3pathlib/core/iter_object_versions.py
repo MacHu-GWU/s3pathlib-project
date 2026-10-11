@@ -3,15 +3,17 @@
 """
 List object versions related API.
 
-.. _ListObjectVersions: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectVersions.html
+.. _list_object_versions: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/list_object_versions.html
 """
 
 from __future__ import annotations
 
 import typing as T
+import itertools
 
 from .._arg import OPT
 from ..aws import s3_context
+from ..better_client._paginate import validate_limit
 from ..better_client.list_object_versions import paginate_list_object_versions
 from .iter_objects import S3PathIterProxy
 from .resolve_s3_client import resolve_s3_client
@@ -38,9 +40,9 @@ class IterObjectVersionsAPIMixin:
         s3_client: S3Client | None = None,
     ) -> S3PathIterProxy:
         """
-        Iterate the versions and delete markers, yield :class:`S3Path` objects
-        that carry their metadata (``version_id``, ``is_delete_marker()``,
-        ``last_modified_at``, ...).
+        Iterate the versions and delete markers with list_object_versions_,
+        yield :class:`S3Path` objects that carry their metadata
+        (``version_id``, ``is_delete_marker()``, ``last_modified_at``, ...).
 
         - For a file: the versions of this exact key, not of other keys that
           start with it (e.g. ``file.txt.bak`` for ``file.txt``).
@@ -62,27 +64,18 @@ class IterObjectVersionsAPIMixin:
         :param limit: Total number of versions and delete markers to return.
             ``0`` returns nothing without calling AWS. ``None`` (default): no
             limit.
-        :param delimiter: See ListObjectVersions_. Folders (common prefixes)
-            are not returned.
-        :param encoding_type: See ListObjectVersions_.
-        :param expected_bucket_owner: See ListObjectVersions_.
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
+        :param delimiter: Folders (common prefixes) are not returned.
 
         :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
             negative.
         """
-        if limit is not None:
-            if limit < 0:
-                raise ValueError(f"``limit`` must not be negative, got {limit}.")
+        validate_limit(limit)
         client = resolve_s3_client(s3_context, s3_client)
         bucket = self.bucket
         if self.is_file():
             exact_key = self.key
         else:
             exact_key = None
-        # ``limit`` is applied here, to the yielded paths: for a file, the
-        # versions of other keys that start with it must not count
         proxy = paginate_list_object_versions(
             s3_client=client,
             bucket=bucket,
@@ -93,13 +86,7 @@ class IterObjectVersionsAPIMixin:
             expected_bucket_owner=expected_bucket_owner,
         )
 
-        def _iter_s3path() -> T.Iterable[S3Path]:
-            if limit is None:
-                remaining = None
-            else:
-                remaining = limit
-            if remaining == 0:
-                return
+        def _iter_s3path() -> T.Iterator[S3Path]:
             for response in proxy:
                 (
                     versions,
@@ -109,14 +96,13 @@ class IterObjectVersionsAPIMixin:
                     response
                 )
                 s3path_list = list()
-                explicit_client = s3_client
                 for dct in versions:
                     s3path_list.append(
-                        self._from_version_dict(bucket, dct=dct, s3_client=explicit_client)
+                        self._from_version_dict(bucket, dct=dct, s3_client=s3_client)
                     )
                 for dct in delete_markers:
                     s3path_list.append(
-                        self._from_delete_marker(bucket, dct=dct, s3_client=explicit_client)
+                        self._from_delete_marker(bucket, dct=dct, s3_client=s3_client)
                     )
                 # S3 order: by key, then newest first. S3 sends the versions
                 # and the delete markers of a page in two lists, merge them;
@@ -128,9 +114,7 @@ class IterObjectVersionsAPIMixin:
                         if s3path.key != exact_key:
                             continue
                     yield s3path
-                    if remaining is not None:
-                        remaining -= 1
-                        if remaining == 0:
-                            return
 
-        return S3PathIterProxy(_iter_s3path())
+        # ``limit`` is applied to the yielded paths, not passed on to S3: for a
+        # file, the versions of other keys that start with it must not count
+        return S3PathIterProxy(itertools.islice(_iter_s3path(), limit))

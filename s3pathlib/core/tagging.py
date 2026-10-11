@@ -20,8 +20,8 @@ check ``e.response["Error"]["Code"]``), e.g.:
 - ``AccessDenied``: the bucket belongs to another AWS account, or you lack the
   ``s3:GetObjectTagging`` / ``s3:PutObjectTagging`` permission.
 
-.. _get_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/get_object_tagging.html
-.. _put_object_tagging: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object_tagging.html
+.. _get_object_tagging: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object_tagging.html
+.. _put_object_tagging: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object_tagging.html
 """
 
 from __future__ import annotations
@@ -70,10 +70,7 @@ class TaggingAPIMixin:
 
         Example::
 
-            >>> S3Path("bucket", "file.txt").get_tags()
-            (None, {'team': 'data'})
-
-        :param version_id: the version to read, default the latest one.
+            S3Path("bucket", "file.txt").get_tags()  # (None, {'team': 'data'})
 
         :return: ``(version_id, tags)``: the version that was read (``None``
             if the bucket never had versioning), and its tags as a dict
@@ -113,11 +110,9 @@ class TaggingAPIMixin:
 
         Example::
 
-            >>> S3Path("bucket", "file.txt").put_tags({"team": "data"})
-            (None, {'team': 'data'})
+            S3Path("bucket", "file.txt").put_tags({"team": "data"})  # (None, {'team': 'data'})
 
         :param tags: the new tags; keys and values must be ``str``.
-        :param version_id: the version to change, default the latest one.
 
         :return: ``(version_id, tags)``: the version that was changed
             (``None`` if the bucket never had versioning), and a copy of
@@ -162,12 +157,11 @@ class TaggingAPIMixin:
 
         Example::
 
-            >>> S3Path("bucket", "file.txt").update_tags({"owner": "alice"})
-            (None, {'team': 'data', 'owner': 'alice'})
+            S3Path("bucket", "file.txt").update_tags({"owner": "alice"})
+            # (None, {'team': 'data', 'owner': 'alice'})
 
         :param tags: the tags to add or overwrite; keys and values must be
             ``str``.
-        :param version_id: the version to change, default the latest one.
 
         :return: ``(version_id, tags)``: the version that was changed
             (``None`` if the bucket never had versioning), and all its tags
