@@ -12,7 +12,7 @@ assignees: MacHu-GWU
 I want to use this API 
 
 ```python
-from s3pathlib import S3Path
+from s3pathlib.api import S3Path
 
 for s3path in S3Path("my-bucket", "my-folder").iter_objects():
     ...

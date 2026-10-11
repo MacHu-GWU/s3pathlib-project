@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from s3pathlib import utils
+from s3pathlib.api import utils
 from s3pathlib.constants import AwsPartitionEnum
 from s3pathlib.constants import AWS_CONSOLE_DOMAIN
 from s3pathlib.exc import S3ValidationError

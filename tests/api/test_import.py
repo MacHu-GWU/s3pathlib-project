@@ -10,10 +10,12 @@ Test order:
 2. each name is the object of the module that defines it;
 3. the 2.x top level names, and the low level helpers under
    ``better_client``;
-4. ``from s3pathlib import ...``, kept until Phase 4.
+4. ``from s3pathlib import ...``, removed in 3.0.0: an error that says where
+   the name moved, and ``import s3pathlib`` only gives the version info.
 """
 
 import inspect
+import subprocess
 import sys
 
 import iterproxy
@@ -55,11 +57,11 @@ API = {
     "AwsPartitionEnum": s3pathlib.constants.AwsPartitionEnum,
 }
 
-# names of 2.x that ``from s3pathlib import ...`` still gives
+# names of 2.x that ``from s3pathlib import ...`` gave, moved to
+# ``s3pathlib.api`` in 3.0.0 (``utils`` is a submodule, so it still imports)
 TOP_LEVEL_NAMES = [
     "S3Path",
     "s3_context",
-    "utils",
     "ContentTypeEnum",
     "validate_s3_bucket",
     "validate_s3_key",
@@ -148,12 +150,61 @@ def test_top_level_api_is_the_api_module():
 # 4. from s3pathlib import ...
 # ------------------------------------------------------------------------------
 @pytest.mark.parametrize("name", TOP_LEVEL_NAMES)
-def test_top_level_names_still_work(name):
+def test_top_level_names_removed(name):
     """
-    ``from s3pathlib import ...`` still works; it will be removed in Phase 4
-    of 3.0, use ``from s3pathlib.api import ...``.
+    ``from s3pathlib import ...`` was removed in 3.0.0; the error says to
+    use ``from s3pathlib.api import ...`` instead of a bare "cannot import
+    name", so users and AI know how to upgrade.
     """
-    assert getattr(s3pathlib, name) is getattr(s3pathlib.api, name)
+    message = f"use 'from s3pathlib.api import {name}'"
+    with pytest.raises(ImportError, match=message):
+        exec(f"from s3pathlib import {name}", {})
+    with pytest.raises(ImportError, match=message):
+        getattr(s3pathlib, name)
+
+
+def test_top_level_unknown_name():
+    """
+    Any other missing name is a normal ``AttributeError``, so ``hasattr`` and
+    ``getattr(..., default)`` work.
+    """
+    assert hasattr(s3pathlib, "no_such_name") is False
+    with pytest.raises(AttributeError, match="has no attribute 'no_such_name'"):
+        s3pathlib.no_such_name
+
+
+def test_top_level_submodules():
+    """
+    Submodules still import from the package, e.g. ``from s3pathlib import
+    utils``.
+    """
+    namespace = dict()
+    exec("from s3pathlib import utils, api", namespace)
+    assert namespace["utils"] is s3pathlib.utils
+    assert namespace["api"] is s3pathlib.api
+
+
+def test_import_package_only_gives_version_info():
+    """
+    In a new process, ``import s3pathlib`` gives only the version info, and
+    does not import the library (2.x imported everything, and silently left
+    names out when a dependency was missing).
+    """
+    code = (
+        "import sys, s3pathlib; "
+        "print(sorted(n for n in dir(s3pathlib) if not n.startswith('__'))); "
+        "print('s3pathlib.core' in sys.modules)"
+    )
+    res = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0, res.stderr
+    names, core_imported = res.stdout.splitlines()
+    assert names == "['_MOVED_TO_API', '_version']"
+    assert core_imported == "False"
+    assert s3pathlib.__version__ == s3pathlib._version.__version__
 
 
 if __name__ == "__main__":

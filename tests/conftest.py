@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from s3pathlib import S3Path
+
+from s3pathlib.api import S3Path
 
 
 @pytest.fixture

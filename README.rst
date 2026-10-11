@@ -64,7 +64,7 @@ Quick Start
 .. code-block:: python
 
     # import
-    >>> from s3pathlib import S3Path
+    >>> from s3pathlib.api import S3Path
 
     # construct from string, auto join parts
     >>> p = S3Path("bucket", "folder", "file.txt")

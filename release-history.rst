@@ -23,6 +23,7 @@ Backlog (TODO)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 **Breaking Changes**
 
+- Remove the top level names of ``from s3pathlib import ...`` (``S3Path``, ``s3_context``, ``ContentTypeEnum``, ``validate_s3_bucket`` / ``key`` / ``uri`` / ``arn``, ``and_``, ``or_``, ``not_``); import them with ``from s3pathlib.api import ...``. The old import raises an ``ImportError`` that says so. ``import s3pathlib`` now only gives the version info and no longer imports the library (2.x imported everything, and silently left names out when a dependency was missing); submodules such as ``from s3pathlib import utils`` still work.
 - Drop support for Python 3.9 and 3.10, the minimum supported version is now Python 3.11. Python 3.11 to 3.14 are supported and tested.
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
 - Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``.
