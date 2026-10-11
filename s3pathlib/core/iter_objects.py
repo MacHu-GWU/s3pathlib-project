@@ -110,6 +110,8 @@ class IterObjectsAPIMixin:
     A mixin class that implements the iter objects methods.
     """
 
+    __slots__ = ()
+
     def _ensure_s3_dir(self: S3Path) -> None:
         """
         :raises S3PathTypeError: for a relative path or the void path.

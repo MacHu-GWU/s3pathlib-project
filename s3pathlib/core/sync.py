@@ -208,6 +208,8 @@ class SyncAPIMixin:
     docstring.
     """
 
+    __slots__ = ()
+
     @classmethod
     def sync(
         cls: type[S3Path],

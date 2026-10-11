@@ -70,6 +70,8 @@ class SerdeAPIMixin:
     A mixin class that implements the serialization and deserialization.
     """
 
+    __slots__ = ()
+
     def to_dict(self: S3Path) -> S3PathDict:
         """
         Serialize to Python dict. See the module docstring for the format.

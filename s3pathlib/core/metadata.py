@@ -107,6 +107,8 @@ class MetadataAPIMixin:
     module docstring.
     """
 
+    __slots__ = ()
+
     def _set_meta(
         self: S3Path,
         meta: dict,

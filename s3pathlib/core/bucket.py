@@ -39,6 +39,8 @@ class BucketAPIMixin:
     A mixin class that implements the bucket related methods.
     """
 
+    __slots__ = ()
+
     @classmethod
     def from_bucket(
         cls: type[S3Path],
@@ -132,8 +134,9 @@ class BucketAPIMixin:
     ) -> dict:
         """
         Delete this bucket, see `delete_bucket`_. The bucket must be empty
-        (no object, no object version, no delete marker). Clears the cached
-        metadata of this ``S3Path``.
+        (no object, no object version, no delete marker). This ``S3Path`` is
+        not changed: a bucket listed by ``list_buckets`` keeps its snapshot,
+        like every other method that changes S3 (see ``core.metadata``).
 
         :param expected_bucket_owner: ``ExpectedBucketOwner``, the AWS account
             id that must own the bucket.
@@ -152,7 +155,6 @@ class BucketAPIMixin:
                 ExpectedBucketOwner=expected_bucket_owner,
             ),
         )
-        self.clear_cache()
         return response
 
     def get_bucket_versioning(

@@ -26,6 +26,8 @@ class RelativePathAPIMixin:
     ``base / target.relative_to(base) == target``.
     """
 
+    __slots__ = ()
+
     @classmethod
     def make_relpath(
         cls: type[S3Path],

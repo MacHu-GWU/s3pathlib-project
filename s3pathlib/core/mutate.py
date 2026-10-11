@@ -19,6 +19,8 @@ class MutateAPIMixin:
     A mixin class that implements the S3Path object mutation.
     """
 
+    __slots__ = ()
+
     def copy(self: S3Path) -> S3Path:
         """
         Create a copy of S3Path object that logically equals to this one,

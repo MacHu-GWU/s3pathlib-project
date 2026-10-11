@@ -125,6 +125,20 @@ exclude = [
     "s3pathlib.docs.*",
 ]
 
+# ------------------------------------------------------------------------------
+# ruff: the project checks "uvx ruff check --select F401,F821,F841 s3pathlib tests"
+# ------------------------------------------------------------------------------
+[tool.ruff]
+extend-exclude = ["s3pathlib/vendor"]
+
+[tool.ruff.lint.per-file-ignores]
+# re-export modules: the imports are the public names, not unused imports
+"s3pathlib/__init__.py" = ["F401"]
+"s3pathlib/api.py" = ["F401"]
+"s3pathlib/better_client/api.py" = ["F401"]
+"s3pathlib/core/__init__.py" = ["F401"]
+"s3pathlib/tests/__init__.py" = ["F401"]
+
 [build-system]
 requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"

@@ -26,6 +26,8 @@ class IterObjectVersionsAPIMixin:
     A mixin class that implements the iter object versions methods.
     """
 
+    __slots__ = ()
+
     def list_object_versions(
         self: S3Path,
         batch_size: int = 1000,

@@ -22,6 +22,8 @@ class AttributeAPIMixin:
     A mixin class that implements the property methods.
     """
 
+    __slots__ = ()
+
     @property
     def parent(self: S3Path) -> S3Path:
         """

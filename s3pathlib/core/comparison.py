@@ -55,6 +55,8 @@ class ComparisonAPIMixin:
     A mixin class that implements the comparison operator magic methods.
     """
 
+    __slots__ = ()
+
     @property
     def _cparts(self: S3Path) -> tuple[str, ...]:
         """

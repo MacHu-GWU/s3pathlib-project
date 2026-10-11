@@ -29,6 +29,8 @@ class UploadAPIMixin:
     A mixin class that implements upload method.
     """
 
+    __slots__ = ()
+
     def upload_file(
         self: S3Path,
         path: PathType,

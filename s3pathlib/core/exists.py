@@ -29,6 +29,8 @@ class ExistsAPIMixin:
     A mixin class that implements the exists test related methods.
     """
 
+    __slots__ = ()
+
     def _ensure_version_id_on_file(self: S3Path, version_id: str):
         if (version_id is not OPT) and (self.is_file() is False):
             raise ValueError(

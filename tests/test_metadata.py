@@ -27,13 +27,15 @@ def test_warn_upper_case_no_warning_for_lowercase(metadata):
 
 def test_warn_upper_case_warns_with_key_name():
     """
-    An uppercase key emits a ``UserWarning`` that names the key, so the user
-    knows which key S3 will rename.
+    An uppercase key emits a ``UserWarning`` that names the key and the
+    lowercase key S3 will store instead.
     """
     with pytest.warns(UserWarning) as record:
         warn_upper_case_in_metadata_key({"Author": "Alice"})
     assert len(record) == 1
-    assert "'Author'" in str(record[0].message)
+    message = str(record[0].message)
+    assert "'Author'" in message
+    assert "read back as 'author'" in message
 
 
 def test_warn_upper_case_one_warning_per_bad_key():

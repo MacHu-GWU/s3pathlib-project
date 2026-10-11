@@ -151,6 +151,8 @@ class CopyAPIMixin:
     A mixin class that implements copy related methods.
     """
 
+    __slots__ = ()
+
     def copy_file(
         self: S3Path,
         dst: S3Path,

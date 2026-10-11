@@ -45,6 +45,8 @@ class OpenerAPIMixin:
     A mixin class that implements the file-object protocol.
     """
 
+    __slots__ = ()
+
     def open(
         self: S3Path,
         mode: str = "r",

@@ -31,6 +31,8 @@ class DeleteAPIMixin:
     A mixin class that implements delete method.
     """
 
+    __slots__ = ()
+
     def delete(
         self: S3Path,
         version_id: str = OPT,

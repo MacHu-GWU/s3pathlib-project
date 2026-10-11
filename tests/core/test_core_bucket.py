@@ -273,13 +273,15 @@ class BucketMixin(BaseTest):
     # --------------------------------------------------------------------------
     def test_delete_bucket(self, tmp_bucket):
         """
-        The bucket is deleted and the cached metadata cleared.
+        The bucket is deleted, and the path is not changed: a bucket from
+        ``list_buckets`` keeps its snapshot (2.x cleared it in place).
         """
-        p = S3Path.from_bucket(tmp_bucket)
-        p._meta = {"LastModified": "cached"}
+        p = [b for b in S3Path.list_buckets() if b.bucket == tmp_bucket][0]
+        snapshot = p.response
+        assert "LastModified" in snapshot
         res = p.delete_bucket()
         assert res["ResponseMetadata"]["HTTPStatusCode"] == 204
-        assert p.response is None
+        assert p.response == snapshot
         # real AWS takes a while to propagate a bucket deletion
         if self.use_mock:
             with pytest.raises(botocore.exceptions.ClientError) as exc_info:

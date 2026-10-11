@@ -24,9 +24,9 @@ def warn_upper_case_in_metadata_key(metadata: MetadataType):
     for k, v in metadata.items():
         if k.lower() != k:
             msg = (
-                f"Based on this document "
-                f"https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html#UserMetadata "
-                f"Amazon will automatically convert user-defined metadata key to lowercase. "
-                f"However, you have a key {k!r} in the metadata that uses uppercase letters."
+                f"metadata key {k!r} has uppercase letters; S3 stores "
+                f"user-defined metadata keys in lowercase, so it is read back "
+                f"as {k.lower()!r}. See "
+                f"https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html#UserMetadata"
             )
             warnings.warn(msg, UserWarning)

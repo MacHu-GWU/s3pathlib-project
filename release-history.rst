@@ -27,6 +27,8 @@ Backlog (TODO)
 - Remove the ``s3pathlib.compat`` module. It only existed to support old ``smart_open`` versions.
 - Raise the minimum dependency versions: ``boto3>=1.41.0``, ``smart-open>=7.0.0,<9.0.0``.
 - Remove the runtime dependencies ``pathlib-mate``, ``func-args`` and ``boto-session-manager``. The runtime dependencies are now ``boto3``, ``smart-open``, ``iterproxy`` and ``typing-extensions`` (Python < 3.13 only). If your code imports one of the removed packages, add it to your own dependencies.
+- ``S3Path`` objects no longer have a ``__dict__``: every class declares ``__slots__`` (2.x declared it on the base class only, so it had no effect). Setting an attribute that ``S3Path`` does not define, e.g. a typo such as ``p.verison_id = ...``, raises ``AttributeError``. Keep your own data next to the path, e.g. in a ``dict`` keyed by the path.
+- ``S3Path.delete_bucket`` no longer clears the metadata snapshot of the path in place (e.g. of a bucket from ``list_buckets``), the same as every other method that changes S3.
 - Remove ``s3pathlib.exc.ensure_one_and_only_one_not_none`` and ``s3pathlib.exc.ensure_all_none``; the library no longer uses them.
 - Rename ``s3pathlib.exc._S3PathTypeError`` to the public ``s3pathlib.exc.S3PathTypeError``.
 - Remove ``S3Path.delete_if_exists``, deprecated since 2.0.1. Use :meth:`~s3pathlib.core.delete.DeleteAPIMixin.delete` instead.
@@ -236,6 +238,7 @@ Backlog (TODO)
 - Document ``S3Path.sync``: which identity the AWS CLI uses and its limits, every argument, and the errors.
 - ``limit=None`` means no limit (the default), the same as leaving it out; it used to raise ``TypeError``. This applies to ``S3Path.iter_objects``, ``iterdir`` and ``list_object_versions``, and to ``better_client.paginate_list_objects_v2``, ``paginate_list_object_versions``, ``delete_dir`` and ``delete_object_versions``.
 - ``S3Path.put_bucket_versioning(enable_mfa_delete=None)`` (the default) does not send ``MFADelete``.
+- The warning for an uppercase user-defined metadata key says which lowercase key S3 stores instead.
 
 **Miscellaneous**
 
@@ -260,6 +263,7 @@ Backlog (TODO)
 - Regenerate ``requirements*.txt`` with ``mise run export`` (``uv export``), and add ``requirements-mise.txt``. Remove the stale ``requirements-poetry.txt``, ``requirements-automation.txt`` and ``requirements-furo-sphinx-search.txt``, and the old ``.readthedocs.yaml``, which competed with the uv based ``.readthedocs.yml`` (Read the Docs picks either one when both exist).
 - The documentation notebooks use the standard library ``pathlib`` instead of ``pathlib_mate``.
 - Rewrite the GitHub Actions CI with uv: it runs on every push to ``main`` and ``dev``, on Ubuntu with Python 3.11 to 3.14 and on Windows with Python 3.14, and runs the whole test suite against moto and real AWS. Each workflow run uses its own S3 folder (``GITHUB_RUN_ID``), so concurrent runs do not interfere. Add the Python version classifiers.
+- Configure ruff in ``pyproject.toml``: the re-export modules (``s3pathlib.api``, ``better_client.api``, the ``__init__`` modules) ignore ``F401``.
 - A test locks the exact set of public names of ``s3pathlib.api``, so any change of the public API is deliberate.
 - Every test module that calls AWS uses ``s3pathlib.tests.mock_aws``, so the whole test suite also runs against real AWS (``mise run cov-aws``). Remove the unused test data ``tests/data/``, ``tests/core/test_upload_dir/`` and ``tests/better_client/dummy_data.py``, and their entries in ``s3pathlib.paths``.
 - Remove the ``func-args`` dependency; its "not given" value is now the private ``s3pathlib._arg.OPT``. Arguments passed on to boto3 still default to "not given", and ``None`` is still not the same: botocore rejects it with ``ParamValidationError`` (S3 has no ``None`` value), so a condition such as ``if_match=p.etag`` is never silently dropped.

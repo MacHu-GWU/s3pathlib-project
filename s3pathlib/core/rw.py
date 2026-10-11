@@ -49,6 +49,9 @@ class ReadAndWriteAPIMixin:
     """
     A mixin class that implements the Text / Bytes, Read / Write methods.
     """
+
+    __slots__ = ()
+
     def read_bytes(
         self: S3Path,
         version_id: str = OPT,

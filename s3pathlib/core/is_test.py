@@ -42,6 +42,8 @@ class IsTestAPIMixin:
     A mixin class that implements the condition test methods.
     """
 
+    __slots__ = ()
+
     def is_void(self: S3Path) -> bool:
         """
         Test if it is a void S3 path.

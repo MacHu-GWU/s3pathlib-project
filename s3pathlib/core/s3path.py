@@ -57,3 +57,5 @@ class S3Path(
     """
     The ``S3Path`` public API class.
     """
+
+    __slots__ = ()

@@ -318,6 +318,29 @@ class BaseS3PathMixin(BaseTest):
         with pytest.raises(AttributeError, match="can't set attribute S3Path.parts"):
             p.parts = ["b"]
 
+    def test_no_new_attributes(self):
+        """
+        An ``S3Path`` has no ``__dict__``: a mistyped attribute such as
+        ``p.verison_id = ...`` raises instead of being silently stored. 2.x
+        declared ``__slots__`` on the base class only, so it had no effect.
+        """
+        p = S3Path("bucket", "a.txt")
+        assert hasattr(p, "__dict__") is False
+        with pytest.raises(AttributeError, match="verison_id"):
+            p.verison_id = "v1"
+
+    def test_every_class_declares_slots(self):
+        """
+        ``__slots__`` only works when every class in the MRO declares it, so
+        a new mixin without ``__slots__ = ()`` is caught here.
+        """
+        missing = [
+            cls.__name__
+            for cls in S3Path.__mro__
+            if (cls is not object) and ("__slots__" not in cls.__dict__)
+        ]
+        assert missing == []
+
     # --------------------------------------------------------------------------
     # 4. invalid inputs
     # --------------------------------------------------------------------------

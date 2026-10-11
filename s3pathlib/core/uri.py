@@ -63,6 +63,8 @@ class UriAPIMixin:
     A mixin class that implements the S3 URI, ARN, console url etc ...
     """
 
+    __slots__ = ()
+
     @FilterableProperty
     def bucket(self: S3Path) -> str | None:
         """

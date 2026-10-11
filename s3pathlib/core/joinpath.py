@@ -21,6 +21,8 @@ class JoinPathAPIMixin:
     Joining onto a file is deprecated, see :meth:`~JoinPathAPIMixin.joinpath`.
     """
 
+    __slots__ = ()
+
     def joinpath(self: S3Path, *other: str | S3Path) -> S3Path:
         """
         Join this dir with string parts or relative paths. The same as

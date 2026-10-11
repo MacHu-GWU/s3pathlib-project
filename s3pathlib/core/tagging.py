@@ -48,6 +48,8 @@ class TaggingAPIMixin:
     docstring.
     """
 
+    __slots__ = ()
+
     def _ensure_taggable(self: S3Path) -> None:
         """
         :raises S3PathTypeError: for a relative path or the void path.
