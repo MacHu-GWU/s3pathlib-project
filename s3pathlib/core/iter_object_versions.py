@@ -3,6 +3,24 @@
 """
 List object versions related API.
 
+**Design notes**
+
+*The order is the one of S3.* S3 lists the versions and delete markers by key,
+then from the newest to the oldest, and splits the pages in that order, but
+each page sends them in two lists (``Versions`` and ``DeleteMarkers``). Merging
+the two lists by ``LastModified`` alone is not enough: it has a one second
+resolution, so an object deleted in the same second it was written has a
+version and a delete marker with the same timestamp. S3 marks the newest entry
+of each key with ``IsLatest``, so that entry goes first; the other ones go
+newest first. The newest entry of a key is always in the first page where the
+key appears, so this works page by page.
+
+*Rejected:* listing one entry per call (``MaxKeys=1``) gives the exact order,
+at the cost of one API call per version; a public ``is_latest()`` would read a
+snapshot that can be stale, while the order of the iteration itself is what
+callers rely on (``one()``, ``skip(1)``); sleeping between writes only hides
+the problem.
+
 .. _list_object_versions: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/list_object_versions.html
 """
 
@@ -21,6 +39,20 @@ from .resolve_s3_client import resolve_s3_client
 if T.TYPE_CHECKING:  # pragma: no cover
     from .s3path import S3Path
     from mypy_boto3_s3 import S3Client
+
+
+def _last_modified(p: S3Path):
+    return p.last_modified_at
+
+
+def _s3_order(p: S3Path) -> tuple[str, bool]:
+    """
+    The sort key that restores the order of S3 within a page: by key, then
+    the entry S3 marks as the latest first (``False`` sorts before ``True``).
+    It reads the snapshot of the listed path and never calls AWS.
+    """
+    is_latest = p._meta.get("IsLatest", False)
+    return (p.key, is_latest is False)
 
 
 class IterObjectVersionsAPIMixin:
@@ -50,10 +82,13 @@ class IterObjectVersionsAPIMixin:
           recursively (unless ``delimiter`` is given).
 
         The order is the one of S3: by key, then from the newest to the oldest
-        version of each key (versions and delete markers merged by
-        ``LastModified``; a version and a delete marker written in the same
-        second are in no particular order). The pages are fetched while
-        iterating, so a big folder is not loaded in memory.
+        version of each key. The entry S3 marks as the latest of each key
+        (``IsLatest``) always comes first, e.g. the delete marker of an object
+        deleted in the same second it was written. The older entries are
+        merged by ``LastModified``, which has a one second resolution, so the
+        older versions and delete markers written in the same second are in no
+        particular order. The pages are fetched while iterating, so a big
+        folder is not loaded in memory.
 
         Example::
 
@@ -108,11 +143,11 @@ class IterObjectVersionsAPIMixin:
                     s3path_list.append(
                         self._from_delete_marker(bucket, dct=dct, s3_client=s3_client)
                     )
-                # S3 order: by key, then newest first. S3 sends the versions
-                # and the delete markers of a page in two lists, merge them;
-                # the pages themselves come in this order.
-                s3path_list.sort(key=lambda x: x.last_modified_at, reverse=True)
-                s3path_list.sort(key=lambda x: x.key)
+                # S3 sends the versions and the delete markers of a page in
+                # two lists; restore its order, see the design notes. Both
+                # sorts are stable: equal timestamps keep the list order.
+                s3path_list.sort(key=_last_modified, reverse=True)
+                s3path_list.sort(key=_s3_order)
                 for s3path in s3path_list:
                     if exact_key is not None:
                         if s3path.key != exact_key:

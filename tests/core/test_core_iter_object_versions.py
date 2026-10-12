@@ -9,16 +9,21 @@ Test order:
    this exact key;
 2. a folder: every key, in S3 order, each entry once, not again after each
    page;
-3. ``limit``, laziness, ``delimiter``, a bucket without versioning, errors.
+3. ``limit``, laziness, ``delimiter``, a bucket without versioning, errors;
+4. entries written in the same second: the latest entry of each key first.
 
-The versions of a key are written one second apart, so that their order is
-known (S3 timestamps have a one second resolution).
+Sections 1 to 3 write the versions of a key one second apart, so that the
+order of all of them is known (S3 timestamps have a one second resolution).
+Section 4 writes them in the same second on purpose.
 """
 
 import time
 import uuid
+from datetime import datetime
+from datetime import timezone
 
 import pytest
+from botocore.stub import Stubber
 
 from s3pathlib.api import S3Path
 from s3pathlib.exc import S3PathTypeError
@@ -26,6 +31,30 @@ from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.aws_helpers import record_api_calls
 from s3pathlib.tests.mock_aws import BaseTest
+from s3pathlib.tests.mock_aws import mock_only
+
+SAME_SECOND = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+def version_entry(version_id: str, is_latest: bool) -> dict:
+    return {
+        "Key": "file.txt",
+        "VersionId": version_id,
+        "IsLatest": is_latest,
+        "LastModified": SAME_SECOND,
+        "ETag": '"etag"',
+        "Size": 1,
+        "StorageClass": "STANDARD",
+    }
+
+
+def marker_entry(version_id: str, is_latest: bool) -> dict:
+    return {
+        "Key": "file.txt",
+        "VersionId": version_id,
+        "IsLatest": is_latest,
+        "LastModified": SAME_SECOND,
+    }
 
 
 class ListObjectVersionsMixin(BaseTest):
@@ -256,6 +285,81 @@ class ListObjectVersionsMixin(BaseTest):
         result = p.list_object_versions()
         with pytest.raises(self.s3_client.exceptions.NoSuchBucket):
             result.all()
+
+    # --------------------------------------------------------------------------
+    # 4. Entries written in the same second
+    # --------------------------------------------------------------------------
+    @mock_only("a stubbed response with entries of the same timestamp")
+    @pytest.mark.parametrize(
+        "versions, delete_markers, expected_first",
+        [
+            pytest.param(
+                [version_entry("v1", False)],
+                [marker_entry("m1", True)],
+                "m1",
+                id="latest-is-delete-marker",
+            ),
+            pytest.param(
+                [version_entry("v2", True), version_entry("v1", False)],
+                [marker_entry("m1", False)],
+                "v2",
+                id="latest-is-version",
+            ),
+        ],
+    )
+    def test_same_second_latest_first(self, versions, delete_markers, expected_first):
+        """
+        S3 sends versions and delete markers in two lists, and their
+        timestamps have a one second resolution: the entry S3 marks as
+        ``IsLatest`` comes first, whatever list it is in.
+        """
+        s3_client = self.boto_ses.client("s3")
+        stubber = Stubber(s3_client)
+        stubber.add_response(
+            "list_object_versions",
+            {
+                "Versions": versions,
+                "DeleteMarkers": delete_markers,
+                "IsTruncated": False,
+            },
+        )
+        with stubber:
+            result = S3Path("bucket", "file.txt").list_object_versions(
+                s3_client=s3_client
+            )
+            version_ids = [x.version_id for x in result]
+        stubber.assert_no_pending_responses()
+        assert version_ids[0] == expected_first
+        assert len(version_ids) == len(versions) + len(delete_markers)
+
+    def test_file_deleted_right_after_write(self):
+        """
+        A file deleted right after it was written (in the same second on AWS):
+        the delete marker comes first, so ``one()`` is the latest entry.
+        """
+        v1 = self.put("file.txt", "1")
+        marker = self.delete("file.txt")
+        p = self.s3dir_test_with_versioning.joinpath("file.txt")
+        assert [x.version_id for x in p.list_object_versions()] == [marker, v1]
+        assert p.list_object_versions().one().is_delete_marker() is True
+
+    def test_folder_deleted_right_after_write(self):
+        """
+        ``delete()`` on a folder right after writing it: in each key, the
+        delete marker comes before the version it hides.
+        """
+        self.put("a.txt", "1")
+        self.put("b.txt", "1")
+        s3dir = self.s3dir_test_with_versioning
+        s3dir.delete()
+        result = s3dir.list_object_versions().all()
+        entries = [(self.relative(x), x.is_delete_marker()) for x in result]
+        assert entries == [
+            ("a.txt", True),
+            ("a.txt", False),
+            ("b.txt", True),
+            ("b.txt", False),
+        ]
 
 
 class TestMock(ListObjectVersionsMixin):
