@@ -352,6 +352,29 @@ class MetadataMixin(BaseTest):
         assert p.response is None
         assert p.size == 10
 
+    @pytest.mark.parametrize(
+        "name, value",
+        [
+            ("response_cache_control", "no-cache"),
+            ("response_content_disposition", "inline"),
+            ("response_content_encoding", "identity"),
+            ("response_content_language", "fr"),
+            ("response_content_type", "application/x-other"),
+            ("response_expires", "Wed, 01 Jan 2031 00:00:00 GMT"),
+        ],
+    )
+    def test_read_bytes_response_override_does_not_fill(self, name, value):
+        """
+        A ``response_*`` argument overrides a header of this response only. It
+        must not become the snapshot, which would then describe the object
+        with the override as if it were stored.
+        """
+        p = self.s3dir_test / "file.txt"
+        self.put(p, b"0123456789", ContentType="text/plain")
+        assert p.read_bytes(**{name: value}) == b"0123456789"
+        assert p.response is None
+        assert p.head_object()["ContentType"] == "text/plain"
+
     def test_read_bytes_keeps_existing_snapshot(self):
         """
         ``read_bytes`` does not replace an existing snapshot: the path keeps
@@ -380,6 +403,19 @@ class MetadataMixin(BaseTest):
             p.response["Metadata"]["x"] = "y"
         assert "x" not in p.response
         assert p.metadata == {"creator": "alice"}
+
+    def test_head_object_result_is_a_copy(self):
+        """
+        Changing the response of ``head_object()``, nested ``Metadata``
+        included, does not change the snapshot it filled.
+        """
+        p = self.s3dir_test / "file.txt"
+        self.put(p, b"abc", Metadata={"creator": "alice"})
+        response = p.head_object()
+        response["Metadata"]["x"] = "y"
+        response["ContentLength"] = 0
+        assert p.metadata == {"creator": "alice"}
+        assert p.size == 3
 
     @pytest.mark.parametrize(
         "derive",

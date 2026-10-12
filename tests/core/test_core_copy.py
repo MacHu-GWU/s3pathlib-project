@@ -16,6 +16,7 @@ Test order:
 """
 
 import contextlib
+import uuid
 
 import botocore.exceptions
 import pytest
@@ -111,6 +112,19 @@ class CopyMixin(BaseTest):
     def tags(self, p: S3Path) -> dict:
         res = self.s3_client.get_object_tagging(Bucket=p.bucket, Key=p.key)
         return {tag["Key"]: tag["Value"] for tag in res["TagSet"]}
+
+    @pytest.fixture
+    def tmp_bucket(self):
+        """
+        A new empty bucket, emptied and deleted after the test.
+        """
+        bucket = f"s3pathlib-test-tmp-{uuid.uuid4().hex}"
+        self.s3_client.create_bucket(Bucket=bucket)
+        yield bucket
+        res = self.s3_client.list_objects_v2(Bucket=bucket)
+        for dct in res.get("Contents", []):
+            self.s3_client.delete_object(Bucket=bucket, Key=dct["Key"])
+        self.s3_client.delete_bucket(Bucket=bucket)
 
     def make_dir(self, s3dir: S3Path):
         """
@@ -263,7 +277,8 @@ class CopyMixin(BaseTest):
         src = self.s3dir_test / "src.txt"
         dst = self.s3dir_test / "dst.txt"
         self.put(src, ContentType="text/csv", Metadata={"m": "1"})
-        new = src.copy_file(dst, metadata={"N": "2"})
+        with pytest.warns(UserWarning, match="uppercase"):
+            new = src.copy_file(dst, metadata={"N": "2"})
         res = self.head(dst)
         assert res["ContentType"] == "text/csv"
         assert res["Metadata"] == {"n": "2"}
@@ -391,6 +406,40 @@ class CopyMixin(BaseTest):
         assert params["RequestPayer"] == "requester"
         assert params["ExpectedBucketOwner"] == "111122223333"
 
+    @pytest.mark.parametrize(
+        "method, kind",
+        [
+            pytest.param("copy_file", "file", id="copy_file"),
+            pytest.param("copy_to", "file", id="copy_to-file"),
+            pytest.param("move_to", "file", id="move_to-file"),
+            pytest.param("copy_dir", "dir", id="copy_dir"),
+            pytest.param("copy_to", "dir", id="copy_to-dir"),
+            pytest.param("move_to", "dir", id="move_to-dir"),
+        ],
+    )
+    def test_upper_case_metadata_key_warning(self, method, kind):
+        """
+        Like the write methods, a copy warns once (not once per object) about
+        an upper case metadata key, pointing at the line of the user.
+        """
+        if kind == "file":
+            src = self.s3dir_test / "src.txt"
+            self.put(src)
+            dst = self.s3dir_test / "dst.txt"
+        else:
+            src = self.s3dir_test / "src/"
+            self.put(src / "a.txt")
+            self.put(src / "b.txt")
+            dst = self.s3dir_test / "dst/"
+        with pytest.warns(UserWarning, match="uppercase") as record:
+            getattr(src, method)(dst, metadata={"Author": "a"})
+        warnings_found = [w for w in record if "uppercase" in str(w.message)]
+        assert len(warnings_found) == 1
+        assert warnings_found[0].filename == __file__
+        assert self.head(dst / "a.txt" if kind == "dir" else dst)["Metadata"] == {
+            "author": "a"
+        }
+
     def test_copy_file_missing_source(self):
         with pytest.raises(botocore.exceptions.ClientError) as exc_info:
             (self.s3dir_test / "missing.txt").copy_file(self.s3dir_test / "dst.txt")
@@ -425,6 +474,25 @@ class CopyMixin(BaseTest):
         assert self.keys(dst) == ["sub/b.txt"]
         assert src.copy_dir(dst, overwrite=True) == 5
         assert self.get(dst / "sub/b.txt") == b"b"
+
+    @pytest.mark.parametrize("method", ["copy_dir", "move_to"])
+    def test_dir_marker_to_bucket_root(self, tmp_bucket, method):
+        """
+        A bucket has no folder marker, so the marker of the source folder is
+        not copied to the bucket root (its key would be empty), and not
+        counted; ``move_to`` still deletes it with the other source keys.
+        """
+        src = self.s3dir_test / "src/"
+        self.put(src, b"")
+        self.put(src / "a.txt")
+        self.put(src / "sub/b.txt")
+        dst = S3Path(tmp_bucket)
+        assert getattr(src, method)(dst) == 2
+        assert self.keys(dst) == ["a.txt", "sub/b.txt"]
+        if method == "move_to":
+            assert self.keys(src) == []
+        else:
+            assert self.keys(src) == ["", "a.txt", "sub/b.txt"]
 
     def test_copy_dir_metadata(self):
         """

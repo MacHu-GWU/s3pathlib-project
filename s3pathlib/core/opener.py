@@ -183,8 +183,13 @@ class OpenerAPIMixin:
             ``False`` keeps all data in memory and uploads it with
             put_object_ when the file is closed. ``content_length``,
             ``content_md5`` and ``checksum_crc32`` / ``checksum_crc32c`` /
-            ``checksum_sha1`` / ``checksum_sha256`` only exist in put_object_,
-            so they need ``False`` (``ValueError`` otherwise).
+            ``checksum_sha1`` / ``checksum_sha256`` and the conditions
+            ``if_match`` / ``if_none_match`` only exist in put_object_, so
+            they need ``False`` (``ValueError`` otherwise). A failed
+            condition raises ``PreconditionFailed`` when the file is closed,
+            as the ``__cause__`` of smart_open's ``ValueError``. The other
+            read arguments (``if_modified_since``, ``response_*``, ...) raise
+            ``ValueError`` when writing.
         :param metadata: the user metadata of the written object.
         :param tags: the tags of the written object.
         :param transport_params: See smart_open_. Its ``client`` is replaced
@@ -264,6 +269,24 @@ class OpenerAPIMixin:
                 ObjectLockLegalHoldStatus=object_lock_legal_hold_status,
                 ExpectedBucketOwner=expected_bucket_owner,
             )
+            # the read arguments that mean nothing when writing
+            read_only = {
+                "if_modified_since": if_modified_since,
+                "if_unmodified_since": if_unmodified_since,
+                "response_cache_control": response_cache_control,
+                "response_content_disposition": response_content_disposition,
+                "response_content_encoding": response_content_encoding,
+                "response_content_language": response_content_language,
+                "response_content_type": response_content_type,
+                "response_expires": response_expires,
+                "checksum_mode": checksum_mode,
+            }
+            ignored = list()
+            for name, value in read_only.items():
+                if value is not OPT:
+                    ignored.append(name)
+            if len(ignored):
+                raise ValueError(f"{ignored} only apply when reading")
             # put_object has them, create_multipart_upload does not
             put_object_only = {
                 "content_length": ("ContentLength", content_length),
@@ -272,6 +295,8 @@ class OpenerAPIMixin:
                 "checksum_crc32c": ("ChecksumCRC32C", checksum_crc32c),
                 "checksum_sha1": ("ChecksumSHA1", checksum_sha1),
                 "checksum_sha256": ("ChecksumSHA256", checksum_sha256),
+                "if_match": ("IfMatch", if_match),
+                "if_none_match": ("IfNoneMatch", if_none_match),
             }
             given = list()
             for name, (param, value) in put_object_only.items():

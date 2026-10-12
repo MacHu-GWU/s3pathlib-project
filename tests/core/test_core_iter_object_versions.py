@@ -21,6 +21,7 @@ import uuid
 import pytest
 
 from s3pathlib.api import S3Path
+from s3pathlib.exc import S3PathTypeError
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.aws_helpers import record_api_calls
 from s3pathlib.tests.mock_aws import BaseTest
@@ -178,6 +179,23 @@ class ListObjectVersionsMixin(BaseTest):
         """
         with pytest.raises(ValueError, match=match):
             self.s3dir_test_with_versioning.list_object_versions(**kwargs)
+
+    @pytest.mark.parametrize(
+        "p",
+        [
+            pytest.param(S3Path(), id="void"),
+            pytest.param(S3Path.make_relpath("a/"), id="relpath"),
+        ],
+    )
+    def test_not_an_absolute_path(self, p):
+        """
+        A relative path or the void path is rejected when the method is
+        called, as ``iter_objects`` does, not by botocore while iterating.
+        """
+        with record_api_calls(self.s3_client) as calls:
+            with pytest.raises(S3PathTypeError, match="is a relative path"):
+                p.list_object_versions()
+        assert calls == []
 
     def test_lazy(self):
         """

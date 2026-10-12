@@ -51,13 +51,16 @@ jobs:
       # Let the other jobs finish when one fails, to see every failing combination
       fail-fast: false
       matrix:
-        # Every supported Python version on Linux; Windows only on the latest
-        # Python, to check the Windows support
+        # Every supported Python version on Linux and on Windows; every job also
+        # runs the real AWS tests, which costs about a cent per job (see CLAUDE.md)
         include:
           - { os: "ubuntu-latest", python-version: "3.11" }
           - { os: "ubuntu-latest", python-version: "3.12" }
           - { os: "ubuntu-latest", python-version: "3.13" }
           - { os: "ubuntu-latest", python-version: "3.14" }
+          - { os: "windows-latest", python-version: "3.11" }
+          - { os: "windows-latest", python-version: "3.12" }
+          - { os: "windows-latest", python-version: "3.13" }
           - { os: "windows-latest", python-version: "3.14" }
     steps:
       # Check out the repository code to the runner

@@ -31,7 +31,7 @@ Resources (``${aws_account_id}`` is the account of the dev profile):
 The CI workflow (``main.yml``)
 ------------------------------------------------------------------------------
 - Runs on every push to ``main`` and ``dev``, and by hand (``workflow_dispatch``).
-- Matrix: Ubuntu with Python 3.11, 3.12, 3.13 and 3.14; Windows with Python 3.14 only.
+- Matrix: Ubuntu and Windows, each with Python 3.11, 3.12, 3.13 and 3.14 (8 jobs).
 - Every job runs the whole test suite against moto **and** real AWS (``S3PATHLIB_TEST_REAL_AWS=true``, with the secrets above). Without the secrets the real AWS tests fail; they are never skipped silently.
 - Each workflow run writes to its own S3 folder, ``projects/s3pathlib/unittest/ci/${GITHUB_RUN_ID}/...`` (see ``get_root_prefix`` in ``s3pathlib/tests/mock_aws.py``), so runs of different pushes can run at the same time; the lifecycle rule deletes the folders.
 - It uses uv only, not mise: the ``[env]`` section of ``mise.toml`` reads local secrets that do not exist on the runners.

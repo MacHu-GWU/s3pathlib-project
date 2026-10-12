@@ -1,14 +1,27 @@
 # Coverage.py is a tool for measuring code coverage of Python programs.
 # for more info: https://coverage.readthedocs.io/en/latest/config.html
 [run]
+# Not part of the library logic. The patterns start with "*/" so that they match
+# whatever the working directory is: pytest-cov also measures the subprocesses
+# that the tests start (e.g. tests/tests/test_tests_mock_aws.py runs pytest in a
+# temporary directory), and a relative pattern would not match there.
 omit =
-    s3pathlib/docs/*
-    s3pathlib/tests/*
-    s3pathlib/vendor/*
-    s3pathlib/_version.py
-    s3pathlib/paths.py
+    */s3pathlib/docs/*
+    */s3pathlib/tests/*
+    */s3pathlib/vendor/*
+    */s3pathlib/_version.py
+    */s3pathlib/paths.py
 
 [report]
+# The same as [run] omit: the data of a subprocess is combined into the report,
+# and [run] omit only applies when the data is measured.
+omit =
+    */s3pathlib/docs/*
+    */s3pathlib/tests/*
+    */s3pathlib/vendor/*
+    */s3pathlib/_version.py
+    */s3pathlib/paths.py
+
 # Regexes for lines to exclude from consideration
 exclude_lines =
     # Have to re-enable the standard pragma

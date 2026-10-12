@@ -66,9 +66,11 @@ class IterObjectVersionsAPIMixin:
             limit.
         :param delimiter: Folders (common prefixes) are not returned.
 
+        :raises S3PathTypeError: for a relative path or the void path.
         :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
             negative.
         """
+        self.ensure_not_relpath()
         validate_limit(limit)
         client = resolve_s3_client(s3_context, s3_client)
         bucket = self.bucket

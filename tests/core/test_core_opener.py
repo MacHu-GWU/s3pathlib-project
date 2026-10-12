@@ -68,6 +68,8 @@ PUT_OBJECT_ONLY_ARGUMENTS = {
     "checksum_crc32c": ("ChecksumCRC32C", "crc32c"),
     "checksum_sha1": ("ChecksumSHA1", "sha1"),
     "checksum_sha256": ("ChecksumSHA256", "sha256"),
+    "if_match": ("IfMatch", '"etag"'),
+    "if_none_match": ("IfNoneMatch", "*"),
 }
 
 READ_ARGUMENTS = {
@@ -87,6 +89,22 @@ READ_ARGUMENTS = {
     "expected_bucket_owner": ("ExpectedBucketOwner", "111122223333"),
     "checksum_mode": ("ChecksumMode", "ENABLED"),
 }
+
+# the read arguments that have no meaning when writing (``if_match`` and
+# ``if_none_match`` are conditions of put_object)
+READ_ONLY_ARGUMENTS = [
+    name
+    for name in READ_ARGUMENTS
+    if name
+    not in (
+        "if_match",
+        "if_none_match",
+        "sse_customer_algorithm",
+        "sse_customer_key",
+        "request_payer",
+        "expected_bucket_owner",
+    )
+]
 
 
 class Captured(Exception):
@@ -304,6 +322,51 @@ class OpenerMixin(BaseTest):
             ):
                 p.open("w", **{name: value})
         assert calls == []
+
+    @pytest.mark.parametrize("name", READ_ONLY_ARGUMENTS)
+    def test_read_only_argument_when_writing(self, name):
+        """
+        A read argument is rejected when writing, not silently ignored.
+        """
+        _, value = READ_ARGUMENTS[name]
+        with record_api_calls(self.s3_client) as calls:
+            with pytest.raises(ValueError, match="only apply when reading"):
+                (self.s3dir_test / "file.txt").open("w", **{name: value})
+        assert calls == []
+
+    def test_write_if_none_match(self):
+        """
+        ``if_none_match="*"`` makes the write conditional: it does not replace
+        an existing object. smart_open raises ``ValueError``, with the boto3
+        error as its ``__cause__``.
+        """
+        p = self.s3dir_test / "file.txt"
+        with p.open("w", multipart_upload=False, if_none_match="*") as f:
+            f.write("first")
+        assert self.get(p) == b"first"
+        with pytest.raises(ValueError) as exc_info:
+            with p.open("w", multipart_upload=False, if_none_match="*") as f:
+                f.write("second")
+        error = exc_info.value.__cause__
+        assert error.response["Error"]["Code"] == "PreconditionFailed"
+        assert self.get(p) == b"first"
+
+    def test_write_if_match(self):
+        """
+        ``if_match`` replaces the object only when its ETag is the given one.
+        """
+        p = self.s3dir_test / "file.txt"
+        self.put(p, b"first")
+        etag = self.s3_client.head_object(Bucket=p.bucket, Key=p.key)["ETag"]
+        with pytest.raises(ValueError) as exc_info:
+            with p.open("w", multipart_upload=False, if_match='"wrong"') as f:
+                f.write("second")
+        error = exc_info.value.__cause__
+        assert error.response["Error"]["Code"] == "PreconditionFailed"
+        assert self.get(p) == b"first"
+        with p.open("w", multipart_upload=False, if_match=etag) as f:
+            f.write("third")
+        assert self.get(p) == b"third"
 
     def test_read_arguments_passed_to_boto3(self):
         p = S3Path("bucket", "file.txt")

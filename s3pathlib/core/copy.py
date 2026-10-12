@@ -45,6 +45,7 @@ from .._arg import remove_optional
 from .. import exc
 from ..type import TagType, MetadataType
 from ..tag import encode_url_query
+from ..metadata import warn_upper_case_in_metadata_key
 from ..better_client.head_object import head_object
 from ..better_client.head_object import is_object_exists
 from ..better_client.list_objects import paginate_list_objects_v2
@@ -237,6 +238,8 @@ class CopyAPIMixin:
         self.ensure_object()
         dst.ensure_not_relpath()
         dst.ensure_object()
+        if metadata is not OPT:
+            warn_upper_case_in_metadata_key(metadata)
         if overwrite is False:
             dst.ensure_not_exists(s3_client=s3_client)
         client = resolve_s3_client(s3_context, s3_client)
@@ -313,13 +316,14 @@ class CopyAPIMixin:
         overwrite: bool,
         s3_client: S3Client | None,
         kwargs: dict,
-    ) -> list[str]:
+    ) -> tuple[list[str], int]:
         """
         The implementation of :meth:`copy_dir`.
 
         :param kwargs: the other arguments of :meth:`copy_dir`.
 
-        :return: the copied source keys.
+        :return: all the source keys, and the number of the copied ones (the
+            marker of the folder is not copied to a bucket root).
         """
         self.ensure_not_relpath()
         self.ensure_dir()
@@ -334,6 +338,9 @@ class CopyAPIMixin:
             if kwargs[name] is not OPT:
                 raise ValueError(f"{name} only applies to copying a file, not a folder")
         _ensure_no_overlap(self, dst)
+        if metadata is not OPT:
+            # once for the folder, not for every object
+            warn_upper_case_in_metadata_key(metadata)
         client = resolve_s3_client(s3_context, s3_client)
         replace_kwargs, other_kwargs, head_kwargs = _make_copy_kwargs(**kwargs)
 
@@ -348,6 +355,10 @@ class CopyAPIMixin:
         todo: list[tuple[str, str]] = list()
         for src_key in src_keys:
             dst_key = dst.key + src_key[len(self.key) :]
+            if dst_key == "":
+                # the marker of this folder, copied to a bucket root: a bucket
+                # has no marker
+                continue
             todo.append((src_key, dst_key))
 
         if overwrite is False:
@@ -370,7 +381,7 @@ class CopyAPIMixin:
                 other_kwargs=other_kwargs,
                 head_kwargs=head_kwargs,
             )
-        return src_keys
+        return src_keys, len(todo)
 
     def copy_dir(
         self: S3Path,
@@ -424,7 +435,9 @@ class CopyAPIMixin:
         :param overwrite: if ``False`` (default), check every target key
             first, and copy nothing if any of them exists.
 
-        :return: the number of keys copied.
+        :return: the number of keys copied. The marker of this folder is not
+            copied (nor counted) when ``dst`` is a bucket: a bucket has no
+            marker.
 
         :raises S3PathTypeError: if this path or ``dst`` is a relative path or
             the void path.
@@ -434,7 +447,7 @@ class CopyAPIMixin:
         :raises S3FileAlreadyExist: if ``overwrite`` is ``False`` and a target
             key exists.
         """
-        src_keys = self._copy_dir(
+        _, copied = self._copy_dir(
             dst=dst,
             metadata=metadata,
             tags=tags,
@@ -474,7 +487,7 @@ class CopyAPIMixin:
                 expected_source_bucket_owner=expected_source_bucket_owner,
             ),
         )
-        return len(src_keys)
+        return copied
 
     def copy_to(
         self: S3Path,
@@ -664,7 +677,7 @@ class CopyAPIMixin:
         )
         client = resolve_s3_client(s3_context, s3_client)
         if self.is_dir():
-            src_keys = self._copy_dir(
+            src_keys, copied = self._copy_dir(
                 dst=dst,
                 metadata=metadata,
                 tags=tags,
@@ -678,7 +691,7 @@ class CopyAPIMixin:
                 objects=({"Key": key} for key in src_keys),
                 request_payer=request_payer,
             )
-            return len(src_keys)
+            return copied
         else:
             if dst == self:
                 raise ValueError(f"cannot move {self.uri!r} to itself")

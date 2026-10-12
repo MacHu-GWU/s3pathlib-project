@@ -90,8 +90,9 @@ class ReadAndWriteAPIMixin:
 
         If this ``S3Path`` has no metadata snapshot yet, the get_object_
         response becomes its snapshot (``etag``, ``size``, ``version_id``,
-        ...), unless ``range`` or ``part_number`` is given (the response then
-        describes a part only). An existing snapshot is never replaced, see
+        ...), unless ``range``, ``part_number`` or a ``response_*`` argument
+        is given (the response then describes a part, or has overridden
+        headers). An existing snapshot is never replaced, see
         :mod:`s3pathlib.core.metadata`.
 
         Example::
@@ -138,8 +139,19 @@ class ReadAndWriteAPIMixin:
             ),
         )
         data = response["Body"].read()
-        # only fill an empty snapshot with a full response, see core.metadata
-        if (self._meta is None) and (range is OPT) and (part_number is OPT):
+        # only fill an empty snapshot with a full response, see core.metadata;
+        # a response_* argument replaces a header of this response only
+        is_full_response = (
+            (range is OPT)
+            and (part_number is OPT)
+            and (response_cache_control is OPT)
+            and (response_content_disposition is OPT)
+            and (response_content_encoding is OPT)
+            and (response_content_language is OPT)
+            and (response_content_type is OPT)
+            and (response_expires is OPT)
+        )
+        if (self._meta is None) and is_full_response:
             del response["Body"]
             response.pop("ResponseMetadata", None)
             self._set_meta(

@@ -78,12 +78,13 @@ class IsTestAPIMixin:
         Test if it is a delete-marker. A delete-marker is just a version of
         an object without content.
 
-        Only a path returned by
-        :meth:`~s3pathlib.core.iter_object_versions.IterObjectVersionsAPIMixin.list_object_versions`
-        can be a delete marker, because S3 only reports delete markers there
-        (``head_object`` on a delete marker fails). So it only looks at the
-        metadata already loaded, and never calls the AWS API: any other path
-        returns ``False``.
+        Only two kinds of path can be a delete marker, because S3 only reports
+        delete markers there (``head_object`` on a delete marker fails): a path
+        returned by
+        :meth:`~s3pathlib.core.iter_object_versions.IterObjectVersionsAPIMixin.list_object_versions`,
+        and the path returned by ``delete()`` when it created a delete marker
+        (a version-enabled bucket). So it only looks at the metadata already
+        loaded, and never calls the AWS API: any other path returns ``False``.
         """
         if self._meta is None:
             return False

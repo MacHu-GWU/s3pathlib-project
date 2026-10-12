@@ -200,7 +200,8 @@ class MetadataAPIMixin:
         except exc.S3FileNotExist:
             self.clear_cache()
             raise
-        meta = dict(response)
+        # the snapshot gets its own copy: the nested Metadata dict is shared
+        meta = copy.deepcopy(response)
         meta.pop("ResponseMetadata", None)
         self._set_meta(meta, complete=True, s3_client=explicit_client)
         return response
