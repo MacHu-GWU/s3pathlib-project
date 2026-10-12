@@ -74,6 +74,16 @@ same code call different accounts depending on where the path came from.
 
 *Properties return copies,* so that changing the returned ``dict`` does not
 change the snapshot.
+
+*A listed key that* ``S3Path`` *cannot represent raises.* S3 allows keys with
+consecutive ``/`` (``a//b``) or a leading ``/``, but ``S3Path`` joins and drops
+them, so the path of ``a//b`` would be ``a/b``: another object, with the
+snapshot of the first one, and ``delete()`` would delete the wrong object.
+Listing such a key (or a folder prefix, with ``iterdir``) raises
+``S3ValidationError``, which also stops the listing of the other keys. They
+can be listed with ``better_client`` or boto3. Methods that copy or delete a
+whole folder (``copy_dir``, ``move_to``, ``delete``) work on the keys S3
+returns, not on paths, so they are not affected.
 """
 
 from __future__ import annotations
@@ -392,6 +402,28 @@ class MetadataAPIMixin:
         self._meta_complete = False
 
     @classmethod
+    def _from_listed_key(
+        cls: type[S3Path],
+        bucket: str,
+        key: str,
+    ) -> S3Path:
+        """
+        Construct the S3Path of a key (or a folder prefix) that S3 listed.
+
+        :raises S3ValidationError: if the path would have another key.
+        """
+        p = cls(bucket, key)
+        if p.key != key:
+            raise exc.S3ValidationError(
+                f"the S3 key {key!r} in bucket {bucket!r} cannot be "
+                f"represented by S3Path, which joins consecutive '/' and drops "
+                f"a leading '/' (its path would be {p.uri!r}, another object). "
+                f"List this folder with s3pathlib.api.better_client or boto3 "
+                f"instead"
+            )
+        return p
+
+    @classmethod
     def _from_content_dict(
         cls: type[S3Path],
         bucket: str,
@@ -404,7 +436,7 @@ class MetadataAPIMixin:
 
         :param s3_client: the explicit client of the list call, if any.
         """
-        p = cls(bucket, dct["Key"])
+        p = cls._from_listed_key(bucket, dct["Key"])
         p._set_meta(_object_meta(dct), complete=False, s3_client=s3_client)
         return p
 
@@ -421,7 +453,7 @@ class MetadataAPIMixin:
 
         :param s3_client: the explicit client of the list call, if any.
         """
-        p = cls(bucket, dct["Key"])
+        p = cls._from_listed_key(bucket, dct["Key"])
         meta = _object_meta(dct)
         meta["VersionId"] = dct["VersionId"]
         meta["IsLatest"] = dct["IsLatest"]
@@ -442,7 +474,7 @@ class MetadataAPIMixin:
 
         :param s3_client: the explicit client of the list call, if any.
         """
-        p = cls(bucket, dct["Key"])
+        p = cls._from_listed_key(bucket, dct["Key"])
         p._set_meta(
             {
                 "Key": dct["Key"],

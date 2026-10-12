@@ -132,6 +132,7 @@ def paginate_list_object_versions(
     limit: int | None = None,
     delimiter: str = OPT,
     encoding_type: str = OPT,
+    request_payer: str = OPT,
     expected_bucket_owner: str = OPT,
 ) -> ListObjectVersionsOutputTypeDefIterproxy:
     """
@@ -170,6 +171,7 @@ def paginate_list_object_versions(
             Prefix=prefix,
             Delimiter=delimiter,
             EncodingType=encoding_type,
+            RequestPayer=request_payer,
             ExpectedBucketOwner=expected_bucket_owner,
         ),
         batch_size=batch_size,

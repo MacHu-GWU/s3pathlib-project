@@ -130,6 +130,8 @@ def is_object_exists(
     bucket: str,
     key: str,
     version_id: str = OPT,
+    request_payer: str = OPT,
+    expected_bucket_owner: str = OPT,
 ) -> bool:
     """
     Check if an object exists. To use the head_object_ response when it
@@ -142,6 +144,8 @@ def is_object_exists(
         bucket=bucket,
         key=key,
         version_id=version_id,
+        request_payer=request_payer,
+        expected_bucket_owner=expected_bucket_owner,
         ignore_not_found=True,
     )
     if response is None:

@@ -291,6 +291,7 @@ def delete_object_versions(
         prefix=prefix,
         batch_size=batch_size,
         limit=limit,
+        request_payer=request_payer,
         expected_bucket_owner=expected_bucket_owner,
     )
     return delete_in_batches(
@@ -335,6 +336,7 @@ def delete_object_all_versions(
         s3_client=s3_client,
         bucket=bucket,
         prefix=key,
+        request_payer=request_payer,
         expected_bucket_owner=expected_bucket_owner,
     )
     # the prefix also matches longer keys, keep only this key

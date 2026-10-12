@@ -25,12 +25,15 @@ from botocore.stub import Stubber
 from s3pathlib.api import S3Path
 from s3pathlib.api import s3_context
 from s3pathlib.exc import S3FileAlreadyExist
+from s3pathlib.exc import S3FileNotExist
 from s3pathlib.exc import S3PathIsNotFileError
 from s3pathlib.exc import S3PathIsNotFolderError
 from s3pathlib.exc import S3PathTypeError
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.aws_helpers import record_api_calls
+from s3pathlib.tests.aws_helpers import record_api_params
 from s3pathlib.tests.mock_aws import BaseTest
+from s3pathlib.tests.mock_aws import mock_only
 from s3pathlib.tests.mock_aws import real_aws_only
 
 # copy_file argument -> (copy_object parameter, value), not needing the source
@@ -381,6 +384,85 @@ class CopyMixin(BaseTest):
                 src.move_to(dst, request_payer="requester")
         assert params["RequestPayer"] == "requester"
 
+    def make_copy_case(self, kind: str) -> tuple[S3Path, S3Path]:
+        """
+        A source in the test bucket and a target in the versioning bucket, so
+        that the two buckets of a call can be told apart.
+        """
+        if kind == "file":
+            src = self.s3dir_test / "src.txt"
+            self.put(src)
+            dst = self.s3dir_test_with_versioning / "dst.txt"
+        else:
+            src = self.s3dir_test / "src/"
+            self.put(src / "a.txt")
+            self.put(src / "b.txt")
+            dst = self.s3dir_test_with_versioning / "dst/"
+        return src, dst
+
+    @pytest.mark.parametrize(
+        "method, kind",
+        [
+            pytest.param("copy_file", "file", id="copy_file"),
+            pytest.param("copy_dir", "dir", id="copy_dir"),
+            pytest.param("copy_to", "file", id="copy_to-file"),
+            pytest.param("copy_to", "dir", id="copy_to-dir"),
+            pytest.param("move_to", "file", id="move_to-file"),
+            pytest.param("move_to", "dir", id="move_to-dir"),
+        ],
+    )
+    def test_request_payer_and_owner_reach_every_call(self, method, kind):
+        """
+        ``request_payer`` and the bucket owners are sent with every call: the
+        listing and the existence checks as well as the copy and the delete,
+        not only ``copy_object``. On a requester-pays bucket, a call without
+        ``RequestPayer`` is refused. The owner is the real one, so that the
+        calls succeed on AWS too.
+        """
+        src, dst = self.make_copy_case(kind)
+        account = self.boto_ses.client("sts").get_caller_identity()["Account"]
+        with record_api_params(self.s3_client) as calls:
+            getattr(src, method)(
+                dst,
+                request_payer="requester",
+                expected_bucket_owner=account,
+                expected_source_bucket_owner=account,
+            )
+        names = {name for name, _ in calls}
+        assert "CopyObject" in names
+        for name, params in calls:
+            assert params["RequestPayer"] == "requester", name
+            assert params["ExpectedBucketOwner"] == account, name
+        if method == "move_to":
+            assert names & {"DeleteObject", "DeleteObjects"}
+        if kind == "dir":
+            assert "ListObjectsV2" in names
+        assert "HeadObject" in names
+
+    @mock_only("a wrong owner is refused on real AWS; moto only records it")
+    @pytest.mark.parametrize("kind", ["file", "dir"])
+    @pytest.mark.parametrize("method", ["copy_to", "move_to"])
+    def test_source_and_target_get_their_own_owner(self, method, kind):
+        """
+        Calls on the source bucket get ``expected_source_bucket_owner``, calls
+        on the target bucket get ``expected_bucket_owner``.
+        """
+        src, dst = self.make_copy_case(kind)
+        with record_api_params(self.s3_client) as calls:
+            getattr(src, method)(
+                dst,
+                expected_bucket_owner="111111111111",
+                expected_source_bucket_owner="222222222222",
+            )
+        assert len(calls) > 0
+        for name, params in calls:
+            if name == "CopyObject":
+                assert params["ExpectedSourceBucketOwner"] == "222222222222"
+            if params["Bucket"] == src.bucket:
+                assert params["ExpectedBucketOwner"] == "222222222222", name
+            else:
+                assert params["ExpectedBucketOwner"] == "111111111111", name
+
     def test_copy_file_source_arguments(self):
         """
         The arguments to read the source are also used by the ``head_object``
@@ -440,10 +522,54 @@ class CopyMixin(BaseTest):
             "author": "a"
         }
 
-    def test_copy_file_missing_source(self):
-        with pytest.raises(botocore.exceptions.ClientError) as exc_info:
-            (self.s3dir_test / "missing.txt").copy_file(self.s3dir_test / "dst.txt")
-        assert exc_info.value.response["Error"]["Code"] == "NoSuchKey"
+    @pytest.mark.parametrize(
+        "method, kwargs",
+        [
+            pytest.param("copy_file", {}, id="copy_file"),
+            pytest.param(
+                "copy_file", {"content_type": "text/plain"}, id="content-type"
+            ),
+            pytest.param("copy_file", {"metadata": {"k": "v"}}, id="metadata"),
+            pytest.param("copy_to", {}, id="copy_to"),
+            pytest.param("move_to", {}, id="move_to"),
+        ],
+    )
+    def test_missing_source(self, method, kwargs):
+        """
+        A missing source is always ``S3FileNotExist``, whether or not the
+        arguments make s3pathlib read the source first (``head_object``).
+        Nothing is written.
+        """
+        src = self.s3dir_test / "missing.txt"
+        dst = self.s3dir_test / "dst.txt"
+        with pytest.raises(S3FileNotExist, match="missing.txt"):
+            getattr(src, method)(dst, **kwargs)
+        assert self.keys(self.s3dir_test) == []
+
+    def test_missing_target_bucket(self):
+        """
+        The other errors of ``copy_object`` are raised as is.
+        """
+        src = self.s3dir_test / "src.txt"
+        self.put(src)
+        dst = S3Path(f"s3pathlib-test-tmp-{uuid.uuid4().hex}", "dst.txt")
+        with pytest.raises(self.s3_client.exceptions.NoSuchBucket):
+            src.copy_file(dst)
+
+    def test_missing_source_version(self):
+        """
+        A missing version of the source is ``S3FileNotExist`` too.
+        """
+        src = self.s3dir_test_with_versioning / "src.txt"
+        self.put(src)
+        # the id of a version that existed: well formed (AWS answers
+        # InvalidRequest to an id it cannot parse) and gone
+        deleted = self.put(src, b"old")
+        self.s3_client.delete_object(Bucket=src.bucket, Key=src.key, VersionId=deleted)
+        with pytest.raises(S3FileNotExist):
+            src.copy_file(
+                self.s3dir_test_with_versioning / "dst.txt", version_id=deleted
+            )
 
     # --------------------------------------------------------------------------
     # 2. copy_dir

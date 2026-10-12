@@ -199,6 +199,19 @@ Backlog (TODO)
 - ``S3Path.delete`` on a relative path raised a botocore ``TypeError``, and a bare ``ValueError`` on the void path; both now raise ``S3PathTypeError`` before calling AWS.
 - ``S3Path.sync(..., bsm=s3_client)`` always failed, because it called ``bsm.awscli()``, which only a ``BotoSesManager`` has.
 - ``S3Path.sync`` raises ``FileNotFoundError`` with a message telling to install the AWS CLI when the ``aws`` command is not found, and ``ValueError`` with a message when neither path is in S3 (it was a bare ``ValueError``).
+- Fixes found by the final review of the code (the first four could lose data or send the wrong request):
+
+  - ``S3Path.open("w", if_match=..., if_none_match=...)`` accepted the conditions and ignored them, so ``if_none_match="*"`` replaced an existing object without an error. They are now sent to ``put_object`` (``multipart_upload=False``), and rejected with ``ValueError`` with the default multipart upload, which cannot take them. The other read arguments (``if_modified_since``, ``response_*``, ``checksum_mode``) are rejected when writing too.
+  - Listing a key that ``S3Path`` cannot represent (consecutive ``/`` such as ``a//b``, or a leading ``/``) returned the path of another key (``a/b``) with the snapshot of the first one, so ``delete()`` deleted the other object. ``iter_objects``, ``iterdir`` and ``list_object_versions`` now raise ``S3ValidationError`` for such a key (``copy_dir``, ``move_to`` and ``delete`` of a folder work on the keys S3 returns and are not affected).
+  - ``S3Path.sync(include="*.csv", exclude="*")`` synced nothing: the CLI lets the later filter win, and ``--include`` was put before ``--exclude``. All ``--exclude`` now come first. ``include`` and ``exclude`` also accept a list of patterns.
+  - ``read_bytes(response_content_type=...)`` (and the other ``response_*`` arguments) stored the overridden headers as the metadata of the object.
+  - ``copy_dir`` and ``move_to`` raised ``ParamValidationError`` for a folder that has a folder marker when the target is a bucket (the marker would have an empty key). The marker is now skipped, as a bucket has none; ``move_to`` still deletes it.
+  - ``request_payer`` and the bucket owners were not sent with all the calls of ``copy_file`` / ``copy_dir`` / ``move_to`` (the listing of the source folder, the check of ``overwrite=False``) and of ``delete(is_hard_delete=True)`` (the listing of the versions), which a requester-pays bucket refuses. They are now sent with every call: the calls on the source bucket get ``expected_source_bucket_owner``, the ones on the target bucket ``expected_bucket_owner``. ``better_client.is_object_exists`` and ``better_client.paginate_list_object_versions`` have the matching arguments.
+  - Copying a missing source raised ``NoSuchKey`` or, when a header or ``metadata`` was given, ``S3FileNotExist``. It is now always ``S3FileNotExist`` (also for a missing ``version_id``).
+  - ``S3Path.list_object_versions()`` on a relative path or the void path raised a bare ``TypeError`` from botocore; it now raises ``S3PathTypeError``.
+  - ``S3Path.head_object()`` returned its nested ``Metadata`` dict shared with the metadata snapshot, so changing it changed ``S3Path.metadata``.
+  - ``copy_file``, ``copy_dir``, ``copy_to`` and ``move_to`` now warn about an upper case metadata key, as the write methods do.
+  - The docstring of ``is_delete_marker`` now says that the path returned by ``delete()`` can be a delete marker.
 
 **Minor Improvements**
 

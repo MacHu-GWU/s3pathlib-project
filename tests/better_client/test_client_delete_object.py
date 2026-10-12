@@ -439,6 +439,13 @@ class DeleteObjectMixin(BaseTest):
                 "Versions": [{"Key": "file.txt", "VersionId": "v1"}],
                 "IsTruncated": False,
             },
+            expected_params={
+                "Bucket": "my-bucket",
+                "Prefix": "file.txt",
+                "MaxKeys": 1000,
+                "RequestPayer": "requester",
+                "ExpectedBucketOwner": "111122223333",
+            },
         )
         stubber.add_response(
             "delete_objects",
@@ -458,6 +465,54 @@ class DeleteObjectMixin(BaseTest):
                 s3_client,
                 "my-bucket",
                 "file.txt",
+                mfa="serial 123456",
+                request_payer="requester",
+                bypass_governance_retention=True,
+                expected_bucket_owner="111122223333",
+                checksum_algorithm="SHA256",
+            )
+        assert count == 1
+        stubber.assert_no_pending_responses()
+
+    def test_delete_object_versions_arguments_passed_to_boto3(self):
+        """
+        The listing of ``delete_object_versions`` gets ``request_payer`` and
+        ``expected_bucket_owner`` too, not only the delete.
+        """
+        s3_client = self.boto_ses.client("s3")
+        stubber = Stubber(s3_client)
+        stubber.add_response(
+            "list_object_versions",
+            {
+                "Versions": [{"Key": "folder/a.txt", "VersionId": "v1"}],
+                "IsTruncated": False,
+            },
+            expected_params={
+                "Bucket": "my-bucket",
+                "Prefix": "folder/",
+                "MaxKeys": 1000,
+                "RequestPayer": "requester",
+                "ExpectedBucketOwner": "111122223333",
+            },
+        )
+        stubber.add_response(
+            "delete_objects",
+            {},
+            expected_params={
+                "Bucket": "my-bucket",
+                "Delete": {"Objects": [{"Key": "folder/a.txt", "VersionId": "v1"}]},
+                "MFA": "serial 123456",
+                "RequestPayer": "requester",
+                "BypassGovernanceRetention": True,
+                "ExpectedBucketOwner": "111122223333",
+                "ChecksumAlgorithm": "SHA256",
+            },
+        )
+        with stubber:
+            count = delete_object_versions(
+                s3_client,
+                "my-bucket",
+                "folder/",
                 mfa="serial 123456",
                 request_payer="requester",
                 bypass_governance_retention=True,

@@ -274,6 +274,7 @@ class ListObjectVersionsMixin(BaseTest):
             "Prefix": "folder/",
             "Delimiter": "/",
             "EncodingType": "url",
+            "RequestPayer": "requester",
             "ExpectedBucketOwner": "111122223333",
         }
         stubber.add_response(
@@ -318,6 +319,7 @@ class ListObjectVersionsMixin(BaseTest):
                 limit=5,
                 delimiter="/",
                 encoding_type="url",
+                request_payer="requester",
                 expected_bucket_owner="111122223333",
             )
             versions, delete_markers, common_prefixes = (

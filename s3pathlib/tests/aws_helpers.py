@@ -39,6 +39,28 @@ def record_api_calls(s3_client: S3Client):
         events.unregister("before-call.s3.*", record)
 
 
+@contextlib.contextmanager
+def record_api_params(s3_client: S3Client):
+    """
+    Record the name and the parameters of every S3 API call made through
+    ``s3_client``, e.g. ``[("HeadObject", {"Bucket": "b", "Key": "k"})]``.
+    The parameters are the ones the caller passes to boto3, before botocore
+    converts them. Use it to assert that an argument reaches every call that
+    can take it.
+    """
+    calls = list()
+
+    def record(params, model, **kwargs):
+        calls.append((model.name, dict(params)))
+
+    events = s3_client.meta.events
+    events.register("provide-client-params.s3.*", record)
+    try:
+        yield calls
+    finally:
+        events.unregister("provide-client-params.s3.*", record)
+
+
 def make_refreshable_s3_client() -> tuple[S3Client, list[str]]:
     """
     Create an S3 client whose credentials expire one second after each fetch,

@@ -25,6 +25,7 @@ from s3pathlib.api import S3Path
 from s3pathlib.exc import S3PathTypeError
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.aws_helpers import record_api_calls
+from s3pathlib.tests.aws_helpers import record_api_params
 from s3pathlib.tests.mock_aws import BaseTest
 from s3pathlib.tests.mock_aws import delete_s3_prefix
 
@@ -270,6 +271,36 @@ class DeleteMixin(BaseTest):
             "BypassGovernanceRetention": True,
             "ExpectedBucketOwner": "111122223333",
         }
+
+    @pytest.mark.parametrize("is_hard_delete", [False, True])
+    @pytest.mark.parametrize("kind", ["file", "dir"])
+    def test_request_payer_and_owner_reach_every_call(self, kind, is_hard_delete):
+        """
+        ``request_payer`` and ``expected_bucket_owner`` are sent with every call
+        of a delete, the listing of the versions included: on a requester-pays
+        bucket, a call without ``RequestPayer`` is refused. The owner is the
+        real one, so that the calls succeed on AWS too.
+        """
+        s3dir = self.s3dir_test_with_versioning
+        if kind == "file":
+            p = s3dir / "file.txt"
+            self.put(p)
+        else:
+            p = s3dir / "folder/"
+            self.put(p / "a.txt")
+        account = self.boto_ses.client("sts").get_caller_identity()["Account"]
+        with record_api_params(self.s3_client) as calls:
+            p.delete(
+                is_hard_delete=is_hard_delete,
+                request_payer="requester",
+                expected_bucket_owner=account,
+            )
+        assert len(calls) > 0
+        if is_hard_delete:
+            assert "ListObjectVersions" in {name for name, _ in calls}
+        for name, params in calls:
+            assert params["RequestPayer"] == "requester", name
+            assert params["ExpectedBucketOwner"] == account, name
 
     @pytest.mark.parametrize("is_hard_delete", [False, True])
     def test_folder_arguments_passed_to_boto3(self, is_hard_delete):

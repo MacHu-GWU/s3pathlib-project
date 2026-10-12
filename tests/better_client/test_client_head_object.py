@@ -284,6 +284,36 @@ class HeadObjectMixin(BaseTest):
         bucket = f"s3pathlib-test-tmp-{uuid.uuid4().hex}"
         assert is_object_exists(self.s3_client, bucket, "file.txt") is False
 
+    def test_is_object_exists_arguments_passed_to_boto3(self):
+        """
+        ``request_payer`` and ``expected_bucket_owner`` reach head_object.
+        """
+        s3_client, stubber = self.stub()
+        stubber.add_response(
+            "head_object",
+            {"ContentLength": 5},
+            expected_params={
+                "Bucket": "my-bucket",
+                "Key": "file.txt",
+                "VersionId": "v1",
+                "RequestPayer": "requester",
+                "ExpectedBucketOwner": "111122223333",
+            },
+        )
+        with stubber:
+            assert (
+                is_object_exists(
+                    s3_client,
+                    "my-bucket",
+                    "file.txt",
+                    version_id="v1",
+                    request_payer="requester",
+                    expected_bucket_owner="111122223333",
+                )
+                is True
+            )
+        stubber.assert_no_pending_responses()
+
     def test_is_object_exists_version(self):
         """
         ``version_id`` checks one version: an old version exists after the

@@ -22,6 +22,7 @@ import pytest
 
 from s3pathlib.api import S3Path
 from s3pathlib.exc import S3PathTypeError
+from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.aws_helpers import record_api_calls
 from s3pathlib.tests.mock_aws import BaseTest
@@ -196,6 +197,22 @@ class ListObjectVersionsMixin(BaseTest):
             with pytest.raises(S3PathTypeError, match="is a relative path"):
                 p.list_object_versions()
         assert calls == []
+
+    @pytest.mark.parametrize("kind", ["version", "delete-marker"])
+    def test_key_that_s3path_cannot_represent(self, kind):
+        """
+        ``S3Path`` joins consecutive ``/``, so the path of ``a//b.txt`` would
+        be ``a/b.txt``, another object that ``delete()`` would delete. A
+        version or a delete marker of such a key raises instead of returning
+        a wrong path.
+        """
+        self.put("ok.txt", "1")
+        self.put("a//b.txt", "1")
+        if kind == "delete-marker":
+            self.delete("a//b.txt")
+        with pytest.raises(S3ValidationError, match="cannot be represented") as e:
+            self.s3dir_test_with_versioning.list_object_versions().all()
+        assert "a//b.txt" in str(e.value)
 
     def test_lazy(self):
         """

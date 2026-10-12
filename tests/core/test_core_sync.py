@@ -195,10 +195,10 @@ class SyncMixin(BaseTest):
             s3dir.sync_to("/tmp/data", **flags)
         assert runner.args[5:] == [
             "--only-show-errors",
-            "--include",
-            "*.csv",
             "--exclude",
             "*.tmp",
+            "--include",
+            "*.csv",
             "--acl",
             "private",
             "--no-progress",
@@ -206,6 +206,61 @@ class SyncMixin(BaseTest):
             "100",
             "--delete",
         ]
+
+    @pytest.mark.parametrize(
+        "kwargs, expected",
+        [
+            pytest.param(
+                {"exclude": "*", "include": "*.csv"},
+                ["--exclude", "*", "--include", "*.csv"],
+                id="only-csv",
+            ),
+            pytest.param(
+                {"exclude": ["*.tmp", "a*"], "include": ["*.csv", "b*"]},
+                [
+                    "--exclude",
+                    "*.tmp",
+                    "--exclude",
+                    "a*",
+                    "--include",
+                    "*.csv",
+                    "--include",
+                    "b*",
+                ],
+                id="lists",
+            ),
+            pytest.param(
+                {"include": ("a*",)}, ["--include", "a*"], id="tuple-include-only"
+            ),
+            pytest.param({"include": [], "exclude": []}, [], id="empty-lists"),
+        ],
+    )
+    def test_filters_order(self, runner, kwargs, expected):
+        """
+        The CLI applies the filters in order, the later ones first. All the
+        ``--exclude`` come before all the ``--include``, so that an ``include``
+        always brings back what an ``exclude`` removed (``exclude="*",
+        include="*.csv"`` syncs only the csv files).
+        """
+        (self.s3dir_test / "a/").sync_from("/tmp/data", verbose=False, **kwargs)
+        assert runner.args[5:] == ["--only-show-errors", *expected]
+
+    @pytest.mark.parametrize("name", ["include", "exclude"])
+    @pytest.mark.parametrize(
+        "value, error, match",
+        [
+            pytest.param(1, TypeError, "str or a list of str", id="int"),
+            pytest.param(["a", 1], TypeError, "str or a list of str", id="list-int"),
+            pytest.param("", ValueError, "must not be empty", id="empty"),
+            pytest.param(["a", ""], ValueError, "must not be empty", id="list-empty"),
+        ],
+    )
+    def test_filters_invalid(self, runner, name, value, error, match):
+        with pytest.raises(error, match=match):
+            (self.s3dir_test / "a/").sync_from(
+                "/tmp/data", verbose=False, **{name: value}
+            )
+        assert runner.calls == []
 
     def test_quiet(self, runner):
         """
@@ -472,6 +527,22 @@ class SyncMixin(BaseTest):
         s3dir2.sync_to(out, exclude="*.csv", verbose=False)
         files = sorted(str(p.relative_to(out)) for p in out.rglob("*") if p.is_file())
         assert files == ["a.txt"]
+
+    def test_e2e_filters(self, cli_client, tmp_path):
+        """
+        ``exclude="*"`` with ``include="*.csv"`` syncs the csv files only: the
+        CLI lets the later filter win, so the order of the arguments matters.
+        """
+        local = tmp_path / "src"
+        local.mkdir()
+        for name in ["a.csv", "b.txt", "c.csv", "d.tmp"]:
+            (local / name).write_text(name)
+        s3dir = self.s3dir_test / "filters/"
+        s3dir.sync_from(local, exclude="*", include="*.csv", verbose=False)
+        assert self.keys(s3dir) == ["a.csv", "c.csv"]
+        s3dir2 = self.s3dir_test / "filters2/"
+        s3dir2.sync_from(local, exclude=["*.tmp", "b*"], verbose=False)
+        assert self.keys(s3dir2) == ["a.csv", "c.csv"]
 
     def test_e2e_failure(self, cli_client, tmp_path):
         """

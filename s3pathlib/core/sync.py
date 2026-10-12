@@ -122,13 +122,41 @@ def _make_env(s3_client: S3Client) -> tuple[dict[str, str], list[str]]:
     return env, extra_args
 
 
+def _to_patterns(name: str, value: str | list[str] | None) -> list[str]:
+    """
+    The patterns of ``include`` / ``exclude`` as a list.
+
+    :raises TypeError: if ``value`` is not a ``str`` or a list of ``str``.
+    :raises ValueError: if a pattern is empty.
+    """
+    if value is None:
+        return list()
+    if isinstance(value, str):
+        patterns = [value]
+    elif isinstance(value, (list, tuple)):
+        patterns = list(value)
+    else:
+        raise TypeError(
+            f"{name} must be a str or a list of str, got {type(value).__name__}"
+        )
+    for pattern in patterns:
+        if not isinstance(pattern, str):
+            raise TypeError(
+                f"{name} must be a str or a list of str, got a "
+                f"{type(pattern).__name__} in the list"
+            )
+        if pattern == "":
+            raise ValueError(f"a pattern of {name} must not be empty")
+    return patterns
+
+
 def _sync(
     src: S3Path | PathType,
     dst: S3Path | PathType,
     s3_client: S3Client | None,
     quite: bool,
-    include: str | None,
-    exclude: str | None,
+    include: str | list[str] | None,
+    exclude: str | list[str] | None,
     acl: str | None,
     only_show_errors: bool,
     no_progress: bool,
@@ -150,6 +178,9 @@ def _sync(
             stacklevel=3,
         )
         quiet = quite
+
+    include_patterns = _to_patterns("include", include)
+    exclude_patterns = _to_patterns("exclude", exclude)
 
     src_arg, src_is_s3 = _to_cli_path(src)
     dst_arg, dst_is_s3 = _to_cli_path(dst)
@@ -173,10 +204,12 @@ def _sync(
     # not --quiet, which also hides the errors: they go into S3SyncError
     if quiet or only_show_errors:
         args.append("--only-show-errors")
-    if include:
-        args.extend(["--include", include])
-    if exclude:
-        args.extend(["--exclude", exclude])
+    # the CLI lets the later filter win, so every --include comes after the
+    # --exclude: "exclude everything, include *.csv" syncs the csv files
+    for pattern in exclude_patterns:
+        args.extend(["--exclude", pattern])
+    for pattern in include_patterns:
+        args.extend(["--include", pattern])
     if acl:
         args.extend(["--acl", acl])
     if no_progress:
@@ -220,8 +253,8 @@ class SyncAPIMixin:
         dst: S3Path | PathType,
         s3_client: S3Client | None = None,
         quite: bool = NOT_GIVEN,
-        include: str | None = None,
-        exclude: str | None = None,
+        include: str | list[str] | None = None,
+        exclude: str | list[str] | None = None,
         acl: str | None = None,
         only_show_errors: bool = False,
         no_progress: bool = False,
@@ -246,8 +279,13 @@ class SyncAPIMixin:
             default the client of ``s3_context``.
         :param quite: deprecated, use ``quiet``. When given, it is used
             instead of ``quiet``.
-        :param include: ``--include`` pattern.
-        :param exclude: ``--exclude`` pattern.
+        :param include: ``--include`` pattern, or a list of them. The CLI
+            applies the filters in order and the later one wins, so all the
+            ``include`` come after all the ``exclude``: they bring back what
+            an ``exclude`` removed, e.g. ``exclude="*", include="*.csv"``
+            syncs the csv files only. A filter that removes again what an
+            ``include`` brought back cannot be expressed.
+        :param exclude: ``--exclude`` pattern, or a list of them.
         :param acl: ``--acl``.
         :param only_show_errors: ``--only-show-errors``, see ``quiet``.
         :param no_progress: ``--no-progress``.
@@ -262,7 +300,10 @@ class SyncAPIMixin:
 
         :raises S3PathTypeError: for a relative ``S3Path`` or the void path.
         :raises S3PathIsNotFolderError: for an ``S3Path`` of a file.
-        :raises ValueError: if neither ``src`` nor ``dst`` is in S3.
+        :raises ValueError: if neither ``src`` nor ``dst`` is in S3, or a
+            pattern of ``include`` / ``exclude`` is empty.
+        :raises TypeError: if ``include`` / ``exclude`` is not a ``str`` or a
+            list of ``str``.
         :raises FileNotFoundError: if the ``aws`` command is not installed.
         :raises botocore.exceptions.NoCredentialsError: if the S3 client has
             no credentials.
@@ -290,8 +331,8 @@ class SyncAPIMixin:
         src: S3Path | PathType,
         s3_client: S3Client | None = None,
         quite: bool = NOT_GIVEN,
-        include: str | None = None,
-        exclude: str | None = None,
+        include: str | list[str] | None = None,
+        exclude: str | list[str] | None = None,
         acl: str | None = None,
         only_show_errors: bool = False,
         no_progress: bool = False,
@@ -324,8 +365,8 @@ class SyncAPIMixin:
         dst: S3Path | PathType,
         s3_client: S3Client | None = None,
         quite: bool = NOT_GIVEN,
-        include: str | None = None,
-        exclude: str | None = None,
+        include: str | list[str] | None = None,
+        exclude: str | list[str] | None = None,
         acl: str | None = None,
         only_show_errors: bool = False,
         no_progress: bool = False,

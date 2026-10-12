@@ -11,7 +11,8 @@ Test order:
 2. ``iterdir``: files and folders, its own folder marker, ``limit``;
 3. ``filter_by_ext`` and the metadata filters;
 4. ``count_objects`` and ``calculate_total_size``;
-5. invalid paths and arguments, AWS errors.
+5. keys that ``S3Path`` cannot represent;
+6. invalid paths and arguments, AWS errors.
 
 All tests read the same data, written once by ``custom_setup_class`` under
 ``s3dir_root / "data/"`` (see ``KEYS``), and never write.
@@ -26,6 +27,7 @@ import pytest
 from s3pathlib.api import S3Path
 from s3pathlib.exc import S3PathIsNotFolderError
 from s3pathlib.exc import S3PathTypeError
+from s3pathlib.exc import S3ValidationError
 from s3pathlib.tests import run_cov_test
 from s3pathlib.tests.aws_helpers import record_api_calls
 from s3pathlib.tests.mock_aws import BaseTest
@@ -335,7 +337,68 @@ class IterObjectsMixin(BaseTest):
         ) == (N_OBJECTS + 2, f"{TOTAL_SIZE} B")
 
     # --------------------------------------------------------------------------
-    # 5. Invalid input and AWS errors
+    # 5. Keys that S3Path cannot represent
+    # --------------------------------------------------------------------------
+    @pytest.fixture
+    def tmp_bucket(self):
+        """
+        A new empty bucket, emptied and deleted after the test.
+        """
+        bucket = f"s3pathlib-test-tmp-{uuid.uuid4().hex}"
+        self.s3_client.create_bucket(Bucket=bucket)
+        yield bucket
+        res = self.s3_client.list_objects_v2(Bucket=bucket)
+        for dct in res.get("Contents", []):
+            self.s3_client.delete_object(Bucket=bucket, Key=dct["Key"])
+        self.s3_client.delete_bucket(Bucket=bucket)
+
+    @pytest.mark.parametrize(
+        "method, key",
+        [
+            pytest.param("iter_objects", "a//b.txt", id="iter_objects-double-slash"),
+            pytest.param("iterdir", "/b.txt", id="iterdir-double-slash"),
+        ],
+    )
+    def test_key_with_double_slash(self, method, key):
+        """
+        ``S3Path`` joins consecutive ``/``, so the path of ``folder//b.txt``
+        would be ``folder/b.txt``: another object, which ``delete()`` would
+        delete. Listing such a key raises instead of returning a wrong path.
+        ``iterdir`` sees ``folder//`` as a folder of ``folder/``.
+        """
+        s3dir = self.s3dir_test / "folder/"
+        self.s3_client.put_object(Bucket=s3dir.bucket, Key=s3dir.key + "ok.txt")
+        full_key = s3dir.key + key
+        self.s3_client.put_object(Bucket=s3dir.bucket, Key=full_key, Body=b"x")
+        with pytest.raises(S3ValidationError, match="cannot be represented") as e:
+            getattr(s3dir, method)().all()
+        assert repr(full_key if method == "iter_objects" else s3dir.key + "/") in str(
+            e.value
+        )
+
+    def test_key_with_double_slash_in_a_sub_folder(self):
+        """
+        Listing the folder that contains the key is fine for ``iterdir`` (it
+        only sees the folder ``folder/a/``), and is not affected by a key in
+        another folder.
+        """
+        s3dir = self.s3dir_test / "folder/"
+        self.s3_client.put_object(Bucket=s3dir.bucket, Key=s3dir.key + "a//b.txt")
+        self.s3_client.put_object(Bucket=s3dir.bucket, Key=s3dir.key + "c.txt")
+        assert [p.basename for p in s3dir.iterdir().all()] == ["a", "c.txt"]
+        assert [p.basename for p in s3dir.iter_objects(recursive=False)] == ["c.txt"]
+
+    @pytest.mark.parametrize("method", ["iter_objects", "iterdir"])
+    def test_key_with_leading_slash(self, tmp_bucket, method):
+        """
+        ``S3Path`` drops a leading ``/``, so ``/lead`` would be ``lead``.
+        """
+        self.s3_client.put_object(Bucket=tmp_bucket, Key="/lead", Body=b"x")
+        with pytest.raises(S3ValidationError, match="cannot be represented"):
+            getattr(S3Path(tmp_bucket), method)().all()
+
+    # --------------------------------------------------------------------------
+    # 6. Invalid input and AWS errors
     # --------------------------------------------------------------------------
     @pytest.mark.parametrize("method", METHODS)
     @pytest.mark.parametrize(

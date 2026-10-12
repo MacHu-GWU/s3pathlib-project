@@ -168,6 +168,8 @@ class IterObjectsAPIMixin:
         :raises S3PathIsNotFolderError: for a file.
         :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
             negative.
+        :raises S3ValidationError: while iterating, if a key (or a folder) cannot be
+            represented by ``S3Path``, see :mod:`s3pathlib.core.metadata`.
         """
         self._ensure_s3_dir()
         validate_limit(limit)
@@ -240,12 +242,13 @@ class IterObjectsAPIMixin:
         :raises S3PathIsNotFolderError: for a file.
         :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
             negative.
+        :raises S3ValidationError: while iterating, if a key (or a folder) cannot be
+            represented by ``S3Path``, see :mod:`s3pathlib.core.metadata`.
         """
         self._ensure_s3_dir()
         validate_limit(limit)
         client = resolve_s3_client(s3_context, s3_client)
         bucket = self.bucket
-        root = self.root
         proxy = paginate_list_objects_v2(
             s3_client=client,
             bucket=bucket,
@@ -265,7 +268,12 @@ class IterObjectsAPIMixin:
                 # merge them by key; the pages themselves come in key order
                 entries = list()
                 for dct in res.get("CommonPrefixes", list()):
-                    entries.append((dct["Prefix"], root.joinpath(dct["Prefix"])))
+                    entries.append(
+                        (
+                            dct["Prefix"],
+                            self._from_listed_key(bucket, dct["Prefix"]),
+                        )
+                    )
                 for dct in res.get("Contents", list()):
                     if dct["Key"] == self.key:
                         continue

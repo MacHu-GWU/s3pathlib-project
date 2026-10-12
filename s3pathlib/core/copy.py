@@ -6,7 +6,7 @@ Copy and move S3 objects and folders, with copy_object_.
 Copying an object up to 5 GB works; copy_object_ raises ``InvalidRequest`` for
 a bigger one, copy it with boto3's managed ``s3_client.copy()``. Errors of the
 AWS calls are raised as is (``botocore.exceptions.ClientError``), e.g.
-``NoSuchKey`` for a missing source, ``NoSuchBucket``.
+``NoSuchBucket``, except a missing source: it is always ``S3FileNotExist``.
 
 **Design notes**
 
@@ -25,6 +25,18 @@ clear ``S3FileAlreadyExist`` before anything is copied (a folder checks every
 target first, and copies nothing if one exists). ``IfNoneMatch="*"`` makes the
 copy itself atomic on AWS, so an object written by someone else in between is
 not replaced either; moto ignores the condition.
+
+*A missing source is always* ``S3FileNotExist``. Reading the source with
+``head_object`` (needed when a header or ``metadata`` is given) can only report
+"not found" as ``S3FileNotExist``, while ``copy_object`` itself reports
+``NoSuchKey`` / ``NoSuchVersion``. Which one a caller got would depend on the
+arguments, so ``copy_object``'s are converted too.
+
+*The source and the target bucket get their own arguments.* ``request_payer``
+goes to every call. ``expected_source_bucket_owner`` is for the calls on the
+source bucket (listing a folder, reading the source, deleting it when moving),
+``expected_bucket_owner`` for the ones on the target bucket (the check of
+``overwrite=False``, the copy).
 
 *Moving deletes exactly the copied keys.* ``move_to`` on a folder deletes the
 keys it copied, not what it lists after the copy, so an object written to the
@@ -86,6 +98,26 @@ def _ensure_no_overlap(src: S3Path, dst: S3Path):
             )
 
 
+def _ensure_not_exists(
+    s3_client: S3Client,
+    bucket: str,
+    key: str,
+    request_payer: str,
+    expected_bucket_owner: str,
+):
+    """
+    :raises S3FileAlreadyExist: if the object exists.
+    """
+    if is_object_exists(
+        s3_client,
+        bucket,
+        key,
+        request_payer=request_payer,
+        expected_bucket_owner=expected_bucket_owner,
+    ):
+        raise exc.S3FileAlreadyExist.make(f"s3://{bucket}/{key}")
+
+
 def _copy_object(
     s3_client: S3Client,
     src_bucket: str,
@@ -112,6 +144,7 @@ def _copy_object(
 
     :raises S3FileAlreadyExist: if ``overwrite`` is ``False`` and the target
         exists.
+    :raises S3FileNotExist: if the source does not exist.
     """
     kwargs = dict(
         Bucket=dst_bucket,
@@ -150,8 +183,11 @@ def _copy_object(
     try:
         return s3_client.copy_object(**kwargs)
     except botocore.exceptions.ClientError as e:
-        if e.response["Error"]["Code"] == "PreconditionFailed":
+        code = e.response["Error"]["Code"]
+        if code == "PreconditionFailed":
             raise exc.S3FileAlreadyExist.make(f"s3://{dst_bucket}/{dst_key}") from e
+        elif code in ("NoSuchKey", "NoSuchVersion"):
+            raise exc.S3FileNotExist.make(f"s3://{src_bucket}/{src_key}") from e
         else:
             raise
 
@@ -233,6 +269,8 @@ class CopyAPIMixin:
         :raises S3PathIsNotFileError: if this path or ``dst`` is not a file.
         :raises S3FileAlreadyExist: if ``overwrite`` is ``False`` and ``dst``
             exists.
+        :raises S3FileNotExist: if this file (or ``version_id``) does not
+            exist.
         """
         self.ensure_not_relpath()
         self.ensure_object()
@@ -240,9 +278,15 @@ class CopyAPIMixin:
         dst.ensure_object()
         if metadata is not OPT:
             warn_upper_case_in_metadata_key(metadata)
-        if overwrite is False:
-            dst.ensure_not_exists(s3_client=s3_client)
         client = resolve_s3_client(s3_context, s3_client)
+        if overwrite is False:
+            _ensure_not_exists(
+                client,
+                dst.bucket,
+                dst.key,
+                request_payer,
+                expected_bucket_owner,
+            )
         replace_kwargs, other_kwargs, head_kwargs = _make_copy_kwargs(
             cache_control=cache_control,
             content_disposition=content_disposition,
@@ -350,6 +394,8 @@ class CopyAPIMixin:
             s3_client=client,
             bucket=self.bucket,
             prefix=self.key,
+            request_payer=kwargs["request_payer"],
+            expected_bucket_owner=kwargs["expected_source_bucket_owner"],
         ).contents():
             src_keys.append(content["Key"])
         todo: list[tuple[str, str]] = list()
@@ -363,8 +409,13 @@ class CopyAPIMixin:
 
         if overwrite is False:
             for _, dst_key in todo:
-                if is_object_exists(client, dst.bucket, dst_key):
-                    raise exc.S3FileAlreadyExist.make(f"s3://{dst.bucket}/{dst_key}")
+                _ensure_not_exists(
+                    client,
+                    dst.bucket,
+                    dst_key,
+                    kwargs["request_payer"],
+                    kwargs["expected_bucket_owner"],
+                )
 
         for src_key, dst_key in todo:
             _copy_object(
@@ -690,6 +741,7 @@ class CopyAPIMixin:
                 bucket=self.bucket,
                 objects=({"Key": key} for key in src_keys),
                 request_payer=request_payer,
+                expected_bucket_owner=expected_source_bucket_owner,
             )
             return copied
         else:
@@ -703,7 +755,13 @@ class CopyAPIMixin:
                 s3_client=s3_client,
                 **kwargs,
             )
-            delete_object(client, self.bucket, self.key, request_payer=request_payer)
+            delete_object(
+                client,
+                self.bucket,
+                self.key,
+                request_payer=request_payer,
+                expected_bucket_owner=expected_source_bucket_owner,
+            )
             return 1
 
 

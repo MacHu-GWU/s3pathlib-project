@@ -69,6 +69,8 @@ class IterObjectVersionsAPIMixin:
         :raises S3PathTypeError: for a relative path or the void path.
         :raises ValueError: if ``batch_size`` is not 1 to 1000, or ``limit`` is
             negative.
+        :raises S3ValidationError: while iterating, if a key (or a folder) cannot be
+            represented by ``S3Path``, see :mod:`s3pathlib.core.metadata`.
         """
         self.ensure_not_relpath()
         validate_limit(limit)
