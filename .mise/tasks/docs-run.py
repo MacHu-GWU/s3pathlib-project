@@ -132,17 +132,29 @@ def check_no_account_id(aws_account_id: str) -> list[Path]:
     return leaked
 
 
-def check_markdown() -> list[str]:
+def check_cells() -> list[str]:
+    """
+    Style problems that the rendered page would show: code inside bold in
+    markdown, and output on stderr (a warning, such as a DeprecationWarning of
+    a demo that uses a deprecated API by mistake).
+    """
     problems = list()
     for path in find_notebooks():
         nb = nbformat.read(path, as_version=4)
         for cell in nb.cells:
-            if cell.cell_type != "markdown":
-                continue
-            for line in cell.source.splitlines():
-                for match in BOLD.finditer(line):
-                    if "`" in match.group(1):
-                        problems.append(f"{path}: code inside bold: {match.group(0)}")
+            if cell.cell_type == "markdown":
+                for line in cell.source.splitlines():
+                    for match in BOLD.finditer(line):
+                        if "`" in match.group(1):
+                            problems.append(
+                                f"{path}: code inside bold: {match.group(0)}"
+                            )
+            elif cell.cell_type == "code":
+                for output in cell.outputs:
+                    if (output.output_type == "stream") and (output.name == "stderr"):
+                        problems.append(
+                            f"{path}: stderr output: {output.text.strip()[:200]}"
+                        )
     return problems
 
 
@@ -163,7 +175,7 @@ def main():
         print(f"ERROR: the real AWS account id is in {path}", file=sys.stderr)
     for path in failed:
         print(f"ERROR: a cell failed in {path}", file=sys.stderr)
-    problems = check_markdown()
+    problems = check_cells()
     for problem in problems:
         print(f"ERROR: {problem}", file=sys.stderr)
     if len(failed) > 0 or len(leaked) > 0 or len(problems) > 0:
