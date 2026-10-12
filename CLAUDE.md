@@ -93,6 +93,14 @@ Show a path in an error message with `p._error_label()`: the URI when it has a b
 - Keep tests thin: a test docstring is one or two lines saying what is verified and why it matters; tests that fail together for the same bug are merged or parametrized; each test module keeps a module docstring with its test order. Differences between moto and real AWS that were measured go in a comment next to the test that depends on them, not in version history.
 - Each test writes under its own folder `self.s3dir_test` (or `self.s3dir_test_with_versioning`); never depend on test order. On real AWS, the class folder is emptied when the class starts. Verify S3 state with native `self.s3_client` calls, not with s3pathlib itself.
 
+## Documentation
+
+- `README.rst` stays short (install, a few snippets, links). The guide is `docs/source/NN-Title/index.ipynb`, one notebook per topic, ordered by how often the API is used; the API reference is generated from the docstrings.
+- The notebooks run against real AWS, in the two CI buckets, and their outputs are committed: Read the Docs has no credentials, so nbsphinx never executes them (`nbsphinx_execute = "never"`).
+- Credentials only through environment variables (`os.environ["S3PATHLIB_TEST_AWS_PROFILE"]`); never write a profile name, an account id or a secret in a cell. Bucket names contain the account id, so a script runs the notebook first, then replaces the account id with `123456789012` in the saved file, and fails if the real one is still there.
+- Every demo writes under its own prefix, `projects/s3pathlib/docs/<notebook>/<demo>/`, and a notebook empties its prefixes in its first cells, so a rerun gives the same result.
+- Edit cells with `NotebookEdit` (or `nbformat`) and run with `jupyter nbconvert --execute --to notebook --inplace`; do not edit outputs by hand.
+
 ## CI
 
 - `.github/workflows/main.yml` runs on every push to `main` / `dev` and by hand. The matrix is ubuntu and windows, each with Python 3.11 to 3.14 (8 jobs). Every job runs the whole suite against moto AND real AWS (`S3PATHLIB_TEST_REAL_AWS=true`), the CI equivalent of `mise run cov-aws`. It uses uv, not mise, because the `[env]` of `mise.toml` reads local secrets.
