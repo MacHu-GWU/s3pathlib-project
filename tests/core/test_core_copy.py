@@ -230,8 +230,8 @@ class CopyMixin(BaseTest):
 
     def test_copy_file_content_type_only(self):
         """
-        Only the given content header changes, the rest is kept. 2.x ignored
-        ``content_type`` unless ``metadata`` was given too.
+        Only the given content header changes, the rest is kept; it works
+        without ``metadata``.
         """
         src = self.s3dir_test / "src.txt"
         dst = self.s3dir_test / "dst.txt"
@@ -246,7 +246,7 @@ class CopyMixin(BaseTest):
 
     def test_copy_file_metadata_only(self):
         """
-        Only the user metadata changes; 2.x reset ``ContentType`` to
+        Only the user metadata changes, ``ContentType`` is not reset to
         ``binary/octet-stream``. The snapshot has the metadata as S3 stores
         it.
         """
@@ -297,6 +297,65 @@ class CopyMixin(BaseTest):
         assert params["Metadata"] == {}
         assert "IfNoneMatch" not in params
 
+    @pytest.mark.parametrize(
+        "method, kind",
+        [
+            pytest.param("copy_dir", "dir", id="copy_dir"),
+            pytest.param("copy_to", "dir", id="copy_to-dir"),
+            pytest.param("copy_to", "file", id="copy_to-file"),
+            pytest.param("move_to", "dir", id="move_to-dir"),
+            pytest.param("move_to", "file", id="move_to-file"),
+        ],
+    )
+    def test_arguments_reach_copy_object(self, method, kind):
+        """
+        Every argument of ``copy_dir``, ``copy_to`` and ``move_to`` is passed
+        on to copy_object like the ones of ``copy_file``: a forwarding line
+        that is forgotten would silently drop the argument.
+        """
+        arguments = {**OTHER_ARGUMENTS, **REPLACE_ARGUMENTS}
+        if kind == "dir":
+            # a folder rejects the copy_source_if_* conditions, see below
+            arguments = {
+                name: item
+                for name, item in arguments.items()
+                if not name.startswith("copy_source_if_")
+            }
+            src = self.s3dir_test / "src/"
+            self.put(src / "a.txt")
+            dst = self.s3dir_test / "dst/"
+        else:
+            src = self.s3dir_test / "src.txt"
+            self.put(src)
+            dst = self.s3dir_test / "dst.txt"
+        kwargs = {name: value for name, (_, value) in arguments.items()}
+        with capture_params(self.s3_client, "CopyObject") as params:
+            with pytest.raises(Captured):
+                getattr(src, method)(dst, overwrite=True, **kwargs)
+        for param, value in arguments.values():
+            assert params[param] == value, param
+
+    @pytest.mark.parametrize("kind", ["file", "dir"])
+    def test_move_to_delete_gets_request_payer(self, kind):
+        """
+        The delete of the source gets ``request_payer`` too, for a file
+        (``DeleteObject``) as for a folder (``DeleteObjects``).
+        """
+        if kind == "file":
+            src = self.s3dir_test / "src.txt"
+            self.put(src)
+            dst = self.s3dir_test / "dst.txt"
+            operation = "DeleteObject"
+        else:
+            src = self.s3dir_test / "src/"
+            self.put(src / "a.txt")
+            dst = self.s3dir_test / "dst/"
+            operation = "DeleteObjects"
+        with capture_params(self.s3_client, operation) as params:
+            with pytest.raises(Captured):
+                src.move_to(dst, request_payer="requester")
+        assert params["RequestPayer"] == "requester"
+
     def test_copy_file_source_arguments(self):
         """
         The arguments to read the source are also used by the ``head_object``
@@ -333,8 +392,7 @@ class CopyMixin(BaseTest):
     def test_copy_dir(self):
         """
         Every key is copied, folder markers included, so empty folders and an
-        object ``data/`` with content are kept. 2.x skipped the markers and
-        failed on ``data/``.
+        object ``data/`` with content are kept.
         """
         src = self.s3dir_test / "src/"
         dst = self.s3dir_test / "dst/"
@@ -394,8 +452,8 @@ class CopyMixin(BaseTest):
     def test_overlap(self, method, src_name, dst_name):
         """
         Overlapping folders raise before any AWS call: a source object could
-        be overwritten before it is copied, and a move deleted the copies
-        (2.x lost all the data of ``move_to("a/" -> "a/b/")``).
+        be overwritten before it is copied, and a move would delete the copies
+        (all the data of ``move_to("a/" -> "a/b/")``).
         """
         src = self.s3dir_test / src_name
         dst = self.s3dir_test / dst_name
@@ -434,7 +492,7 @@ class CopyMixin(BaseTest):
 
     def test_copy_to_folder_version_id(self):
         """
-        2.x ignored ``version_id`` for a folder.
+        ``version_id`` is not ignored for a folder.
         """
         with pytest.raises(ValueError, match="version_id only applies to copying a file"):
             (self.s3dir_test / "src/").copy_to(self.s3dir_test / "dst/", version_id="v1")
@@ -452,8 +510,8 @@ class CopyMixin(BaseTest):
 
     def test_move_file_to_itself(self):
         """
-        2.x copied the object onto itself (with new metadata), then deleted
-        it.
+        Copying the object onto itself and then deleting it would lose the
+        data, so it raises before any AWS call.
         """
         p = self.s3dir_test / "file.txt"
         self.put(p)
@@ -487,7 +545,7 @@ class CopyMixin(BaseTest):
     def test_move_dir_only_copied_keys(self):
         """
         An object written to the source while the move copies is neither
-        copied nor deleted. 2.x listed the source again to delete it.
+        copied nor deleted: the source is not listed again to delete it.
         """
         src = self.s3dir_test / "src/"
         dst = self.s3dir_test / "dst/"
@@ -567,7 +625,7 @@ class CopyMixin(BaseTest):
     @pytest.mark.parametrize("method", ["copy_to", "move_to"])
     def test_copy_to_move_to_void(self, method):
         """
-        2.x raised a bare ``TypeError`` for the void path.
+        The void path raises ``S3PathTypeError``, not a bare ``TypeError``.
         """
         with pytest.raises(S3PathTypeError, match="is a relative path"):
             getattr(S3Path(), method)(self.s3dir_test / "dst.txt")

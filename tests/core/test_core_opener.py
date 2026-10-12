@@ -209,11 +209,21 @@ class OpenerMixin(BaseTest):
     # --------------------------------------------------------------------------
     # 2. Arguments
     # --------------------------------------------------------------------------
+    def test_upper_case_metadata_key_warning_points_at_caller(self):
+        """
+        The warning for an upper case metadata key points at the line of the
+        user, not at a line inside ``s3pathlib``.
+        """
+        p = self.s3dir_test / "file.txt"
+        with pytest.warns(UserWarning, match="uppercase") as record:
+            with p.open("w", metadata={"Author": "a"}) as f:
+                f.write("x")
+        assert record[0].filename == __file__
+
     @pytest.mark.parametrize("multipart_upload", [True, False])
     def test_write_arguments_take_effect(self, multipart_upload):
         """
-        The write arguments take effect without ``metadata`` / ``tags``; 2.x
-        ignored them unless one of these was given.
+        The write arguments take effect without ``metadata`` / ``tags``.
         """
         p = self.s3dir_test / "file.txt"
         with p.open(
@@ -279,7 +289,8 @@ class OpenerMixin(BaseTest):
     @pytest.mark.parametrize("name", list(PUT_OBJECT_ONLY_ARGUMENTS))
     def test_put_object_only_argument_with_multipart(self, name):
         """
-        ``create_multipart_upload`` has no such parameter; 2.x ignored it.
+        ``create_multipart_upload`` has no such parameter, so it is rejected, not
+        silently ignored.
         """
         p = self.s3dir_test / "file.txt"
         _, value = PUT_OBJECT_ONLY_ARGUMENTS[name]
@@ -409,7 +420,7 @@ class OpenerMixin(BaseTest):
 
     def test_version_id_when_writing(self):
         """
-        2.x ignored ``version_id`` when writing.
+        ``version_id`` is rejected when writing, not ignored.
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(ValueError, match="only for reading"):

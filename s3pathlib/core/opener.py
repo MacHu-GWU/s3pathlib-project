@@ -3,10 +3,28 @@
 """
 Smart open library integration.
 
+**Design notes**
+
+*Keys containing* ``?versionId=`` *are rejected.* ``open`` gives smart_open an
+``s3://bucket/key`` URI, and smart_open 8 takes ``?versionId=`` or
+``&versionId=`` in it as a version id and removes it from the key, even when
+``version_id`` is given: writing fails, and reading silently reads another
+object (the key without that part) or another version. smart_open has no way
+to escape it (``%3F`` is kept as is in the key) or to turn it off. The key is
+rejected with every smart_open version, so that code tested with smart_open 7
+(which keeps such keys as they are) does not break when smart_open is
+upgraded. Other ``?`` in a key (e.g. ``page?id=1``) are fine, and S3 allows
+them. ``read_bytes`` / ``write_bytes`` have no such limit.
+
+*Whole object only.* smart_open sets its own ``Range`` to stream and seek, so
+a ``range`` or ``part_number`` argument would never have an effect. To read
+part of an object use ``read_bytes(range=...)`` or
+``read_bytes(part_number=...)``, or ``f.seek(offset)`` then ``f.read(n)``.
+
 .. _smart_open: https://github.com/RaRe-Technologies/smart_open
-.. _get_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object
-.. _put_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
-.. _create_multipart_upload: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_multipart_upload.html
+.. _get_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object.html
+.. _put_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html
+.. _create_multipart_upload: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/create_multipart_upload.html
 """
 
 from __future__ import annotations
@@ -129,13 +147,6 @@ class OpenerAPIMixin:
             ...     json.load(f)
             {'a': 1}
 
-        **Whole object only.** ``open`` reads or writes the whole object as a
-        stream. It has no ``range`` / ``part_number`` (removed in 3.0, they
-        never worked: smart_open sets its own ``Range`` to stream and seek).
-        To read part of an object, use ``read_bytes(range=...)`` or
-        ``read_bytes(part_number=...)``; to skip ahead in the stream, use
-        ``f.seek(offset)`` then ``f.read(n)``.
-
         **Compression.** By default (``compression=None``), smart_open infers
         it from the extension of the key: writing ``data.json.gz`` writes gzip
         data, reading it gives the uncompressed content. Use
@@ -150,16 +161,8 @@ class OpenerAPIMixin:
 
         **Keys containing "?versionId=".** A key containing ``?versionId=`` or
         ``&versionId=`` (e.g. ``page?versionId=1``, a valid S3 key) raises
-        ``ValueError``; use ``read_bytes`` / ``write_bytes`` for it. Why:
-        ``open`` gives smart_open an ``s3://bucket/key`` URI, and smart_open 8
-        takes that part of the URI as a version id and removes it from the
-        key, even when ``version_id`` is given: writing fails, and reading
-        silently reads another object (key ``page``) or another version.
-        smart_open has no way to escape it (``%3F`` is kept as is in the key)
-        or to turn it off. It is rejected with every smart_open version, so
-        that code tested with smart_open 7 (which keeps such keys as they
-        are) does not break when smart_open is upgraded. Other ``?`` in a key
-        (e.g. ``page?id=1``) are fine.
+        ``ValueError``; use ``read_bytes`` / ``write_bytes`` for it, see the
+        module docstring.
 
         :param mode: ``"r"`` / ``"rt"`` (text), ``"rb"`` (bytes), ``"w"`` /
             ``"wt"``, ``"wb"``.
@@ -178,62 +181,15 @@ class OpenerAPIMixin:
         :param multipart_upload: ``True`` (default) uploads with
             create_multipart_upload_ (the data is sent in parts while writing);
             ``False`` keeps all data in memory and uploads it with
-            put_object_ when the file is closed.
+            put_object_ when the file is closed. ``content_length``,
+            ``content_md5`` and ``checksum_crc32`` / ``checksum_crc32c`` /
+            ``checksum_sha1`` / ``checksum_sha256`` only exist in put_object_,
+            so they need ``False`` (``ValueError`` otherwise).
         :param metadata: the user metadata of the written object.
         :param tags: the tags of the written object.
-        :param acl: See put_object_.
-        :param cache_control: See put_object_.
-        :param content_disposition: See put_object_.
-        :param content_encoding: See put_object_.
-        :param content_language: See put_object_.
-        :param content_length: See put_object_; only with
-            ``multipart_upload=False``.
-        :param content_md5: See put_object_; only with
-            ``multipart_upload=False``.
-        :param content_type: See put_object_.
-        :param checksum_algorithm: See put_object_.
-        :param checksum_crc32: See put_object_; only with
-            ``multipart_upload=False``.
-        :param checksum_crc32c: See put_object_; only with
-            ``multipart_upload=False``.
-        :param checksum_sha1: See put_object_; only with
-            ``multipart_upload=False``.
-        :param checksum_sha256: See put_object_; only with
-            ``multipart_upload=False``.
-        :param expires_datetime: See put_object_.
-        :param grant_full_control: See put_object_.
-        :param grant_read: See put_object_.
-        :param grant_read_acp: See put_object_.
-        :param grant_write_acp: See put_object_.
-        :param server_side_encryption: See put_object_.
-        :param storage_class: See put_object_.
-        :param website_redirect_location: See put_object_.
-        :param sse_customer_algorithm: See put_object_ or get_object_.
-        :param sse_customer_key: See put_object_ or get_object_.
-        :param sse_kms_key_id: See put_object_.
-        :param sse_kms_encryption_context: See put_object_.
-        :param bucket_key_enabled: See put_object_.
-        :param request_payer: See put_object_ or get_object_.
-        :param object_lock_mode: See put_object_.
-        :param object_lock_retain_until_datetime: See put_object_.
-        :param object_lock_legal_hold_status: See put_object_.
-        :param expected_bucket_owner: See put_object_ or get_object_.
-        :param if_match: See get_object_.
-        :param if_modified_since: See get_object_.
-        :param if_none_match: See get_object_.
-        :param if_unmodified_since: See get_object_.
-        :param response_cache_control: See get_object_.
-        :param response_content_disposition: See get_object_.
-        :param response_content_encoding: See get_object_.
-        :param response_content_language: See get_object_.
-        :param response_content_type: See get_object_.
-        :param response_expires: See get_object_.
-        :param checksum_mode: See get_object_.
         :param transport_params: See smart_open_. Its ``client`` is replaced
             by the S3 client of this call; its ``client_kwargs`` are merged
             with the arguments above (which win).
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
 
         :return: a file object; use it in a ``with`` block, a write is only
             finished when it is closed.
@@ -324,9 +280,7 @@ class OpenerAPIMixin:
                     s3_client_kwargs[param] = value
             if multipart_upload:
                 if len(given):
-                    raise ValueError(
-                        f"{given} only apply with multipart_upload=False"
-                    )
+                    raise ValueError(f"{given} only apply with multipart_upload=False")
                 key_name = "S3.Client.create_multipart_upload"
             else:
                 key_name = "S3.Client.put_object"

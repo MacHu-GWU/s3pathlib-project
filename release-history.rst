@@ -189,6 +189,7 @@ Backlog (TODO)
 - ``S3Path.upload_file`` and ``S3Path.upload_dir`` on a relative path or the void path raised a botocore ``TypeError`` (with ``overwrite=True``); they now raise ``S3PathTypeError`` before calling AWS.
 - **Data loss**: ``S3Path.move_to`` on a file to itself (e.g. to change its metadata) copied the object onto itself, then deleted it. ``S3Path("bucket", "a/").move_to(S3Path("bucket", "a/b/"))`` copied the folder into ``a/b/``, then deleted all of ``a/``, copies included. Both now raise ``ValueError`` before calling AWS.
 - **Data loss**: ``S3Path.move_to`` on a folder listed the folder again to delete it, so an object written to it during the move was deleted without being copied. It now deletes exactly the keys it copied.
+- ``S3Path.move_to`` on a file did not pass ``request_payer`` to the ``delete_object`` of the source (a folder did), so moving a file in a Requester Pays bucket was refused by S3.
 - ``S3Path.copy_dir`` failed with ``S3PathIsNotFileError`` when the folder had an object whose key ends with ``/`` and that has content.
 - ``S3Path.copy_file`` ignored ``content_type``, ``cache_control``, ``content_disposition``, ``content_encoding``, ``content_language``, ``expires_datetime`` and ``website_redirect_location`` unless ``metadata`` was also given, and ``metadata`` reset the ones not given (e.g. ``ContentType`` became ``binary/octet-stream``). Now only what is given changes: the others are read from the source (one more ``head_object`` call, only when one of them is given).
 - ``S3Path.copy_file``, ``copy_dir``, ``copy_to`` and ``move_to`` raise ``S3PathTypeError`` for a relative path or the void path, before calling AWS; ``copy_to`` on the void path raised a bare ``TypeError``.
@@ -204,6 +205,7 @@ Backlog (TODO)
 - Support ``smart_open`` 8.x.
 - ``S3Path.create_bucket`` is no longer beta and no longer emits a warning.
 - Encode spaces in object tags as ``%20`` instead of ``+`` when sending the ``Tagging`` parameter, the same as the official AWS SDKs, so S3 cannot read them as a literal plus sign.
+- The ``UserWarning`` for a user metadata key with upper case letters (``write_bytes``, ``write_text``, ``touch``, ``open``) points at the line of your code. It pointed at a line inside ``s3pathlib``.
 - ``S3Path(...)`` raises ``TypeError`` with a message naming the wrong argument type, instead of a bare ``TypeError``. ``joinpath``, ``/`` and ``make_relpath`` use the same message for an invalid part.
 - ``ensure_not_object``, ``ensure_not_file`` and ``ensure_not_dir`` raise ``S3PathTypeError`` (still a ``TypeError``) with a clear message, instead of a bare ``TypeError``.
 - ``ensure_relpath`` raises ``S3PathIsNotRelpathError`` and ``ensure_not_relpath`` raises ``S3PathTypeError``, instead of a bare ``TypeError`` (both are still ``TypeError``).

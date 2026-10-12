@@ -3,8 +3,8 @@
 """
 Delete S3 file or folder.
 
-.. _delete_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_object.html
-.. _delete_objects: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/delete_objects.html
+.. _delete_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/delete_object.html
+.. _delete_objects: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/delete_objects.html
 """
 
 from __future__ import annotations
@@ -82,19 +82,13 @@ class DeleteAPIMixin:
             s3dir.delete(is_hard_delete=True)
 
         :param version_id: the version (or delete marker) of a file to delete
-            permanently, see delete_object_.
-        :param mfa: see delete_object_.
-        :param request_payer: see delete_object_.
-        :param bypass_governance_retention: see delete_object_.
-        :param expected_bucket_owner: see delete_object_.
-        :param checksum_algorithm: ``ChecksumAlgorithm`` of delete_objects_,
-            used when deleting a folder or with ``is_hard_delete=True``.
+            permanently.
+        :param checksum_algorithm: only used when deleting a folder or with
+            ``is_hard_delete=True``, which call delete_objects_.
         :param is_hard_delete: if ``True``, delete every version and delete
             marker permanently, see above.
         :param skip_prompt: if ``True``, do not ask to confirm before
             deleting everything in a bucket.
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
 
         :return: a new ``S3Path`` equal to this one; this ``S3Path`` is not
             changed (see :mod:`s3pathlib.core.metadata`). When S3 answers with
@@ -111,8 +105,7 @@ class DeleteAPIMixin:
 
         :raises S3PathTypeError: for a relative path or the void path.
         :raises ValueError: if ``version_id`` is given for a folder or with
-            ``is_hard_delete=True`` (it used to be ignored, and every version
-            was deleted).
+            ``is_hard_delete=True``.
         :raises S3DeleteObjectsError: if S3 failed to delete some objects of a
             folder.
         :raises botocore.exceptions.ClientError: as is, e.g. ``NoSuchBucket``.
@@ -128,32 +121,30 @@ class DeleteAPIMixin:
                 )
         client = resolve_s3_client(s3_context, s3_client)
         explicit_client = s3_client
-        bucket = self.bucket
         s3path = self.copy()
         s3path._s3_client = explicit_client
+        # the arguments of every delete function
+        shared = dict(
+            s3_client=client,
+            bucket=self.bucket,
+            mfa=mfa,
+            request_payer=request_payer,
+            bypass_governance_retention=bypass_governance_retention,
+            expected_bucket_owner=expected_bucket_owner,
+        )
         if self.is_file():
             if is_hard_delete:
                 # only this key: a prefix would also match "file.txt.bak"
                 delete_object_all_versions(
-                    s3_client=client,
-                    bucket=bucket,
                     key=self.key,
-                    mfa=mfa,
-                    request_payer=request_payer,
-                    bypass_governance_retention=bypass_governance_retention,
-                    expected_bucket_owner=expected_bucket_owner,
                     checksum_algorithm=checksum_algorithm,
+                    **shared,
                 )
             else:
                 response = delete_object(
-                    s3_client=client,
-                    bucket=bucket,
                     key=self.key,
                     version_id=version_id,
-                    mfa=mfa,
-                    request_payer=request_payer,
-                    bypass_governance_retention=bypass_governance_retention,
-                    expected_bucket_owner=expected_bucket_owner,
+                    **shared,
                 )
                 # a new delete marker, or the deleted version; a complete
                 # snapshot, so that it never loads a version that is gone
@@ -165,26 +156,16 @@ class DeleteAPIMixin:
         else:
             if is_hard_delete:
                 delete_object_versions(
-                    s3_client=client,
-                    bucket=bucket,
                     prefix=self.key,
-                    mfa=mfa,
-                    request_payer=request_payer,
-                    bypass_governance_retention=bypass_governance_retention,
-                    expected_bucket_owner=expected_bucket_owner,
                     checksum_algorithm=checksum_algorithm,
                     skip_prompt=skip_prompt,
+                    **shared,
                 )
             else:
                 delete_dir(
-                    s3_client=client,
-                    bucket=bucket,
                     prefix=self.key,
-                    mfa=mfa,
-                    request_payer=request_payer,
-                    bypass_governance_retention=bypass_governance_retention,
-                    expected_bucket_owner=expected_bucket_owner,
                     checksum_algorithm=checksum_algorithm,
                     skip_prompt=skip_prompt,
+                    **shared,
                 )
         return s3path

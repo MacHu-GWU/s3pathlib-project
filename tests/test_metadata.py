@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import inspect
 import warnings
+from types import SimpleNamespace
 
 import pytest
 
+from s3pathlib.metadata import _stacklevel_outside_package
 from s3pathlib.metadata import warn_upper_case_in_metadata_key
 from s3pathlib.tests import run_cov_test
 
@@ -36,6 +39,28 @@ def test_warn_upper_case_warns_with_key_name():
     message = str(record[0].message)
     assert "'Author'" in message
     assert "read back as 'author'" in message
+
+
+def test_warn_upper_case_points_at_the_caller():
+    """
+    The warning points at the line of the caller outside ``s3pathlib``, so the
+    user sees which line wrote the key.
+    """
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        warn_upper_case_in_metadata_key({"Author": "Alice"})
+    assert record[0].filename == __file__
+
+
+def test_stacklevel_when_no_frame_is_outside_the_package(monkeypatch):
+    """
+    If every frame of the stack is inside ``s3pathlib`` (no user frame), the
+    level is the depth of the stack instead of an error.
+    """
+    inner = SimpleNamespace(f_globals={"__name__": "s3pathlib.a"}, f_back=None)
+    outer = SimpleNamespace(f_globals={"__name__": "s3pathlib.b"}, f_back=inner)
+    monkeypatch.setattr(inspect, "currentframe", lambda: outer)
+    assert _stacklevel_outside_package() == 2
 
 
 def test_warn_upper_case_one_warning_per_bad_key():

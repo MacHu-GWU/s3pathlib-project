@@ -123,9 +123,8 @@ class UploadMixin(BaseTest):
     )
     def test_upload_file_bad_local_path(self, name, error, tmp_path):
         """
-        The local path is checked before any AWS call. 2.x first called
-        ``head_object``, and real AWS raised ``UnseekableStreamError`` for a
-        directory.
+        The local path is checked before any AWS call: real AWS would
+        raise ``UnseekableStreamError`` for a directory.
         """
         (tmp_path / "folder").mkdir()
         with record_api_calls(self.s3_client) as calls:
@@ -216,7 +215,7 @@ class UploadMixin(BaseTest):
     )
     def test_upload_file_not_a_file(self, p, error, match, local_file):
         """
-        2.x raised a botocore ``TypeError`` for a relative path with
+        A relative path is rejected before botocore sees it, also with
         ``overwrite=True``.
         """
         with record_api_calls(self.s3_client) as calls:

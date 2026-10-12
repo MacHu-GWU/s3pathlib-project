@@ -3,7 +3,7 @@
 """
 Upload local files to S3.
 
-.. _upload_file: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/upload_file.html
+.. _upload_file: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/upload_file.html
 """
 
 from __future__ import annotations
@@ -66,8 +66,6 @@ class UploadAPIMixin:
             of bytes sent.
         :param config: ``Config`` of upload_file_, a
             ``boto3.s3.transfer.TransferConfig``.
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
 
         :return: a new :class:`~s3pathlib.core.s3path.S3Path` of the uploaded
             object, without metadata snapshot (the first property read loads
@@ -135,8 +133,6 @@ class UploadAPIMixin:
             Default ``"**/*"``: every file, in every subdirectory.
         :param overwrite: if ``False`` (default), check every target key
             first, and upload nothing if any of them exists (not atomic).
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
 
         :return: the number of files uploaded.
 

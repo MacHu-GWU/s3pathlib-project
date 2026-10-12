@@ -249,8 +249,7 @@ class ReadAndWriteMixin(BaseTest):
     def test_write_metadata_snapshot(self):
         """
         The snapshot has the user metadata as S3 stores it (keys in lower
-        case, 2.x kept the given case), and ``{}`` when none is given, without
-        any more call.
+        case), and ``{}`` when none is given, without any more call.
         """
         p = self.s3dir_test / "file.txt"
         with pytest.warns(UserWarning):
@@ -326,6 +325,23 @@ class ReadAndWriteMixin(BaseTest):
             stubber.add_response("put_object", {"ETag": '"e"'}, expected_params=expected)
             getattr(S3Path("bucket", "file.txt"), method)(data, **kwargs)
 
+    @pytest.mark.parametrize("method", ["write_bytes", "write_text", "touch"])
+    def test_upper_case_metadata_key_warning_points_at_caller(self, method):
+        """
+        The warning for an upper case metadata key points at the line of the
+        user, whichever method got the key (they reach the warning through a
+        different number of calls).
+        """
+        p = self.s3dir_test / "file.txt"
+        with pytest.warns(UserWarning, match="uppercase") as record:
+            if method == "write_bytes":
+                p.write_bytes(b"", metadata={"Author": "a"})
+            elif method == "write_text":
+                p.write_text("", metadata={"Author": "a"})
+            else:
+                p.touch(metadata={"Author": "a"})
+        assert record[0].filename == __file__
+
     @pytest.mark.parametrize(
         "kwargs, error, match",
         [
@@ -368,6 +384,25 @@ class ReadAndWriteMixin(BaseTest):
         assert self.get(p) == b""
         assert self.s3_client.head_object(Bucket=p.bucket, Key=p.key)["Metadata"] == {"k": "v"}
 
+    def test_touch_arguments_passed_to_boto3(self):
+        """
+        Every argument of ``touch`` is sent to put_object under its boto3
+        name, with the empty body and ``IfNoneMatch="*"``.
+        """
+        arguments = {
+            name: item
+            for name, item in PUT_ARGUMENTS.items()
+            if name not in ("if_match", "if_none_match")
+        }
+        kwargs = {name: value for name, (_, value) in arguments.items()}
+        expected = {"Bucket": "bucket", "Key": "file.txt", "Body": b"", "IfNoneMatch": "*"}
+        for param, value in arguments.values():
+            expected[param] = value
+        expected["Tagging"] = "t=a%20b"
+        with self.stub() as stubber:
+            stubber.add_response("put_object", {"ETag": '"e"'}, expected_params=expected)
+            S3Path("bucket", "file.txt").touch(**kwargs)
+
     def test_touch_existing(self):
         """
         An existing object raises ``S3FileAlreadyExist`` and is not changed.
@@ -380,8 +415,8 @@ class ReadAndWriteMixin(BaseTest):
 
     def test_touch_existing_ok(self):
         """
-        With ``exist_ok=True``, an existing object is not changed. 2.x
-        replaced it with an empty object.
+        With ``exist_ok=True``, an existing object is not changed, not even
+        replaced with an empty one.
         """
         p = self.s3dir_test / "file.txt"
         self.put(p, b"important")
@@ -432,7 +467,7 @@ class ReadAndWriteMixin(BaseTest):
     def test_mkdir_existing_ok_keeps_marker(self):
         """
         With ``exist_ok=True``, an existing marker is not replaced, even if it
-        has content. 2.x replaced it with an empty object.
+        has content.
         """
         p = self.s3dir_test / "folder/"
         self.put(p, b"data")
@@ -500,7 +535,8 @@ class ReadAndWriteMixin(BaseTest):
     )
     def test_read_write_not_an_object(self, method, args, p, match):
         """
-        Only an object can be read or written; 2.x raised botocore errors.
+        Only an object can be read or written; anything else is rejected before
+        botocore sees it.
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(S3PathTypeError, match=match):

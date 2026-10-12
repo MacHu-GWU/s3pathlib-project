@@ -17,8 +17,19 @@ check ``e.response["Error"]["Code"]``), e.g. ``NoSuchKey``, ``NoSuchBucket``,
 ``if_match`` not met when reading), ``304`` (``if_none_match`` met when
 reading).
 
-.. _get_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object
-.. _put_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
+**Design notes**
+
+*``touch`` and ``mkdir`` are conditional writes.* They write with
+``IfNoneMatch="*"``: one atomic call that never replaces an existing object.
+A ``head_object`` followed by a ``put_object`` could replace an object that
+someone else wrote in between.
+
+*Writing returns a new path.* The snapshot of the written object is a partial
+one built from the ``put_object`` response, so ``size`` and ``metadata`` need
+no extra call, and this ``S3Path`` keeps describing what it described.
+
+.. _get_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object.html
+.. _put_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html
 .. _decode: https://docs.python.org/3/library/stdtypes.html#bytes.decode
 .. _encode: https://docs.python.org/3/library/stdtypes.html#str.encode
 """
@@ -94,26 +105,6 @@ class ReadAndWriteAPIMixin:
             >>> s3path.metadata
             {'creator': 'me'}
 
-        :param version_id: See get_object_.
-        :param if_match: See get_object_.
-        :param if_modified_since: See get_object_.
-        :param if_none_match: See get_object_.
-        :param if_unmodified_since: See get_object_.
-        :param range: See get_object_.
-        :param response_cache_control: See get_object_.
-        :param response_content_disposition: See get_object_.
-        :param response_content_encoding: See get_object_.
-        :param response_content_language: See get_object_.
-        :param response_content_type: See get_object_.
-        :param response_expires: See get_object_.
-        :param sse_customer_algorithm: See get_object_.
-        :param sse_customer_key: See get_object_.
-        :param request_payer: See get_object_.
-        :param part_number: See get_object_.
-        :param expected_bucket_owner: See get_object_.
-        :param checksum_mode: See get_object_.
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
 
         :return: the binary data.
 
@@ -148,11 +139,7 @@ class ReadAndWriteAPIMixin:
         )
         data = response["Body"].read()
         # only fill an empty snapshot with a full response, see core.metadata
-        if (
-            (self._meta is None)
-            and (range is OPT)
-            and (part_number is OPT)
-        ):
+        if (self._meta is None) and (range is OPT) and (part_number is OPT):
             del response["Body"]
             response.pop("ResponseMetadata", None)
             self._set_meta(
@@ -187,13 +174,8 @@ class ReadAndWriteAPIMixin:
         s3_client: S3Client | None = None,
     ) -> str:
         """
-        Read the content of the object as text, see :meth:`read_bytes`.
-
-        If this ``S3Path`` has no metadata snapshot yet, the get_object_
-        response becomes its snapshot (``etag``, ``size``, ``version_id``,
-        ...), unless ``range`` or ``part_number`` is given (the response then
-        describes a part only). An existing snapshot is never replaced, see
-        :mod:`s3pathlib.core.metadata`.
+        Read the content of the object as text, see :meth:`read_bytes`, which
+        also tells when the metadata snapshot is filled.
 
         Example::
 
@@ -204,26 +186,6 @@ class ReadAndWriteAPIMixin:
 
         :param encoding: See decode_.
         :param errors: See decode_.
-        :param version_id: See get_object_.
-        :param if_match: See get_object_.
-        :param if_modified_since: See get_object_.
-        :param if_none_match: See get_object_.
-        :param if_unmodified_since: See get_object_.
-        :param range: See get_object_.
-        :param response_cache_control: See get_object_.
-        :param response_content_disposition: See get_object_.
-        :param response_content_encoding: See get_object_.
-        :param response_content_language: See get_object_.
-        :param response_content_type: See get_object_.
-        :param response_expires: See get_object_.
-        :param sse_customer_algorithm: See get_object_.
-        :param sse_customer_key: See get_object_.
-        :param request_payer: See get_object_.
-        :param part_number: See get_object_.
-        :param expected_bucket_owner: See get_object_.
-        :param checksum_mode: See get_object_.
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
 
         :return: the string data.
 
@@ -310,44 +272,10 @@ class ReadAndWriteAPIMixin:
         :param metadata: the user metadata, a dict of str. S3 stores the keys
             in lower case.
         :param tags: the object tags, a dict of str.
-        :param acl: See put_object_.
-        :param cache_control: See put_object_.
-        :param content_disposition: See put_object_.
-        :param content_encoding: See put_object_.
-        :param content_language: See put_object_.
-        :param content_length: See put_object_.
-        :param content_md5: See put_object_.
-        :param content_type: See put_object_.
-        :param checksum_algorithm: See put_object_.
-        :param checksum_crc32: See put_object_.
-        :param checksum_crc32c: See put_object_.
-        :param checksum_sha1: See put_object_.
-        :param checksum_sha256: See put_object_.
-        :param expires_datetime: See put_object_.
-        :param grant_full_control: See put_object_.
-        :param grant_read: See put_object_.
-        :param grant_read_acp: See put_object_.
-        :param grant_write_acp: See put_object_.
-        :param server_side_encryption: See put_object_.
-        :param storage_class: See put_object_.
-        :param website_redirect_location: See put_object_.
-        :param sse_customer_algorithm: See put_object_.
-        :param sse_customer_key: See put_object_.
-        :param sse_kms_key_id: See put_object_.
-        :param sse_kms_encryption_context: See put_object_.
-        :param bucket_key_enabled: See put_object_.
-        :param request_payer: See put_object_.
-        :param object_lock_mode: See put_object_.
-        :param object_lock_retain_until_datetime: See put_object_.
-        :param object_lock_legal_hold_status: See put_object_.
-        :param expected_bucket_owner: See put_object_.
         :param if_match: only write if the ETag of the object is this one
-            (nobody changed it since you read it), See put_object_.
+            (nobody changed it since you read it).
         :param if_none_match: ``"*"`` only writes if the object does not exist
-            (a delete marker as the latest version counts as not existing),
-            See put_object_.
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
+            (a delete marker as the latest version counts as not existing).
 
         :return: a new :class:`~s3pathlib.core.s3path.S3Path` with the metadata
             snapshot of the written object (``size``, ``etag``, ``metadata``,
@@ -475,44 +403,10 @@ class ReadAndWriteAPIMixin:
         :param metadata: the user metadata, a dict of str. S3 stores the keys
             in lower case.
         :param tags: the object tags, a dict of str.
-        :param acl: See put_object_.
-        :param cache_control: See put_object_.
-        :param content_disposition: See put_object_.
-        :param content_encoding: See put_object_.
-        :param content_language: See put_object_.
-        :param content_length: See put_object_.
-        :param content_md5: See put_object_.
-        :param content_type: See put_object_.
-        :param checksum_algorithm: See put_object_.
-        :param checksum_crc32: See put_object_.
-        :param checksum_crc32c: See put_object_.
-        :param checksum_sha1: See put_object_.
-        :param checksum_sha256: See put_object_.
-        :param expires_datetime: See put_object_.
-        :param grant_full_control: See put_object_.
-        :param grant_read: See put_object_.
-        :param grant_read_acp: See put_object_.
-        :param grant_write_acp: See put_object_.
-        :param server_side_encryption: See put_object_.
-        :param storage_class: See put_object_.
-        :param website_redirect_location: See put_object_.
-        :param sse_customer_algorithm: See put_object_.
-        :param sse_customer_key: See put_object_.
-        :param sse_kms_key_id: See put_object_.
-        :param sse_kms_encryption_context: See put_object_.
-        :param bucket_key_enabled: See put_object_.
-        :param request_payer: See put_object_.
-        :param object_lock_mode: See put_object_.
-        :param object_lock_retain_until_datetime: See put_object_.
-        :param object_lock_legal_hold_status: See put_object_.
-        :param expected_bucket_owner: See put_object_.
         :param if_match: only write if the ETag of the object is this one
-            (nobody changed it since you read it), See put_object_.
+            (nobody changed it since you read it).
         :param if_none_match: ``"*"`` only writes if the object does not exist
-            (a delete marker as the latest version counts as not existing),
-            See put_object_.
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
+            (a delete marker as the latest version counts as not existing).
 
         :return: a new :class:`~s3pathlib.core.s3path.S3Path` with the metadata
             snapshot of the written object (``size``, ``etag``, ``metadata``,
@@ -674,7 +568,7 @@ class ReadAndWriteAPIMixin:
                 else:
                     raise exc.S3FileAlreadyExist.make(self.uri) from e
             else:
-                raise e
+                raise
 
     def _write_folder_marker(
         self: S3Path,
@@ -692,7 +586,7 @@ class ReadAndWriteAPIMixin:
             if e.response["Error"]["Code"] == "PreconditionFailed":
                 return False
             else:
-                raise e
+                raise
 
     def mkdir(
         self: S3Path,
@@ -722,8 +616,6 @@ class ReadAndWriteAPIMixin:
             marker); if ``True``, only write the markers that do not exist.
         :param parents: if ``True``, also write the markers of the parent
             folders (up to the bucket).
-        :param s3_client: the boto3 S3 client to use, default the client of
-            ``s3_context``.
 
         :raises S3PathTypeError: for a relative path, the void path, or a
             bucket (use ``create_bucket()``).
@@ -735,8 +627,7 @@ class ReadAndWriteAPIMixin:
         self.ensure_dir()
         if self.is_bucket():
             raise exc.S3PathTypeError(
-                f"{self._error_label()} is a bucket, use create_bucket() to "
-                f"create it"
+                f"{self._error_label()} is a bucket, use create_bucket() to create it"
             )
         if exist_ok is False:
             if self.exists(s3_client=s3_client):

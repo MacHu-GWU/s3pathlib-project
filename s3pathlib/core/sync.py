@@ -5,7 +5,9 @@ Sync folders between S3 and S3, S3 and local, local and S3, with the
 `aws s3 sync <https://docs.aws.amazon.com/cli/latest/reference/s3/sync.html>`_
 command of the AWS CLI, which must be installed.
 
-**The CLI uses the identity of the S3 client.** The command runs with the
+**Design notes**
+
+*The CLI uses the identity of the S3 client.* The command runs with the
 credentials and the region of the S3 client of the call (``s3_client=...``, or
 the client of ``s3_context``), passed as environment variables, and with its
 endpoint (``--endpoint-url``) when it is not an AWS endpoint. The environment
@@ -38,6 +40,7 @@ from .._arg import NOT_GIVEN
 from .. import exc
 from ..aws import s3_context
 from ..type import PathType
+from .base import BaseS3Path
 from .resolve_s3_client import resolve_s3_client
 
 if T.TYPE_CHECKING:  # pragma: no cover
@@ -74,7 +77,7 @@ def _to_cli_path(path: S3Path | PathType) -> tuple[str, bool]:
     :raises S3PathTypeError: for a relative ``S3Path`` or the void path.
     :raises S3PathIsNotFolderError: for an ``S3Path`` of a file.
     """
-    if hasattr(path, "console_url"):  # an S3Path
+    if isinstance(path, BaseS3Path):
         path.ensure_not_relpath()
         path.ensure_dir()
         return path.uri, True

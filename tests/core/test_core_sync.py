@@ -149,10 +149,13 @@ class SyncMixin(BaseTest):
         ]
         assert runner.args[:5] == ["/bin/aws", "s3", "sync", *expected]
 
-    def test_flags(self, runner):
-        S3Path.sync(
-            self.s3dir_test / "a/",
-            "/tmp/data",
+    @pytest.mark.parametrize("method", ["sync", "sync_from", "sync_to"])
+    def test_flags(self, runner, method):
+        """
+        Every flag reaches the command, whichever of the three methods is
+        called.
+        """
+        flags = dict(
             include="*.csv",
             exclude="*.tmp",
             acl="private",
@@ -162,6 +165,13 @@ class SyncMixin(BaseTest):
             delete=True,
             verbose=False,
         )
+        s3dir = self.s3dir_test / "a/"
+        if method == "sync":
+            S3Path.sync(s3dir, "/tmp/data", **flags)
+        elif method == "sync_from":
+            s3dir.sync_from("/tmp/data", **flags)
+        else:
+            s3dir.sync_to("/tmp/data", **flags)
         assert runner.args[5:] == [
             "--only-show-errors",
             "--include", "*.csv",
@@ -233,7 +243,7 @@ class SyncMixin(BaseTest):
         """
         The command gets the credentials and the region of the client of
         ``s3_context``, and none of the variables that would give it another
-        identity. 2.x used the default credentials of the environment.
+        identity: the default credentials of the environment are not used.
         """
         for name in IDENTITY_ENV_VARS:
             monkeypatch.setenv(name, "other")
@@ -311,8 +321,7 @@ class SyncMixin(BaseTest):
     def test_command_failed(self, runner):
         """
         A failed command raises ``S3SyncError`` with the exit code, stderr
-        and the command line (without credentials). 2.x raised
-        ``SystemError``.
+        and the command line (without credentials).
         """
         runner.returncode = 1
         runner.stderr = "fatal error: NoSuchBucket\n"

@@ -93,7 +93,7 @@ class DeleteMixin(BaseTest):
     def test_file(self):
         """
         The object is deleted; it returns a new path without snapshot, and
-        this path is not changed (2.x returned this path, its cache cleared).
+        this path is not changed.
         """
         p = self.s3dir_test / "file.txt"
         self.put(p)
@@ -115,9 +115,8 @@ class DeleteMixin(BaseTest):
     def test_file_with_versioning(self):
         """
         With versioning, a delete marker is added and returned: its
-        properties never call AWS. 2.x returned a path whose
-        ``is_delete_marker()`` was ``False`` and whose ``size`` raised
-        ``S3FileNotExist``.
+        properties never call AWS: ``is_delete_marker()`` is ``True``, ``size``
+        does not raise ``S3FileNotExist``.
         """
         p = self.s3dir_test_with_versioning / "file.txt"
         self.put(p)
@@ -166,8 +165,8 @@ class DeleteMixin(BaseTest):
     def test_file_hard_delete(self):
         """
         ``is_hard_delete=True`` deletes every version and delete marker of
-        this exact key, not of other keys starting with it. 2.x also deleted
-        ``file.txt.bak`` and ``file.txt2/...``.
+        this exact key, not of other keys starting with it (``file.txt.bak``,
+        ``file.txt2/...``).
         """
         s3dir = self.s3dir_test_with_versioning
         for key in ["file.txt", "file.txt", "file.txt.bak", "file.txt2/x.csv"]:
@@ -295,8 +294,8 @@ class DeleteMixin(BaseTest):
     )
     def test_version_id_conflict(self, key, kwargs, match):
         """
-        2.x ignored ``version_id`` here: with ``is_hard_delete=True`` it
-        deleted every version instead of one.
+        ``version_id`` is not ignored here: with ``is_hard_delete=True`` it
+        would delete every version instead of one, so the two conflict.
         """
         p = self.s3dir_test_with_versioning / key
         with record_api_calls(self.s3_client) as calls:
@@ -314,8 +313,8 @@ class DeleteMixin(BaseTest):
     )
     def test_relative_path(self, p):
         """
-        2.x raised a botocore ``TypeError``, or a bare ``ValueError`` for the
-        void path.
+        A relative path and the void path raise ``S3PathTypeError``, not a
+        botocore ``TypeError``.
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(S3PathTypeError, match="is a relative path"):

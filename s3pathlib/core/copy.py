@@ -3,24 +3,34 @@
 """
 Copy and move S3 objects and folders, with copy_object_.
 
-**Metadata and content headers.** S3 ignores ``content_type``,
-``cache_control``, ``content_disposition``, ``content_encoding``,
-``content_language``, ``expires_datetime`` and ``website_redirect_location``
-unless the user metadata is replaced too (``MetadataDirective=REPLACE``), and
-then resets the ones that are not given (e.g. ``ContentType`` becomes
+Copying an object up to 5 GB works; copy_object_ raises ``InvalidRequest`` for
+a bigger one, copy it with boto3's managed ``s3_client.copy()``. Errors of the
+AWS calls are raised as is (``botocore.exceptions.ClientError``), e.g.
+``NoSuchKey`` for a missing source, ``NoSuchBucket``.
+
+**Design notes**
+
+*Only what you pass changes.* S3 ignores ``content_type``, ``cache_control``,
+``content_disposition``, ``content_encoding``, ``content_language``,
+``expires_datetime`` and ``website_redirect_location`` unless the user
+metadata is replaced too (``MetadataDirective=REPLACE``), and then resets the
+ones that are not given (e.g. ``ContentType`` becomes
 ``binary/octet-stream``). So when any of them, or ``metadata``, is given,
 s3pathlib first reads the source object (``head_object``), keeps its values
-for the ones not given, and replaces the rest: only what you pass changes.
-Otherwise the copy keeps all of them, without the extra call.
+for the ones not given, and replaces the rest. Otherwise the copy keeps all of
+them, without the extra call.
 
-**Size limit.** copy_object_ copies objects up to 5 GB. A bigger object raises
-``InvalidRequest``; copy it with boto3's managed ``s3_client.copy()``.
+*``overwrite=False`` checks, then copies conditionally.* The check gives a
+clear ``S3FileAlreadyExist`` before anything is copied (a folder checks every
+target first, and copies nothing if one exists). ``IfNoneMatch="*"`` makes the
+copy itself atomic on AWS, so an object written by someone else in between is
+not replaced either; moto ignores the condition.
 
-**Errors.** Errors of the AWS calls are raised as is
-(``botocore.exceptions.ClientError``), e.g. ``NoSuchKey`` for a missing
-source, ``NoSuchBucket``.
+*Moving deletes exactly the copied keys.* ``move_to`` on a folder deletes the
+keys it copied, not what it lists after the copy, so an object written to the
+source folder during the move is neither copied nor deleted.
 
-.. _copy_object: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/copy_object.html
+.. _copy_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/copy_object.html
 """
 
 from __future__ import annotations
@@ -142,7 +152,7 @@ def _copy_object(
         if e.response["Error"]["Code"] == "PreconditionFailed":
             raise exc.S3FileAlreadyExist.make(f"s3://{dst_bucket}/{dst_key}") from e
         else:
-            raise e
+            raise
 
 
 class CopyAPIMixin:
@@ -322,9 +332,7 @@ class CopyAPIMixin:
             "copy_source_if_unmodified_since",
         ]:
             if kwargs[name] is not OPT:
-                raise ValueError(
-                    f"{name} only applies to copying a file, not a folder"
-                )
+                raise ValueError(f"{name} only applies to copying a file, not a folder")
         _ensure_no_overlap(self, dst)
         client = resolve_s3_client(s3_context, s3_client)
         replace_kwargs, other_kwargs, head_kwargs = _make_copy_kwargs(**kwargs)
@@ -339,7 +347,7 @@ class CopyAPIMixin:
             src_keys.append(content["Key"])
         todo: list[tuple[str, str]] = list()
         for src_key in src_keys:
-            dst_key = dst.key + src_key[len(self.key):]
+            dst_key = dst.key + src_key[len(self.key) :]
             todo.append((src_key, dst_key))
 
         if overwrite is False:
@@ -682,7 +690,7 @@ class CopyAPIMixin:
                 s3_client=s3_client,
                 **kwargs,
             )
-            delete_object(client, self.bucket, self.key)
+            delete_object(client, self.bucket, self.key, request_payer=request_payer)
             return 1
 
 
