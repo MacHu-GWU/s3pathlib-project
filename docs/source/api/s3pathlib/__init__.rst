@@ -12,6 +12,8 @@ sub packages and modules
 
     better_client <better_client/__init__>
     core <core/__init__>
+    _arg <_arg>
+    api <api>
     aws <aws>
     constants <constants>
     content_type <content_type>

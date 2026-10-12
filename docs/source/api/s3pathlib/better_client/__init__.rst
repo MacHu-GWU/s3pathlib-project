@@ -10,6 +10,7 @@ sub packages and modules
 .. toctree::
     :maxdepth: 1
 
+    _paginate <_paginate>
     api <api>
     delete_object <delete_object>
     head_bucket <head_bucket>
