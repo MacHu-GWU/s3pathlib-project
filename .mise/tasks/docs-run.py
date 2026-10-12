@@ -59,6 +59,33 @@ def find_notebooks() -> list[Path]:
     return paths
 
 
+def merge_streams(nb: nbformat.NotebookNode):
+    """
+    Merge adjacent stdout (or stderr) outputs of a cell into one. The kernel
+    splits a cell's prints into chunks depending on timing, so without this
+    a rerun can give a diff with the same text.
+    """
+    for cell in nb.cells:
+        if cell.cell_type != "code":
+            continue
+        outputs = list()
+        for output in cell.outputs:
+            if len(outputs) > 0:
+                previous = outputs[-1]
+            else:
+                previous = None
+            if (
+                (previous is not None)
+                and (output.output_type == "stream")
+                and (previous.output_type == "stream")
+                and (output.name == previous.name)
+            ):
+                previous.text = previous.text + output.text
+            else:
+                outputs.append(output)
+        cell.outputs = outputs
+
+
 def save_redacted(nb: nbformat.NotebookNode, path: Path, aws_account_id: str):
     # redact before writing, so the real id never reaches the disk
     text = nbformat.writes(nb) + "\n"
@@ -83,6 +110,7 @@ def run_notebook(path: Path, aws_account_id: str) -> bool:
     except CellExecutionError as e:
         print(e, file=sys.stderr)
         ok = False
+    merge_streams(nb)
     # Save even when a cell fails: the error output is what we want to read.
     save_redacted(nb, path, aws_account_id)
     if ok:
