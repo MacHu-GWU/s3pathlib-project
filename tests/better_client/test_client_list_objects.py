@@ -68,7 +68,7 @@ class ListObjectsMixin(BaseTest):
             prefix=self.prefix,
             **kwargs,
         )
-        return [content["Key"][len(self.prefix):] for content in result.contents()]
+        return [content["Key"][len(self.prefix) :] for content in result.contents()]
 
     def list_both(self, **kwargs) -> tuple[list[str], list[str]]:
         """
@@ -80,8 +80,8 @@ class ListObjectsMixin(BaseTest):
             prefix=self.prefix,
             **kwargs,
         ).contents_and_common_prefixes()
-        keys = [content["Key"][len(self.prefix):] for content in contents]
-        prefixes = [cp["Prefix"][len(self.prefix):] for cp in common_prefixes]
+        keys = [content["Key"][len(self.prefix) :] for content in contents]
+        prefixes = [cp["Prefix"][len(self.prefix) :] for cp in common_prefixes]
         return keys, prefixes
 
     # --------------------------------------------------------------------------
@@ -153,7 +153,9 @@ class ListObjectsMixin(BaseTest):
             prefix=self.prefix,
             delimiter="/",
         )
-        assert [cp["Prefix"][len(self.prefix):] for cp in result.common_prefixes()] == prefixes
+        assert [
+            cp["Prefix"][len(self.prefix) :] for cp in result.common_prefixes()
+        ] == prefixes
 
     @pytest.mark.parametrize("batch_size", [2, 1000])
     def test_delimiter_limit(self, batch_size):
@@ -185,7 +187,7 @@ class ListObjectsMixin(BaseTest):
         a prefix that matches nothing gives nothing.
         """
         keys = [
-            content["Key"][len(self.prefix):]
+            content["Key"][len(self.prefix) :]
             for content in paginate_list_objects_v2(
                 s3_client=self.s3_client,
                 bucket=self.bucket,
@@ -285,7 +287,9 @@ class ListObjectsMixin(BaseTest):
         """
         The bucket ``aws`` belongs to another account: ``AccessDenied``.
         """
-        result = paginate_list_objects_v2(s3_client=self.s3_client, bucket="aws", prefix="")
+        result = paginate_list_objects_v2(
+            s3_client=self.s3_client, bucket="aws", prefix=""
+        )
         with pytest.raises(botocore.exceptions.ClientError) as exc_info:
             result.all()
         assert exc_info.value.response["Error"]["Code"] == "AccessDenied"
@@ -324,7 +328,9 @@ class ListObjectsMixin(BaseTest):
             pytest.param("nothing/", True, (0, 0), id="missing-prefix"),
         ],
     )
-    def test_calculate_total_size_and_count_objects(self, sub_prefix, include_folder, expected):
+    def test_calculate_total_size_and_count_objects(
+        self, sub_prefix, include_folder, expected
+    ):
         """
         The number of objects and their total size under a prefix; folder
         markers are counted only with ``include_folder=True``.

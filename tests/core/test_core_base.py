@@ -160,7 +160,9 @@ class BaseS3PathMixin(BaseTest):
     @pytest.mark.parametrize(
         "args, parts",
         [
-            pytest.param(("bucket", "a b", "中文"), ["a b", "中文"], id="space-unicode"),
+            pytest.param(
+                ("bucket", "a b", "中文"), ["a b", "中文"], id="space-unicode"
+            ),
             pytest.param(("bucket", ".", ".."), [".", ".."], id="dot-parts"),
             pytest.param(
                 ("s3://bucket/a?versionId=1",), ["a?versionId=1"], id="query-like"
@@ -211,7 +213,12 @@ class BaseS3PathMixin(BaseTest):
                 id="void-then-dir",
             ),
             pytest.param(
-                (S3Path("bucket", "folder"), relpath("r1/"), relpath("r2/"), relpath("f.txt")),
+                (
+                    S3Path("bucket", "folder"),
+                    relpath("r1/"),
+                    relpath("r2/"),
+                    relpath("f.txt"),
+                ),
                 ("bucket", ["folder", "r1", "r2", "f.txt"], False),
                 id="many-relpaths",
             ),
@@ -271,7 +278,7 @@ class BaseS3PathMixin(BaseTest):
     def test_constructor_empty_args_ignored(self, args, expected):
         """
         ``""`` and a void path add nothing, so they must not change the type
-        either; before 3.0 a trailing void path left the type as ``None``.
+        either: a trailing void path does not leave the type as ``None``.
         """
         assert state(S3Path(*args)) == expected
 
@@ -402,7 +409,6 @@ class BaseS3PathMixin(BaseTest):
         with pytest.raises(TypeError, match="got an absolute path .* only the first"):
             S3Path(S3Path("bucket"), S3Path("a", "b", "c"))
 
-
     # --------------------------------------------------------------------------
     # 5. the state invariant
     # --------------------------------------------------------------------------
@@ -454,16 +460,38 @@ class BaseS3PathMixin(BaseTest):
     @pytest.mark.parametrize(
         "bucket, parts, is_dir, message",
         [
-            pytest.param("", ["a"], False, "bucket must not be empty", id="empty-bucket"),
-            pytest.param("a:b", ["a"], False, "must not contain ':'", id="colon-bucket"),
+            pytest.param(
+                "", ["a"], False, "bucket must not be empty", id="empty-bucket"
+            ),
+            pytest.param(
+                "a:b", ["a"], False, "must not contain ':'", id="colon-bucket"
+            ),
             pytest.param(1, ["a"], False, "must be a str or None", id="bucket-not-str"),
             pytest.param("b", ["a", ""], False, "non-empty str", id="empty-part"),
             pytest.param("b", ["a/b"], False, "without '/'", id="slash-in-part"),
             pytest.param("b", ["a", 1], False, "non-empty str", id="part-not-str"),
             pytest.param("b", ["a"], 1, "must be True, False or None", id="is-dir-int"),
-            pytest.param("b", "abc", False, "parts must be a list or a tuple of str, got str", id="parts-str"),
-            pytest.param("b", None, False, "parts must be a list or a tuple of str, got NoneType", id="parts-none"),
-            pytest.param("b", iter(["a"]), False, "parts must be a list or a tuple of str", id="parts-iterator"),
+            pytest.param(
+                "b",
+                "abc",
+                False,
+                "parts must be a list or a tuple of str, got str",
+                id="parts-str",
+            ),
+            pytest.param(
+                "b",
+                None,
+                False,
+                "parts must be a list or a tuple of str, got NoneType",
+                id="parts-none",
+            ),
+            pytest.param(
+                "b",
+                iter(["a"]),
+                False,
+                "parts must be a list or a tuple of str",
+                id="parts-iterator",
+            ),
         ],
     )
     def test_state_invalid_content(self, bucket, parts, is_dir, message):

@@ -106,7 +106,7 @@ class CopyMixin(BaseTest):
 
     def keys(self, s3dir: S3Path) -> list[str]:
         res = self.s3_client.list_objects_v2(Bucket=s3dir.bucket, Prefix=s3dir.key)
-        return sorted(dct["Key"][len(s3dir.key):] for dct in res.get("Contents", []))
+        return sorted(dct["Key"][len(s3dir.key) :] for dct in res.get("Contents", []))
 
     def tags(self, p: S3Path) -> dict:
         res = self.s3_client.get_object_tagging(Bucket=p.bucket, Key=p.key)
@@ -175,7 +175,9 @@ class CopyMixin(BaseTest):
         """
         s3_client = self.boto_ses.client("s3")
         stubber = Stubber(s3_client)
-        stubber.add_client_error("head_object", service_error_code="404", http_status_code=404)
+        stubber.add_client_error(
+            "head_object", service_error_code="404", http_status_code=404
+        )
         stubber.add_client_error(
             "copy_object",
             service_error_code="PreconditionFailed",
@@ -218,7 +220,13 @@ class CopyMixin(BaseTest):
         """
         src = self.s3dir_test / "src.txt"
         dst = self.s3dir_test / "dst.txt"
-        self.put(src, ContentType="text/csv", CacheControl="max-age=1", Metadata={"m": "1"}, Tagging="t=1")
+        self.put(
+            src,
+            ContentType="text/csv",
+            CacheControl="max-age=1",
+            Metadata={"m": "1"},
+            Tagging="t=1",
+        )
         with record_api_calls(self.s3_client) as calls:
             src.copy_file(dst, overwrite=True)
         assert calls == ["CopyObject"]
@@ -235,7 +243,9 @@ class CopyMixin(BaseTest):
         """
         src = self.s3dir_test / "src.txt"
         dst = self.s3dir_test / "dst.txt"
-        self.put(src, ContentType="text/csv", CacheControl="max-age=1", Metadata={"m": "1"})
+        self.put(
+            src, ContentType="text/csv", CacheControl="max-age=1", Metadata={"m": "1"}
+        )
         with record_api_calls(self.s3_client) as calls:
             src.copy_file(dst, content_type="text/plain", overwrite=True)
         assert calls == ["HeadObject", "CopyObject"]
@@ -477,7 +487,9 @@ class CopyMixin(BaseTest):
         """
         with record_api_calls(self.s3_client) as calls:
             with pytest.raises(ValueError, match="only applies to copying a file"):
-                (self.s3dir_test / "src/").copy_dir(self.s3dir_test / "dst/", **{name: "x"})
+                (self.s3dir_test / "src/").copy_dir(
+                    self.s3dir_test / "dst/", **{name: "x"}
+                )
         assert calls == []
 
     # --------------------------------------------------------------------------
@@ -494,8 +506,12 @@ class CopyMixin(BaseTest):
         """
         ``version_id`` is not ignored for a folder.
         """
-        with pytest.raises(ValueError, match="version_id only applies to copying a file"):
-            (self.s3dir_test / "src/").copy_to(self.s3dir_test / "dst/", version_id="v1")
+        with pytest.raises(
+            ValueError, match="version_id only applies to copying a file"
+        ):
+            (self.s3dir_test / "src/").copy_to(
+                self.s3dir_test / "dst/", version_id="v1"
+            )
 
     # --------------------------------------------------------------------------
     # 4. move_to
@@ -553,9 +569,12 @@ class CopyMixin(BaseTest):
         late = src / "late.txt"
 
         def write_late(**kwargs):
-            if late.key not in [dct["Key"] for dct in self.s3_client.list_objects_v2(
-                Bucket=src.bucket, Prefix=late.key
-            ).get("Contents", [])]:
+            if late.key not in [
+                dct["Key"]
+                for dct in self.s3_client.list_objects_v2(
+                    Bucket=src.bucket, Prefix=late.key
+                ).get("Contents", [])
+            ]:
                 self.put(late, b"late")
 
         events = self.s3_client.meta.events
@@ -586,11 +605,33 @@ class CopyMixin(BaseTest):
     @pytest.mark.parametrize(
         "src, dst, error, match",
         [
-            pytest.param(S3Path(), "dst.txt", S3PathTypeError, "is a relative path", id="src-void"),
-            pytest.param(S3Path.make_relpath("a.txt"), "dst.txt", S3PathTypeError, "is a relative path", id="src-relpath"),
-            pytest.param("src/", "dst.txt", S3PathIsNotFileError, "is not a file", id="src-dir"),
-            pytest.param("src.txt", S3Path.make_relpath("a.txt"), S3PathTypeError, "is a relative path", id="dst-relpath"),
-            pytest.param("src.txt", "dst/", S3PathIsNotFileError, "is not a file", id="dst-dir"),
+            pytest.param(
+                S3Path(),
+                "dst.txt",
+                S3PathTypeError,
+                "is a relative path",
+                id="src-void",
+            ),
+            pytest.param(
+                S3Path.make_relpath("a.txt"),
+                "dst.txt",
+                S3PathTypeError,
+                "is a relative path",
+                id="src-relpath",
+            ),
+            pytest.param(
+                "src/", "dst.txt", S3PathIsNotFileError, "is not a file", id="src-dir"
+            ),
+            pytest.param(
+                "src.txt",
+                S3Path.make_relpath("a.txt"),
+                S3PathTypeError,
+                "is a relative path",
+                id="dst-relpath",
+            ),
+            pytest.param(
+                "src.txt", "dst/", S3PathIsNotFileError, "is not a file", id="dst-dir"
+            ),
         ],
     )
     def test_copy_file_wrong_path(self, src, dst, error, match):
@@ -606,10 +647,22 @@ class CopyMixin(BaseTest):
     @pytest.mark.parametrize(
         "src, dst, error, match",
         [
-            pytest.param(S3Path.make_relpath("a/"), "dst/", S3PathTypeError, "is a relative path", id="src-relpath"),
-            pytest.param("src.txt", "dst/", S3PathIsNotFolderError, "is not a dir", id="src-file"),
-            pytest.param("src/", S3Path(), S3PathTypeError, "is a relative path", id="dst-void"),
-            pytest.param("src/", "dst.txt", S3PathIsNotFolderError, "is not a dir", id="dst-file"),
+            pytest.param(
+                S3Path.make_relpath("a/"),
+                "dst/",
+                S3PathTypeError,
+                "is a relative path",
+                id="src-relpath",
+            ),
+            pytest.param(
+                "src.txt", "dst/", S3PathIsNotFolderError, "is not a dir", id="src-file"
+            ),
+            pytest.param(
+                "src/", S3Path(), S3PathTypeError, "is a relative path", id="dst-void"
+            ),
+            pytest.param(
+                "src/", "dst.txt", S3PathIsNotFolderError, "is not a dir", id="dst-file"
+            ),
         ],
     )
     def test_copy_dir_wrong_path(self, src, dst, error, match):

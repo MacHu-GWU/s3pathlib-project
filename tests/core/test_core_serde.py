@@ -183,8 +183,8 @@ class SerdeAPIMixin(BaseTest):
     def test_from_dict_invalid(self, dct, message):
         """
         Bad data is rejected with ``S3ValidationError``, instead of a
-        ``KeyError`` or a wrong path: before 3.0, ``"parts": "abc"`` gave
-        ``s3://b/a/b/c``, and an empty bucket gave ``s3:///a``.
+        ``KeyError`` or a wrong path (``"parts": "abc"`` must not give
+        ``s3://b/a/b/c``, an empty bucket must not give ``s3:///a``).
         """
         with pytest.raises(S3ValidationError, match=message):
             S3Path.from_dict(dct)
@@ -196,8 +196,8 @@ class SerdeAPIMixin(BaseTest):
     @pytest.mark.parametrize("p, dct", ALL_KINDS)
     def test_pickle(self, p, dct, protocol):
         """
-        Every kind of path survives every pickle protocol; before 3.0
-        protocols 0 and 1 failed.
+        Every kind of path survives every pickle protocol, protocols 0 and 1
+        included.
         """
         loaded = pickle.loads(pickle.dumps(p, protocol=protocol))
         assert loaded == p
@@ -219,8 +219,8 @@ class SerdeAPIMixin(BaseTest):
     def test_pickle_hash_across_processes(self, tmp_path):
         """
         A path pickled in one process works as a dict key in another one.
-        The hash of a str differs between processes, so before 3.0 the
-        pickled cached hash made ``d[S3Path(...)]`` miss.
+        The hash of a str differs between processes, so a pickled cached hash
+        would make ``d[S3Path(...)]`` miss.
         """
         path = tmp_path / "d.pkl"
         dump = (

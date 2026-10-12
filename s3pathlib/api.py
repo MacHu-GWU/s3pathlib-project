@@ -13,7 +13,17 @@ Usage::
         S3Path("bucket", "file.txt").head_object()
     except exc.S3FileNotExist:
         ...
+
+**Design notes**
+
+*``better_client`` is a namespace, not flattened.* Its functions are named
+after the boto3 client methods they improve (``head_object``,
+``delete_object``, ``paginate_list_objects_v2``, ...). Flattened into this
+module they would look like part of the ``S3Path`` layer and be easy to mix up
+with the ``S3Path`` methods of the same name, so they stay under
+``s3pathlib.api.better_client``.
 """
+
 from iterproxy import and_
 from iterproxy import or_
 from iterproxy import not_

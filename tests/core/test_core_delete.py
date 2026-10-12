@@ -64,7 +64,7 @@ class DeleteMixin(BaseTest):
 
     def keys(self, s3dir: S3Path) -> list[str]:
         res = self.s3_client.list_objects_v2(Bucket=s3dir.bucket, Prefix=s3dir.key)
-        return sorted(dct["Key"][len(s3dir.key):] for dct in res.get("Contents", []))
+        return sorted(dct["Key"][len(s3dir.key) :] for dct in res.get("Contents", []))
 
     def versions(self, s3dir: S3Path) -> tuple[list[str], list[str]]:
         """
@@ -72,8 +72,12 @@ class DeleteMixin(BaseTest):
             delete markers.
         """
         res = self.s3_client.list_object_versions(Bucket=s3dir.bucket, Prefix=s3dir.key)
-        versions = sorted(dct["Key"][len(s3dir.key):] for dct in res.get("Versions", []))
-        markers = sorted(dct["Key"][len(s3dir.key):] for dct in res.get("DeleteMarkers", []))
+        versions = sorted(
+            dct["Key"][len(s3dir.key) :] for dct in res.get("Versions", [])
+        )
+        markers = sorted(
+            dct["Key"][len(s3dir.key) :] for dct in res.get("DeleteMarkers", [])
+        )
         return versions, markers
 
     @pytest.fixture
@@ -155,7 +159,10 @@ class DeleteMixin(BaseTest):
         self.put(p, b"v1")
         marker_id = p.delete().version_id
         deleted = p.delete(version_id=marker_id)
-        assert self.s3_client.get_object(Bucket=p.bucket, Key=p.key)["Body"].read() == b"v1"
+        assert (
+            self.s3_client.get_object(Bucket=p.bucket, Key=p.key)["Body"].read()
+            == b"v1"
+        )
         assert deleted.version_id == marker_id
         if self.use_mock:
             assert deleted.is_delete_marker() is False
@@ -288,7 +295,9 @@ class DeleteMixin(BaseTest):
     @pytest.mark.parametrize(
         "key, kwargs, match",
         [
-            pytest.param("file.txt", {"is_hard_delete": True}, "give only one", id="hard-delete"),
+            pytest.param(
+                "file.txt", {"is_hard_delete": True}, "give only one", id="hard-delete"
+            ),
             pytest.param("folder/", {}, "only applies to deleting a file", id="folder"),
         ],
     )

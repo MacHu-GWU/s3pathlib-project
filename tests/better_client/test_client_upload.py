@@ -71,7 +71,7 @@ class UploadMixin(BaseTest):
         result = dict()
         for dct in res.get("Contents", []):
             body = self.s3_client.get_object(Bucket=bucket, Key=dct["Key"])["Body"]
-            result[dct["Key"][len(prefix):]] = body.read().decode("utf-8")
+            result[dct["Key"][len(prefix) :]] = body.read().decode("utf-8")
         return result
 
     @pytest.fixture
@@ -121,7 +121,9 @@ class UploadMixin(BaseTest):
     @pytest.mark.parametrize(
         "pattern, expected",
         [
-            pytest.param("**/*.txt", ["1.txt", "sub/2.txt", "sub/deep/3.txt"], id="recursive-txt"),
+            pytest.param(
+                "**/*.txt", ["1.txt", "sub/2.txt", "sub/deep/3.txt"], id="recursive-txt"
+            ),
             pytest.param("*.txt", ["1.txt"], id="top-level-txt"),
             pytest.param("sub/**/*", ["sub/2.txt", "sub/deep/3.txt"], id="sub-folder"),
             pytest.param("*.csv", [], id="no-match"),
@@ -133,7 +135,9 @@ class UploadMixin(BaseTest):
         """
         local_dir = make_local_dir(tmp_path, FILES)
         prefix = self.s3dir_test.key
-        count = upload_dir(self.s3_client, self.bucket, prefix, local_dir, pattern=pattern)
+        count = upload_dir(
+            self.s3_client, self.bucket, prefix, local_dir, pattern=pattern
+        )
         assert count == len(expected)
         assert sorted(self.read_all(self.bucket, prefix)) == expected
 
@@ -188,7 +192,9 @@ class UploadMixin(BaseTest):
         local_dir = make_local_dir(tmp_path, {"1.txt": "new", "2.txt": "new"})
         prefix = self.s3dir_test.key
         self.s3_client.put_object(Bucket=self.bucket, Key=prefix + "2.txt", Body=b"old")
-        with pytest.raises(S3FileAlreadyExist, match=f"s3://{self.bucket}/{prefix}2.txt"):
+        with pytest.raises(
+            S3FileAlreadyExist, match=f"s3://{self.bucket}/{prefix}2.txt"
+        ):
             upload_dir(self.s3_client, self.bucket, prefix, local_dir)
         assert self.read_all(self.bucket, prefix) == {"2.txt": "old"}
 

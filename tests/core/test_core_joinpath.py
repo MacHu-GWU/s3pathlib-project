@@ -166,7 +166,9 @@ class JoinPathAPIMixin(BaseTest):
             pytest.param(
                 lambda: FILE.joinpath("/"), "s3://bucket/folder/file.txt/", id="slash"
             ),
-            pytest.param(lambda: FILE / "/", "s3://bucket/folder/file.txt/", id="div-slash"),
+            pytest.param(
+                lambda: FILE / "/", "s3://bucket/folder/file.txt/", id="div-slash"
+            ),
             pytest.param(
                 lambda: FILE.joinpath("subfolder", "/"),
                 "s3://bucket/folder/file.txt/subfolder/",
@@ -204,7 +206,9 @@ class JoinPathAPIMixin(BaseTest):
         assert record[0].filename == __file__
         message = str(record[0].message)
         assert "end the folder with '/'" in message
-        assert 'join all parts at once (e.g. .joinpath("folder", "file.txt"))' in message
+        assert (
+            'join all parts at once (e.g. .joinpath("folder", "file.txt"))' in message
+        )
 
     @pytest.mark.parametrize(
         "args",
@@ -237,8 +241,16 @@ class JoinPathAPIMixin(BaseTest):
                 id="absolute-paths",
             ),
             pytest.param(lambda: DIRECTORY.joinpath(1), "got int: 1", id="int"),
-            pytest.param(lambda: R("a/") / BUCKET, "got an absolute path", id="relpath-div-absolute"),
-            pytest.param(lambda: S3Path() / BUCKET, "got an absolute path", id="void-div-absolute"),
+            pytest.param(
+                lambda: R("a/") / BUCKET,
+                "got an absolute path",
+                id="relpath-div-absolute",
+            ),
+            pytest.param(
+                lambda: S3Path() / BUCKET,
+                "got an absolute path",
+                id="void-div-absolute",
+            ),
             pytest.param(lambda: BUCKET / [1], "got int: 1", id="list-int"),
         ],
     )

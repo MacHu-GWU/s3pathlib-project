@@ -163,7 +163,7 @@ class SerdeAPIMixin:
         self._parts = parts
         self._is_dir = state["_is_dir"]
         self._meta = state.get("_meta")
-        # pickles made before 3.0 have no _meta_complete; treating their
+        # older pickles have no _meta_complete; treating their
         # metadata as partial only costs a head_object call when needed
         self._meta_complete = state.get("_meta_complete", False)
         self._s3_client = None

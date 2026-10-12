@@ -50,8 +50,12 @@ class AttributeAPIMixin(BaseTest):
                 ("bucket", ["folder"], True),
                 id="dir",
             ),
-            pytest.param(S3Path("bucket", "folder"), ("bucket", [], True), id="top-file"),
-            pytest.param(S3Path("bucket", "file.txt"), ("bucket", [], True), id="top-file-2"),
+            pytest.param(
+                S3Path("bucket", "folder"), ("bucket", [], True), id="top-file"
+            ),
+            pytest.param(
+                S3Path("bucket", "file.txt"), ("bucket", [], True), id="top-file-2"
+            ),
             pytest.param(BUCKET, ("bucket", [], True), id="bucket-is-own-parent"),
             pytest.param(VOID, (None, [], None), id="void-is-own-parent"),
             pytest.param(R("a/b"), (None, ["a"], True), id="relpath"),
@@ -78,7 +82,9 @@ class AttributeAPIMixin(BaseTest):
                 id="dir",
             ),
             pytest.param(S3Path("bucket", "folder"), ["s3://bucket/"], id="top-file"),
-            pytest.param(S3Path("bucket", "file.txt"), ["s3://bucket/"], id="top-file-2"),
+            pytest.param(
+                S3Path("bucket", "file.txt"), ["s3://bucket/"], id="top-file-2"
+            ),
             pytest.param(BUCKET, [], id="bucket"),
         ],
     )
@@ -171,8 +177,8 @@ class AttributeAPIMixin(BaseTest):
     def test_attribute(self, p, attr, expected):
         """
         The value of each attribute on each kind of path, or the error when
-        it does not exist (before 3.0 ``fname`` / ``ext`` raised a bare
-        ``TypeError`` or ``ValueError``).
+        it does not exist (``fname`` / ``ext`` raise
+        ``S3PathIsNotFileError``).
         """
         if isinstance(expected, tuple):
             error, template = expected
@@ -257,8 +263,8 @@ class AttributeAPIMixin(BaseTest):
     )
     def test_is_parent_of(self, parent, child, expected):
         """
-        ``a.is_parent_of(b)`` is ``a in b.parents``; before 3.0 only the
-        direct parent was detected, not a grand parent.
+        ``a.is_parent_of(b)`` is ``a in b.parents``: a grand parent counts, not
+        only the direct parent.
         """
         assert S3Path(parent).is_parent_of(S3Path(child)) is expected
 
@@ -276,8 +282,8 @@ class AttributeAPIMixin(BaseTest):
     def test_is_parent_of_relpath(self, parent, child, expected):
         """
         Relative paths work like absolute ones, and an absolute path and a
-        relative path are never parents of each other; before 3.0 they
-        raised ``TypeError``.
+        relative path are never parents of each other (``False``, not an
+        error).
         """
         assert parent.is_parent_of(child) is expected
 
@@ -302,9 +308,8 @@ class AttributeAPIMixin(BaseTest):
     )
     def test_is_prefix_of(self, prefix, other, expected):
         """
-        A string prefix of the key, like the S3 ``Prefix``; before 3.0 it
-        compared the URIs with ``<=``, so ``bkt/b`` was a "prefix" of
-        ``bkt/c``.
+        A string prefix of the key, like the S3 ``Prefix``: ``bkt/b`` is not a
+        prefix of ``bkt/c`` just because it is smaller.
         """
         assert S3Path(prefix).is_prefix_of(S3Path(other)) is expected
 
@@ -329,7 +334,7 @@ class AttributeAPIMixin(BaseTest):
             S3PathIsNotFolderError, match="is a file, it can not be a parent dir!"
         ):
             S3Path("bkt/a").is_parent_of(S3Path("bkt/a/b/"))
-        with pytest.raises(TypeError):  # still a TypeError, as before 3.0
+        with pytest.raises(TypeError):  # a TypeError
             R("a").is_parent_of(R("a/b"))
 
     @pytest.mark.parametrize("method", ["is_parent_of", "is_prefix_of"])

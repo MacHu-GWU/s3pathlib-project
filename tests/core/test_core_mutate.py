@@ -70,26 +70,42 @@ class MutateAPIMixin(BaseTest):
         [
             pytest.param(dict(), "s3://bkt/a/b/c.jpg", id="nothing"),
             pytest.param(dict(new_bucket="bkt1"), "s3://bkt1/a/b/c.jpg", id="bucket"),
-            pytest.param(dict(new_abspath="x/y/z.png"), "s3://bkt/x/y/z.png", id="abspath"),
+            pytest.param(
+                dict(new_abspath="x/y/z.png"), "s3://bkt/x/y/z.png", id="abspath"
+            ),
             pytest.param(dict(new_abspath="x/y/"), "s3://bkt/x/y/", id="abspath-dir"),
             pytest.param(dict(new_abspath=""), "s3://bkt/", id="abspath-empty"),
             pytest.param(dict(new_dirpath="x/y/"), "s3://bkt/x/y/c.jpg", id="dirpath"),
-            pytest.param(dict(new_dirpath="x/y"), "s3://bkt/x/y/c.jpg", id="dirpath-no-slash"),
+            pytest.param(
+                dict(new_dirpath="x/y"), "s3://bkt/x/y/c.jpg", id="dirpath-no-slash"
+            ),
             pytest.param(dict(new_dirpath=""), "s3://bkt/c.jpg", id="dirpath-root"),
             pytest.param(dict(new_dirname="d"), "s3://bkt/a/d/c.jpg", id="dirname"),
-            pytest.param(dict(new_dirname="d/"), "s3://bkt/a/d/c.jpg", id="dirname-slash"),
-            pytest.param(dict(new_basename="d.png"), "s3://bkt/a/b/d.png", id="basename"),
+            pytest.param(
+                dict(new_dirname="d/"), "s3://bkt/a/d/c.jpg", id="dirname-slash"
+            ),
+            pytest.param(
+                dict(new_basename="d.png"), "s3://bkt/a/b/d.png", id="basename"
+            ),
             pytest.param(dict(new_basename="d/"), "s3://bkt/a/b/d/", id="basename-dir"),
             pytest.param(dict(new_fname="d"), "s3://bkt/a/b/d.jpg", id="fname"),
             pytest.param(dict(new_fname=""), "s3://bkt/a/b/.jpg", id="fname-empty"),
             pytest.param(dict(new_ext=".png"), "s3://bkt/a/b/c.png", id="ext"),
             pytest.param(dict(new_ext=""), "s3://bkt/a/b/c", id="ext-empty"),
-            pytest.param(dict(new_fname="d", new_ext=".png"), "s3://bkt/a/b/d.png", id="fname-ext"),
             pytest.param(
-                dict(new_bucket="x", new_abspath="y.txt"), "s3://x/y.txt", id="bucket-abspath"
+                dict(new_fname="d", new_ext=".png"),
+                "s3://bkt/a/b/d.png",
+                id="fname-ext",
             ),
             pytest.param(
-                dict(new_dirname="d", new_ext=".png"), "s3://bkt/a/d/c.png", id="dirname-ext"
+                dict(new_bucket="x", new_abspath="y.txt"),
+                "s3://x/y.txt",
+                id="bucket-abspath",
+            ),
+            pytest.param(
+                dict(new_dirname="d", new_ext=".png"),
+                "s3://bkt/a/d/c.png",
+                id="dirname-ext",
             ),
             pytest.param(
                 dict(new_bucket="x", new_dirpath="p/", new_basename="q.txt"),
@@ -108,26 +124,79 @@ class MutateAPIMixin(BaseTest):
         "p, kwargs, expected",
         [
             pytest.param(DIRECTORY, dict(), DIRECTORY, id="dir-nothing"),
-            pytest.param(DIRECTORY, dict(new_bucket="x"), S3Path("x", "a/b/"), id="dir-bucket"),
-            pytest.param(DIRECTORY, dict(new_dirname="z"), S3Path("bkt", "z/b/"), id="dir-dirname"),
-            pytest.param(DIRECTORY, dict(new_dirpath="p/q"), S3Path("bkt", "p/q/b/"), id="dir-dirpath"),
-            pytest.param(DIRECTORY, dict(new_basename="e/"), S3Path("bkt", "a/e/"), id="dir-basename"),
-            pytest.param(DIRECTORY, dict(new_basename="e"), S3Path("bkt", "a/e"), id="dir-to-file"),
+            pytest.param(
+                DIRECTORY, dict(new_bucket="x"), S3Path("x", "a/b/"), id="dir-bucket"
+            ),
+            pytest.param(
+                DIRECTORY,
+                dict(new_dirname="z"),
+                S3Path("bkt", "z/b/"),
+                id="dir-dirname",
+            ),
+            pytest.param(
+                DIRECTORY,
+                dict(new_dirpath="p/q"),
+                S3Path("bkt", "p/q/b/"),
+                id="dir-dirpath",
+            ),
+            pytest.param(
+                DIRECTORY,
+                dict(new_basename="e/"),
+                S3Path("bkt", "a/e/"),
+                id="dir-basename",
+            ),
+            pytest.param(
+                DIRECTORY,
+                dict(new_basename="e"),
+                S3Path("bkt", "a/e"),
+                id="dir-to-file",
+            ),
             pytest.param(BUCKET, dict(), BUCKET, id="bucket-nothing"),
             pytest.param(BUCKET, dict(new_bucket="x"), S3Path("x"), id="bucket-bucket"),
-            pytest.param(BUCKET, dict(new_dirpath="p/"), S3Path("bkt", "p/"), id="bucket-dirpath"),
-            pytest.param(RELPATH_FILE, dict(new_basename="d.png"), R("a/b/d.png"), id="relpath-basename"),
-            pytest.param(RELPATH_FILE, dict(new_basename="d/"), R("a/b/d/"), id="relpath-basename-dir"),
-            pytest.param(RELPATH_FILE, dict(new_ext=".png"), R("a/b/c.png"), id="relpath-ext"),
-            pytest.param(RELPATH_FILE, dict(new_abspath="y.txt"), R("y.txt"), id="relpath-abspath"),
-            pytest.param(R("b.txt"), dict(new_basename="c.json"), R("c.json"), id="relpath-one-part"),
             pytest.param(
-                RELPATH_FILE, dict(new_bucket="x"), S3Path("x", "a/b/c.jpg"), id="relpath-to-absolute"
+                BUCKET, dict(new_dirpath="p/"), S3Path("bkt", "p/"), id="bucket-dirpath"
             ),
-            pytest.param(RELPATH_DIR, dict(new_dirname="z"), R("z/b/"), id="relpath-dir-dirname"),
+            pytest.param(
+                RELPATH_FILE,
+                dict(new_basename="d.png"),
+                R("a/b/d.png"),
+                id="relpath-basename",
+            ),
+            pytest.param(
+                RELPATH_FILE,
+                dict(new_basename="d/"),
+                R("a/b/d/"),
+                id="relpath-basename-dir",
+            ),
+            pytest.param(
+                RELPATH_FILE, dict(new_ext=".png"), R("a/b/c.png"), id="relpath-ext"
+            ),
+            pytest.param(
+                RELPATH_FILE,
+                dict(new_abspath="y.txt"),
+                R("y.txt"),
+                id="relpath-abspath",
+            ),
+            pytest.param(
+                R("b.txt"),
+                dict(new_basename="c.json"),
+                R("c.json"),
+                id="relpath-one-part",
+            ),
+            pytest.param(
+                RELPATH_FILE,
+                dict(new_bucket="x"),
+                S3Path("x", "a/b/c.jpg"),
+                id="relpath-to-absolute",
+            ),
+            pytest.param(
+                RELPATH_DIR, dict(new_dirname="z"), R("z/b/"), id="relpath-dir-dirname"
+            ),
             pytest.param(VOID, dict(), VOID, id="void-nothing"),
             pytest.param(VOID, dict(new_bucket="x"), S3Path("x"), id="void-bucket"),
-            pytest.param(VOID, dict(new_basename="a.txt"), R("a.txt"), id="void-basename"),
+            pytest.param(
+                VOID, dict(new_basename="a.txt"), R("a.txt"), id="void-basename"
+            ),
         ],
     )
     def test_change_other_kinds(self, p, kwargs, expected):
@@ -142,11 +211,25 @@ class MutateAPIMixin(BaseTest):
     @pytest.mark.parametrize(
         "p, kwargs, expected",
         [
-            pytest.param(S3Path("b", "a.tar.gz"), dict(new_ext=".zip"), "a.tar.zip", id="double-ext"),
-            pytest.param(S3Path("b", "a.tar.gz"), dict(new_fname="x"), "x.gz", id="double-ext-fname"),
-            pytest.param(S3Path("b", "README"), dict(new_ext=".md"), "README.md", id="no-ext"),
+            pytest.param(
+                S3Path("b", "a.tar.gz"),
+                dict(new_ext=".zip"),
+                "a.tar.zip",
+                id="double-ext",
+            ),
+            pytest.param(
+                S3Path("b", "a.tar.gz"),
+                dict(new_fname="x"),
+                "x.gz",
+                id="double-ext-fname",
+            ),
+            pytest.param(
+                S3Path("b", "README"), dict(new_ext=".md"), "README.md", id="no-ext"
+            ),
             pytest.param(S3Path("b", ".env"), dict(new_fname="x"), "x", id="dotfile"),
-            pytest.param(S3Path("b", ".env"), dict(new_ext=".bak"), ".env.bak", id="dotfile-ext"),
+            pytest.param(
+                S3Path("b", ".env"), dict(new_ext=".bak"), ".env.bak", id="dotfile-ext"
+            ),
         ],
     )
     def test_change_name_boundaries(self, p, kwargs, expected):
@@ -201,7 +284,12 @@ class MutateAPIMixin(BaseTest):
                 "pass new_basename, or new_fname / new_ext, not both",
                 id="basename-fname",
             ),
-            pytest.param(FILE, dict(new_basename=""), "new_basename can not be empty", id="basename-empty"),
+            pytest.param(
+                FILE,
+                dict(new_basename=""),
+                "new_basename can not be empty",
+                id="basename-empty",
+            ),
             pytest.param(
                 DIRECTORY,
                 dict(new_ext=".x"),
@@ -220,12 +308,30 @@ class MutateAPIMixin(BaseTest):
                 "new_fname and new_ext only work on a file",
                 id="fname-on-void",
             ),
-            pytest.param(FILE, dict(new_fname="x/y"), "new_fname can not contain '/'", id="fname-slash"),
-            pytest.param(FILE, dict(new_ext=".a/b"), "new_ext can not contain '/'", id="ext-slash"),
             pytest.param(
-                FILE, dict(new_ext="png"), "has to be empty, or '.' followed by", id="ext-no-dot"
+                FILE,
+                dict(new_fname="x/y"),
+                "new_fname can not contain '/'",
+                id="fname-slash",
             ),
-            pytest.param(FILE, dict(new_ext="."), "has to be empty, or '.' followed by", id="ext-dot-only"),
+            pytest.param(
+                FILE,
+                dict(new_ext=".a/b"),
+                "new_ext can not contain '/'",
+                id="ext-slash",
+            ),
+            pytest.param(
+                FILE,
+                dict(new_ext="png"),
+                "has to be empty, or '.' followed by",
+                id="ext-no-dot",
+            ),
+            pytest.param(
+                FILE,
+                dict(new_ext="."),
+                "has to be empty, or '.' followed by",
+                id="ext-dot-only",
+            ),
             pytest.param(
                 FILE,
                 dict(new_fname="", new_ext=""),
@@ -237,8 +343,8 @@ class MutateAPIMixin(BaseTest):
     def test_change_error(self, p, kwargs, message):
         """
         Conflicting or invalid arguments are rejected instead of silently
-        giving another path (before 3.0, e.g. ``new_ext="png"`` gave
-        ``cpng`` and ``new_dirname`` on a top level file added a dir).
+        giving another path (e.g. ``new_ext="png"`` would give ``cpng``, and
+        ``new_dirname`` on a top level file would add a dir).
         """
         with pytest.raises(ValueError, match=message):
             p.change(**kwargs)
@@ -337,8 +443,8 @@ class MutateAPIMixin(BaseTest):
 
     def test_to_file_bucket(self):
         """
-        A bucket root is always a dir; before 3.0 ``to_file()`` returned a
-        "bucket that is a file", which is not a valid state.
+        A bucket root is always a dir: "a bucket that is a file" is not a valid
+        state.
         """
         with pytest.raises(
             S3PathIsNotFileError, match="is a bucket root, it can not be converted"

@@ -44,8 +44,8 @@ def make_refreshable_s3_client() -> tuple[S3Client, list[str]]:
     Create an S3 client whose credentials expire one second after each fetch,
     so that botocore fetches new ones before every request (it refreshes
     credentials that expire within the next minutes). This is how a client
-    built from an assumed role session keeps working after the role session expires. The credentials are fake, so
-    use it with moto only.
+    built from an assumed role session keeps working after the role session
+    expires. The credentials are fake, so use it with moto only.
 
     :return: the client, and the list of access keys fetched so far
         (``"AK1"``, ``"AK2"``, ...), which grows on every fetch.

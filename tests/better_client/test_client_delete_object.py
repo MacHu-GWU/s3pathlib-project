@@ -63,7 +63,9 @@ class DeleteObjectMixin(BaseTest):
                 body = b""
             else:
                 body = b"x"
-            self.s3_client.put_object(Bucket=s3dir.bucket, Key=s3dir.key + key, Body=body)
+            self.s3_client.put_object(
+                Bucket=s3dir.bucket, Key=s3dir.key + key, Body=body
+            )
         return s3dir.bucket, s3dir.key
 
     def keys(self, bucket: str, prefix: str) -> list[str]:
@@ -71,7 +73,7 @@ class DeleteObjectMixin(BaseTest):
         The keys under the prefix (latest versions), relative to it.
         """
         res = self.s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        return sorted(dct["Key"][len(prefix):] for dct in res.get("Contents", []))
+        return sorted(dct["Key"][len(prefix) :] for dct in res.get("Contents", []))
 
     def versions(self, bucket: str, prefix: str) -> list[str]:
         """
@@ -81,7 +83,7 @@ class DeleteObjectMixin(BaseTest):
         keys = list()
         for kind in ["Versions", "DeleteMarkers"]:
             for dct in res.get(kind, []):
-                keys.append(dct["Key"][len(prefix):])
+                keys.append(dct["Key"][len(prefix) :])
         return sorted(keys)
 
     @pytest.fixture
@@ -180,7 +182,9 @@ class DeleteObjectMixin(BaseTest):
         passing it warns at the caller's line.
         """
         key = self.s3dir_test.key + "missing"
-        with pytest.warns(DeprecationWarning, match="ignore_not_found is deprecated") as record:
+        with pytest.warns(
+            DeprecationWarning, match="ignore_not_found is deprecated"
+        ) as record:
             delete_object(self.s3_client, self.bucket, key, ignore_not_found=value)
         assert record[0].filename == __file__
 
@@ -237,7 +241,10 @@ class DeleteObjectMixin(BaseTest):
         is no limit.
         """
         bucket, prefix = self.put(["a.txt", "b.txt", "c.txt"])
-        assert delete_dir(self.s3_client, bucket, prefix, limit=limit, batch_size=1) == count
+        assert (
+            delete_dir(self.s3_client, bucket, prefix, limit=limit, batch_size=1)
+            == count
+        )
         assert self.keys(bucket, prefix) == remaining
 
     def test_delete_dir_versioning(self):
@@ -290,7 +297,9 @@ class DeleteObjectMixin(BaseTest):
         ``None`` is no limit.
         """
         bucket, prefix = self.put(["a.txt", "b.txt", "c.txt"], versioning=True)
-        assert delete_object_versions(self.s3_client, bucket, prefix, limit=limit) == count
+        assert (
+            delete_object_versions(self.s3_client, bucket, prefix, limit=limit) == count
+        )
         assert len(self.versions(bucket, prefix)) == n_remaining
 
     # --------------------------------------------------------------------------
@@ -315,7 +324,9 @@ class DeleteObjectMixin(BaseTest):
         A key without versions deletes nothing.
         """
         bucket, prefix = self.put(["file.txt.bak"], versioning=True)
-        assert delete_object_all_versions(self.s3_client, bucket, prefix + "file.txt") == 0
+        assert (
+            delete_object_all_versions(self.s3_client, bucket, prefix + "file.txt") == 0
+        )
         assert self.versions(bucket, prefix) == ["file.txt.bak"]
 
     def test_delete_object_all_versions_empty_key(self):
@@ -398,7 +409,9 @@ class DeleteObjectMixin(BaseTest):
                     "IsTruncated": False,
                 },
             )
-        stubber.add_response("delete_objects", {}, expected_params={"Bucket": "my-bucket", "Delete": ANY})
+        stubber.add_response(
+            "delete_objects", {}, expected_params={"Bucket": "my-bucket", "Delete": ANY}
+        )
         error = {"Key": keys[-1], "Code": "AccessDenied", "Message": "Access Denied"}
         stubber.add_response("delete_objects", {"Errors": [error]})
         with stubber:
@@ -422,7 +435,10 @@ class DeleteObjectMixin(BaseTest):
         stubber = Stubber(s3_client)
         stubber.add_response(
             "list_object_versions",
-            {"Versions": [{"Key": "file.txt", "VersionId": "v1"}], "IsTruncated": False},
+            {
+                "Versions": [{"Key": "file.txt", "VersionId": "v1"}],
+                "IsTruncated": False,
+            },
         )
         stubber.add_response(
             "delete_objects",

@@ -1,7 +1,19 @@
 # -*- coding: utf-8 -*-
 
 """
-Resolve what s3 client to use for API call.
+Resolve what S3 client to use for an API call.
+
+**Design notes**
+
+*Only a boto3 S3 client is accepted,* not a ``BotoSesManager`` or any object
+with an ``s3_client`` attribute. The library only ever needs the client, and a
+client built from an assumed role keeps refreshing its own credentials, so
+nothing is lost by passing ``bsm.s3_client``. A wrong object fails at the call
+with a message that says so, instead of deep inside botocore.
+
+*The remembered client is not resolved here.* The client an ``S3Path``
+remembers is only used to load its metadata snapshot, see
+:mod:`s3pathlib.core.metadata`.
 """
 
 from __future__ import annotations

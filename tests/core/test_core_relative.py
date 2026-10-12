@@ -70,8 +70,7 @@ class RelativePathAPIMixin(BaseTest):
     def test_make_relpath_dir(self, args):
         """
         The last non-empty argument decides the type, the same rule as the
-        ``S3Path`` constructor; before 3.0 a trailing ``"/"`` argument was
-        ignored by ``make_relpath`` but not by the constructor.
+        ``S3Path`` constructor, a trailing ``"/"`` argument included.
         """
         p = R(*args)
         assert (p.bucket, p.parts, p.is_dir()) == (None, ["a", "b", "c"], True)
@@ -139,7 +138,9 @@ class RelativePathAPIMixin(BaseTest):
             pytest.param(
                 S3Path("bucket", "a/"), S3Path("bucket", "a/"), S3Path(), id="same-dir"
             ),
-            pytest.param(S3Path("bucket"), S3Path("bucket"), S3Path(), id="same-bucket"),
+            pytest.param(
+                S3Path("bucket"), S3Path("bucket"), S3Path(), id="same-bucket"
+            ),
         ],
     )
     def test_relative_to(self, target, base, expected):
@@ -161,7 +162,7 @@ class RelativePathAPIMixin(BaseTest):
     def test_relative_to_between_relpaths(self, target, base, expected):
         """
         A relative path can be relative to another relative path, as in
-        ``pathlib``; before 3.0 it raised ``ValueError``.
+        ``pathlib``.
         """
         assert target.relative_to(base) == expected
 
@@ -358,7 +359,7 @@ class RelativePathAPIMixin(BaseTest):
     def test_ensure_relpath_on_relative_path(self, p):
         """
         A relative path, void included, passes ``ensure_relpath`` and fails
-        ``ensure_not_relpath``; before 3.0 both messages were swapped.
+        ``ensure_not_relpath``, each with its own message.
         """
         p.ensure_relpath()
         with pytest.raises(
@@ -368,7 +369,7 @@ class RelativePathAPIMixin(BaseTest):
 
     def test_ensure_errors_are_type_errors(self):
         """
-        Both errors are still ``TypeError``, as before 3.0.
+        Both errors are ``TypeError``.
         """
         with pytest.raises(TypeError):
             S3Path("bucket").ensure_relpath()

@@ -257,7 +257,9 @@ class OpenerMixin(BaseTest):
     @pytest.mark.parametrize(
         "multipart_upload, operation, arguments",
         [
-            pytest.param(True, "CreateMultipartUpload", WRITE_ARGUMENTS, id="multipart"),
+            pytest.param(
+                True, "CreateMultipartUpload", WRITE_ARGUMENTS, id="multipart"
+            ),
             pytest.param(
                 False,
                 "PutObject",
@@ -266,7 +268,9 @@ class OpenerMixin(BaseTest):
             ),
         ],
     )
-    def test_write_arguments_passed_to_boto3(self, multipart_upload, operation, arguments):
+    def test_write_arguments_passed_to_boto3(
+        self, multipart_upload, operation, arguments
+    ):
         """
         Every write argument is sent under its boto3 name, the tags URL
         encoded.
@@ -295,7 +299,9 @@ class OpenerMixin(BaseTest):
         p = self.s3dir_test / "file.txt"
         _, value = PUT_OBJECT_ONLY_ARGUMENTS[name]
         with record_api_calls(self.s3_client) as calls:
-            with pytest.raises(ValueError, match="only apply with multipart_upload=False"):
+            with pytest.raises(
+                ValueError, match="only apply with multipart_upload=False"
+            ):
                 p.open("w", **{name: value})
         assert calls == []
 
@@ -324,7 +330,9 @@ class OpenerMixin(BaseTest):
                 },
             },
         }
-        with p.open("w", cache_control="no-cache", transport_params=transport_params) as f:
+        with p.open(
+            "w", cache_control="no-cache", transport_params=transport_params
+        ) as f:
             f.write("a,b")
         res = self.s3_client.head_object(Bucket=p.bucket, Key=p.key)
         assert res["ContentType"] == "text/csv"
@@ -429,7 +437,12 @@ class OpenerMixin(BaseTest):
 
     @pytest.mark.parametrize(
         "key",
-        ["page?versionId=1", "page&versionId=1", "page?a=1&versionId=1", "page?versionId="],
+        [
+            "page?versionId=1",
+            "page&versionId=1",
+            "page?a=1&versionId=1",
+            "page?versionId=",
+        ],
     )
     @pytest.mark.parametrize("mode", ["r", "w"])
     def test_key_with_version_id(self, key, mode):
@@ -447,7 +460,9 @@ class OpenerMixin(BaseTest):
         "p, match",
         [
             pytest.param(S3Path(), "is a relative path", id="void"),
-            pytest.param(S3Path.make_relpath("a.txt"), "is a relative path", id="relpath"),
+            pytest.param(
+                S3Path.make_relpath("a.txt"), "is a relative path", id="relpath"
+            ),
             pytest.param(S3Path("bucket"), "is a bucket", id="bucket"),
         ],
     )

@@ -134,7 +134,7 @@ class IterObjectsMixin(BaseTest):
         """
         if base is None:
             base = self.s3dir_data
-        return [p.key[len(base.key):] for p in s3path_list]
+        return [p.key[len(base.key) :] for p in s3path_list]
 
     # --------------------------------------------------------------------------
     # 1. iter_objects
@@ -305,7 +305,13 @@ class IterObjectsMixin(BaseTest):
         with record_api_calls(self.s3_client) as calls:
             result = self.s3dir_data.iter_objects().filter(S3Path.size >= 3).all()
         assert calls == ["ListObjectsV2"]
-        assert self.rel(result) == ["README.txt", "c.csv", "f.txt.bak", "f.txt/inner.txt", "soft/3.txt"]
+        assert self.rel(result) == [
+            "README.txt",
+            "c.csv",
+            "f.txt.bak",
+            "f.txt/inner.txt",
+            "soft/3.txt",
+        ]
 
     # --------------------------------------------------------------------------
     # 4. count_objects and calculate_total_size

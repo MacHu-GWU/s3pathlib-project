@@ -81,7 +81,9 @@ class SyncMixin(BaseTest):
 
             def __call__(self, args, env, stderr, text):
                 self.calls.append({"args": args, "env": env})
-                return subprocess.CompletedProcess(args, self.returncode, stderr=self.stderr)
+                return subprocess.CompletedProcess(
+                    args, self.returncode, stderr=self.stderr
+                )
 
             @property
             def args(self) -> list[str]:
@@ -125,11 +127,30 @@ class SyncMixin(BaseTest):
     @pytest.mark.parametrize(
         "src, dst, expected",
         [
-            pytest.param("s3dir:a/", "s3dir:b/", ["s3dir:a/", "s3dir:b/"], id="s3-to-s3"),
-            pytest.param("/tmp/data", "s3dir:b/", ["/tmp/data", "s3dir:b/"], id="local-to-s3"),
-            pytest.param("s3dir:a/", pathlib.Path("/tmp/data"), ["s3dir:a/", "/tmp/data"], id="s3-to-pathlib"),
-            pytest.param("s3://bucket/a/", "/tmp/data", ["s3://bucket/a/", "/tmp/data"], id="s3-uri"),
-            pytest.param("C:\\data", "s3://bucket/a/", ["C:/data", "s3://bucket/a/"], id="windows-path"),
+            pytest.param(
+                "s3dir:a/", "s3dir:b/", ["s3dir:a/", "s3dir:b/"], id="s3-to-s3"
+            ),
+            pytest.param(
+                "/tmp/data", "s3dir:b/", ["/tmp/data", "s3dir:b/"], id="local-to-s3"
+            ),
+            pytest.param(
+                "s3dir:a/",
+                pathlib.Path("/tmp/data"),
+                ["s3dir:a/", "/tmp/data"],
+                id="s3-to-pathlib",
+            ),
+            pytest.param(
+                "s3://bucket/a/",
+                "/tmp/data",
+                ["s3://bucket/a/", "/tmp/data"],
+                id="s3-uri",
+            ),
+            pytest.param(
+                "C:\\data",
+                "s3://bucket/a/",
+                ["C:/data", "s3://bucket/a/"],
+                id="windows-path",
+            ),
         ],
     )
     def test_paths(self, runner, src, dst, expected):
@@ -140,7 +161,7 @@ class SyncMixin(BaseTest):
 
         def resolve(x):
             if isinstance(x, str) and x.startswith("s3dir:"):
-                return self.s3dir_test / x[len("s3dir:"):]
+                return self.s3dir_test / x[len("s3dir:") :]
             return x
 
         S3Path.sync(resolve(src), resolve(dst), verbose=False)
@@ -174,11 +195,15 @@ class SyncMixin(BaseTest):
             s3dir.sync_to("/tmp/data", **flags)
         assert runner.args[5:] == [
             "--only-show-errors",
-            "--include", "*.csv",
-            "--exclude", "*.tmp",
-            "--acl", "private",
+            "--include",
+            "*.csv",
+            "--exclude",
+            "*.tmp",
+            "--acl",
+            "private",
             "--no-progress",
-            "--page-size", "100",
+            "--page-size",
+            "100",
             "--delete",
         ]
 
@@ -192,7 +217,13 @@ class SyncMixin(BaseTest):
         assert runner.args[5:] == ["--only-show-errors"]
         S3Path.sync(self.s3dir_test / "a/", "/tmp/data", quiet=False, verbose=False)
         assert runner.args[5:] == []
-        S3Path.sync(self.s3dir_test / "a/", "/tmp/data", quiet=False, only_show_errors=True, verbose=False)
+        S3Path.sync(
+            self.s3dir_test / "a/",
+            "/tmp/data",
+            quiet=False,
+            only_show_errors=True,
+            verbose=False,
+        )
         assert runner.args[5:] == ["--only-show-errors"]
 
     @pytest.mark.parametrize("method", ["sync", "sync_from", "sync_to"])
@@ -216,7 +247,13 @@ class SyncMixin(BaseTest):
         plain default, so passing it cannot be told from leaving it out.
         """
         with pytest.warns(DeprecationWarning, match="Use 'quiet' instead"):
-            S3Path.sync(self.s3dir_test / "a/", "/tmp/data", quiet=True, quite=False, verbose=False)
+            S3Path.sync(
+                self.s3dir_test / "a/",
+                "/tmp/data",
+                quiet=True,
+                quite=False,
+                verbose=False,
+            )
         assert "--only-show-errors" not in runner.args
 
     def test_sync_from_and_to(self, runner):
@@ -256,7 +293,12 @@ class SyncMixin(BaseTest):
         assert env["AWS_DEFAULT_REGION"] == self.s3_client.meta.region_name
         assert env["AWS_REGION"] == self.s3_client.meta.region_name
         assert env["SOME_OTHER_VAR"] == "kept"
-        for name in ["AWS_PROFILE", "AWS_DEFAULT_PROFILE", "AWS_ENDPOINT_URL", "AWS_ROLE_ARN"]:
+        for name in [
+            "AWS_PROFILE",
+            "AWS_DEFAULT_PROFILE",
+            "AWS_ENDPOINT_URL",
+            "AWS_ROLE_ARN",
+        ]:
             assert name not in env
         assert "--endpoint-url" not in runner.args
 
@@ -326,7 +368,9 @@ class SyncMixin(BaseTest):
         runner.returncode = 1
         runner.stderr = "fatal error: NoSuchBucket\n"
         with self.use_client(self.make_client()):
-            with pytest.raises(S3SyncError, match="exit code 1: fatal error: NoSuchBucket") as exc_info:
+            with pytest.raises(
+                S3SyncError, match="exit code 1: fatal error: NoSuchBucket"
+            ) as exc_info:
                 S3Path.sync(self.s3dir_test / "a/", "/tmp/data", verbose=False)
         error = exc_info.value
         assert error.returncode == 1
@@ -341,7 +385,9 @@ class SyncMixin(BaseTest):
         assert runner.calls == []
 
     def test_both_local(self, runner):
-        with pytest.raises(ValueError, match="at least one of src and dst must be an S3 path"):
+        with pytest.raises(
+            ValueError, match="at least one of src and dst must be an S3 path"
+        ):
             S3Path.sync("/tmp/a", pathlib.Path("/tmp/b"), verbose=False)
         assert runner.calls == []
 
@@ -349,8 +395,18 @@ class SyncMixin(BaseTest):
         "p, error, match",
         [
             pytest.param(S3Path(), S3PathTypeError, "is a relative path", id="void"),
-            pytest.param(S3Path.make_relpath("a/"), S3PathTypeError, "is a relative path", id="relpath"),
-            pytest.param(S3Path("bucket", "file.txt"), S3PathIsNotFolderError, "is not a dir", id="file"),
+            pytest.param(
+                S3Path.make_relpath("a/"),
+                S3PathTypeError,
+                "is a relative path",
+                id="relpath",
+            ),
+            pytest.param(
+                S3Path("bucket", "file.txt"),
+                S3PathIsNotFolderError,
+                "is not a dir",
+                id="file",
+            ),
         ],
     )
     def test_not_a_folder(self, runner, p, error, match):
@@ -376,7 +432,9 @@ class SyncMixin(BaseTest):
             port = free_port()
             server = ThreadedMotoServer(port=port, verbose=False)
             server.start()
-            s3_client = self.boto_ses.client("s3", endpoint_url=f"http://127.0.0.1:{port}")
+            s3_client = self.boto_ses.client(
+                "s3", endpoint_url=f"http://127.0.0.1:{port}"
+            )
             try:
                 with self.use_client(s3_client):
                     yield s3_client
@@ -387,7 +445,7 @@ class SyncMixin(BaseTest):
 
     def keys(self, s3dir: S3Path) -> list[str]:
         res = self.s3_client.list_objects_v2(Bucket=s3dir.bucket, Prefix=s3dir.key)
-        return sorted(dct["Key"][len(s3dir.key):] for dct in res.get("Contents", []))
+        return sorted(dct["Key"][len(s3dir.key) :] for dct in res.get("Contents", []))
 
     def test_e2e(self, cli_client, tmp_path):
         """
@@ -404,7 +462,9 @@ class SyncMixin(BaseTest):
         s3dir1.sync_from(local, verbose=False)
         assert self.keys(s3dir1) == ["a.txt", "sub/b.csv"]
 
-        self.s3_client.put_object(Bucket=s3dir2.bucket, Key=s3dir2.key + "extra.txt", Body=b"x")
+        self.s3_client.put_object(
+            Bucket=s3dir2.bucket, Key=s3dir2.key + "extra.txt", Body=b"x"
+        )
         s3dir1.sync_to(s3dir2, delete=True, verbose=False)
         assert self.keys(s3dir2) == ["a.txt", "sub/b.csv"]
 

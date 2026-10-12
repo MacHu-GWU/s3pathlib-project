@@ -106,9 +106,13 @@ class UriAPIMixin(BaseTest):
         "partition, arn",
         [
             pytest.param("aws", "arn:aws:s3:::bucket/folder/file.txt", id="aws"),
-            pytest.param("aws-cn", "arn:aws-cn:s3:::bucket/folder/file.txt", id="aws-cn"),
             pytest.param(
-                "aws-us-gov", "arn:aws-us-gov:s3:::bucket/folder/file.txt", id="aws-us-gov"
+                "aws-cn", "arn:aws-cn:s3:::bucket/folder/file.txt", id="aws-cn"
+            ),
+            pytest.param(
+                "aws-us-gov",
+                "arn:aws-us-gov:s3:::bucket/folder/file.txt",
+                id="aws-us-gov",
             ),
             pytest.param(
                 "aws-eusc", "arn:aws-eusc:s3:::bucket/folder/file.txt", id="aws-eusc"
@@ -374,7 +378,9 @@ class UriAPIMixin(BaseTest):
         "uri, message",
         [
             pytest.param("my-bucket/key", "must start with 's3://'", id="no-scheme"),
-            pytest.param("https://my-bucket/key", "must start with 's3://'", id="https"),
+            pytest.param(
+                "https://my-bucket/key", "must start with 's3://'", id="https"
+            ),
             pytest.param("s3://", "bucket is empty", id="no-bucket"),
             pytest.param(
                 "arn:aws:s3:::bucket/key", "must start with 's3://'", id="an-arn"

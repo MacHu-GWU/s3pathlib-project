@@ -66,7 +66,6 @@ def count_new_sessions(monkeypatch, delay: float = 0) -> list:
     return sessions
 
 
-
 class AwsMixin(BaseTest):
     module = "aws"
 
@@ -248,7 +247,9 @@ class AwsMixin(BaseTest):
         """
         assert hasattr(S3Context(), name) is False
 
-    @pytest.mark.parametrize("module_name", ["s3pathlib.api", "s3pathlib", "s3pathlib.aws"])
+    @pytest.mark.parametrize(
+        "module_name", ["s3pathlib.api", "s3pathlib", "s3pathlib.aws"]
+    )
     def test_removed_context_name(self, module_name):
         """
         The name ``context`` is not defined in any module, it would collide

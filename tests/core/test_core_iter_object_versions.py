@@ -36,7 +36,9 @@ class ListObjectVersionsMixin(BaseTest):
         :return: the version id
         """
         s3dir = self.s3dir_test_with_versioning
-        res = self.s3_client.put_object(Bucket=s3dir.bucket, Key=s3dir.key + key, Body=body)
+        res = self.s3_client.put_object(
+            Bucket=s3dir.bucket, Key=s3dir.key + key, Body=body
+        )
         return res["VersionId"]
 
     def delete(self, key: str) -> str:
@@ -50,7 +52,7 @@ class ListObjectVersionsMixin(BaseTest):
         return res["VersionId"]
 
     def relative(self, p: S3Path) -> str:
-        return p.key[len(self.s3dir_test_with_versioning.key):]
+        return p.key[len(self.s3dir_test_with_versioning.key) :]
 
     # --------------------------------------------------------------------------
     # 1. A file
@@ -157,7 +159,10 @@ class ListObjectVersionsMixin(BaseTest):
         """
         self.put("file.txt", "1")
         with record_api_calls(self.s3_client) as calls:
-            assert self.s3dir_test_with_versioning.list_object_versions(limit=0).all() == []
+            assert (
+                self.s3dir_test_with_versioning.list_object_versions(limit=0).all()
+                == []
+            )
         assert calls == []
 
     @pytest.mark.parametrize(
@@ -191,7 +196,9 @@ class ListObjectVersionsMixin(BaseTest):
         """
         self.put("a.txt", "1")
         self.put("sub/b.txt", "1")
-        result = self.s3dir_test_with_versioning.list_object_versions(delimiter="/").all()
+        result = self.s3dir_test_with_versioning.list_object_versions(
+            delimiter="/"
+        ).all()
         assert [self.relative(x) for x in result] == ["a.txt"]
 
     def test_bucket_without_versioning(self):

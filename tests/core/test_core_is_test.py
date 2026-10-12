@@ -109,8 +109,12 @@ class IsTestAPIMixin(BaseTest):
             pytest.param(FILE, (False, False, False, False, True), id="file"),
             pytest.param(DIRECTORY, (False, False, False, True, False), id="dir"),
             pytest.param(BUCKET, (False, False, True, True, False), id="bucket"),
-            pytest.param(RELPATH_FILE, (False, True, False, False, True), id="relpath-file"),
-            pytest.param(RELPATH_DIR, (False, True, False, True, False), id="relpath-dir"),
+            pytest.param(
+                RELPATH_FILE, (False, True, False, False, True), id="relpath-file"
+            ),
+            pytest.param(
+                RELPATH_DIR, (False, True, False, True, False), id="relpath-dir"
+            ),
             pytest.param(VOID, (True, True, False, False, False), id="void"),
         ],
     )
@@ -128,15 +132,16 @@ class IsTestAPIMixin(BaseTest):
         [
             pytest.param(R("a").parent, id="relpath-parent"),
             pytest.param(S3Path(S3Path(), "/"), id="void-and-slash"),
-            pytest.param(S3Path("b", "a/").relative_to(S3Path("b", "a/")), id="p-minus-p"),
+            pytest.param(
+                S3Path("b", "a/").relative_to(S3Path("b", "a/")), id="p-minus-p"
+            ),
             pytest.param(R("/"), id="make-relpath-slash"),
         ],
     )
     def test_is_void_from_operations(self, p):
         """
         Every operation that ends with no bucket and no parts gives the same
-        void path, which is also a relpath; before 3.0 some of them gave a
-        "void with a type" for which ``is_relpath()`` was False.
+        void path, which is also a relpath (never a "void with a type").
         """
         assert p == S3Path()
         assert p.is_void() is True
@@ -151,8 +156,8 @@ class IsTestAPIMixin(BaseTest):
         """
         Each validator passes for the kinds it accepts, and otherwise raises
         its exception with the path in the message: the URI for an absolute
-        path, the repr for a relative path or void (before 3.0 they showed
-        ``None``). ``ensure_file`` / ``ensure_not_file`` are aliases.
+        path, the repr for a relative path or void (never ``None``).
+        ``ensure_file`` / ``ensure_not_file`` are aliases.
         """
         accepted, error, template = ENSURE[method]
         p = KINDS[kind]
@@ -173,8 +178,8 @@ class IsTestAPIMixin(BaseTest):
     )
     def test_ensure_not_is_type_error(self, method):
         """
-        ``ensure_not_*`` raise ``S3PathTypeError``, which is still a
-        ``TypeError`` as before 3.0, and now also an ``S3PathlibError``.
+        ``ensure_not_*`` raise ``S3PathTypeError``, which is a ``TypeError`` and
+        an ``S3PathlibError``.
         """
         p = FILE if method == "ensure_not_object" else DIRECTORY
         with pytest.raises(TypeError):
@@ -209,9 +214,8 @@ class IsTestAPIMixin(BaseTest):
     def test_is_delete_marker_does_not_call_aws(self, key, setup):
         """
         Without metadata from ``list_object_versions`` it is ``False``, and it
-        never calls the API; before 3.0 it called ``head_object``, which
-        raised ``S3FileNotExist`` for a missing object and, worse, for an
-        object whose latest version is a delete marker.
+        never calls the API: ``head_object`` can never find a delete marker, and
+        it would raise ``S3FileNotExist`` for a missing object.
         """
         p = self.s3dir_test_with_versioning.joinpath(key)
         if setup in ("put", "put-and-delete"):
@@ -234,8 +238,8 @@ class IsTestAPIMixin(BaseTest):
     )
     def test_is_delete_marker_other_kinds(self, p):
         """
-        Only an object version can be a delete marker; before 3.0 a relative
-        file raised ``TypeError``.
+        Only an object version can be a delete marker; a relative file is
+        ``False``, not an error.
         """
         assert p.is_delete_marker() is False
 

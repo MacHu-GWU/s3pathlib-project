@@ -26,12 +26,22 @@ from s3pathlib.tests import run_cov_test
 @pytest.mark.parametrize(
     "uri, expected",
     [
-        pytest.param("s3://my-bucket/my-prefix/my-file.zip", ("my-bucket", "my-prefix/my-file.zip"), id="file"),
-        pytest.param("s3://my-bucket/my-prefix/", ("my-bucket", "my-prefix/"), id="folder"),
+        pytest.param(
+            "s3://my-bucket/my-prefix/my-file.zip",
+            ("my-bucket", "my-prefix/my-file.zip"),
+            id="file",
+        ),
+        pytest.param(
+            "s3://my-bucket/my-prefix/", ("my-bucket", "my-prefix/"), id="folder"
+        ),
         pytest.param("s3://my-bucket/", ("my-bucket", ""), id="bucket"),
         pytest.param("s3://my-bucket", ("my-bucket", ""), id="bucket-no-slash"),
         pytest.param("s3://my-bucket/a//b", ("my-bucket", "a//b"), id="key-kept-as-is"),
-        pytest.param("s3://My_Legacy_Bucket/a:b.txt", ("My_Legacy_Bucket", "a:b.txt"), id="legacy-bucket-colon-in-key"),
+        pytest.param(
+            "s3://My_Legacy_Bucket/a:b.txt",
+            ("My_Legacy_Bucket", "a:b.txt"),
+            id="legacy-bucket-colon-in-key",
+        ),
     ],
 )
 def test_split_s3_uri(uri, expected):
@@ -48,7 +58,9 @@ def test_split_s3_uri(uri, expected):
     [
         pytest.param("my-bucket/key", "must start with 's3://'", id="no-scheme"),
         pytest.param("s3:/my-bucket/key", "must start with 's3://'", id="bad-scheme"),
-        pytest.param("https://my-bucket/key", "must start with 's3://'", id="other-scheme"),
+        pytest.param(
+            "https://my-bucket/key", "must start with 's3://'", id="other-scheme"
+        ),
         pytest.param("s3://", "bucket is empty", id="empty"),
         pytest.param("s3:///key", "bucket is empty", id="empty-bucket"),
         pytest.param("s3://a:b/key", "contains ':'", id="colon-in-bucket"),
@@ -78,7 +90,9 @@ def test_join_s3_uri(bucket, key, expected):
     assert utils.join_s3_uri(bucket, key) == expected
 
 
-@pytest.mark.parametrize("key", ["file.txt", "a/b/c.txt", "folder/", "", "数据/a b.csv"])
+@pytest.mark.parametrize(
+    "key", ["file.txt", "a/b/c.txt", "folder/", "", "数据/a b.csv"]
+)
 def test_split_and_join_s3_uri_round_trip(key):
     """
     ``split_s3_uri`` is the inverse of ``join_s3_uri``.
@@ -93,12 +107,32 @@ def test_split_and_join_s3_uri_round_trip(key):
     "arn, expected",
     [
         pytest.param("arn:aws:s3:::bucket", ("aws", "bucket", ""), id="bucket"),
-        pytest.param("arn:aws:s3:::bucket/", ("aws", "bucket", ""), id="bucket-with-slash"),
-        pytest.param("arn:aws:s3:::bucket/folder/", ("aws", "bucket", "folder/"), id="folder"),
-        pytest.param("arn:aws-cn:s3:::bucket/folder/file.txt", ("aws-cn", "bucket", "folder/file.txt"), id="aws-cn"),
-        pytest.param("arn:aws-us-gov:s3:::bucket/file.txt", ("aws-us-gov", "bucket", "file.txt"), id="aws-us-gov"),
-        pytest.param("arn:aws-eusc:s3:::bucket/file.txt", ("aws-eusc", "bucket", "file.txt"), id="aws-eusc"),
-        pytest.param("arn:aws:s3:::My_Legacy_Bucket/a:b.txt", ("aws", "My_Legacy_Bucket", "a:b.txt"), id="legacy-bucket-colon-in-key"),
+        pytest.param(
+            "arn:aws:s3:::bucket/", ("aws", "bucket", ""), id="bucket-with-slash"
+        ),
+        pytest.param(
+            "arn:aws:s3:::bucket/folder/", ("aws", "bucket", "folder/"), id="folder"
+        ),
+        pytest.param(
+            "arn:aws-cn:s3:::bucket/folder/file.txt",
+            ("aws-cn", "bucket", "folder/file.txt"),
+            id="aws-cn",
+        ),
+        pytest.param(
+            "arn:aws-us-gov:s3:::bucket/file.txt",
+            ("aws-us-gov", "bucket", "file.txt"),
+            id="aws-us-gov",
+        ),
+        pytest.param(
+            "arn:aws-eusc:s3:::bucket/file.txt",
+            ("aws-eusc", "bucket", "file.txt"),
+            id="aws-eusc",
+        ),
+        pytest.param(
+            "arn:aws:s3:::My_Legacy_Bucket/a:b.txt",
+            ("aws", "My_Legacy_Bucket", "a:b.txt"),
+            id="legacy-bucket-colon-in-key",
+        ),
     ],
 )
 def test_split_s3_arn(arn, expected):
@@ -251,12 +285,20 @@ def test_split_parts_and_smart_join_round_trip(key):
             id="us-gov",
         ),
         pytest.param(
-            dict(s3_uri="s3://my-bucket/my-file.zip", partition="aws-us-gov", aws_region="us-gov-east-1"),
+            dict(
+                s3_uri="s3://my-bucket/my-file.zip",
+                partition="aws-us-gov",
+                aws_region="us-gov-east-1",
+            ),
             "https://us-gov-east-1.console.amazonaws-us-gov.com/s3/object/my-bucket?region=us-gov-east-1&prefix=my-file.zip",
             id="us-gov-partition-regional",
         ),
         pytest.param(
-            dict(s3_uri="s3://my-bucket/my-file.zip", partition="aws-cn", aws_region="cn-north-1"),
+            dict(
+                s3_uri="s3://my-bucket/my-file.zip",
+                partition="aws-cn",
+                aws_region="cn-north-1",
+            ),
             "https://cn-north-1.console.amazonaws.cn/s3/object/my-bucket?region=cn-north-1&prefix=my-file.zip",
             id="china-regional",
         ),
@@ -266,7 +308,11 @@ def test_split_parts_and_smart_join_round_trip(key):
             id="china-folder",
         ),
         pytest.param(
-            dict(s3_uri="s3://my-bucket/my-file.zip", partition="aws-eusc", aws_region="eusc-de-east-1"),
+            dict(
+                s3_uri="s3://my-bucket/my-file.zip",
+                partition="aws-eusc",
+                aws_region="eusc-de-east-1",
+            ),
             "https://eusc-de-east-1.console.amazonaws-eusc.eu/s3/object/my-bucket?region=eusc-de-east-1&prefix=my-file.zip",
             id="eusc-regional",
         ),
@@ -287,7 +333,16 @@ def test_make_s3_console_url(kwargs, expected):
 
 @pytest.mark.parametrize(
     "key",
-    ["a&b.txt", "a#b.txt", "a b.txt", "a+b.txt", "a?b=c.txt", "a%20b.txt", "数据/报表.csv", "folder/a&b/"],
+    [
+        "a&b.txt",
+        "a#b.txt",
+        "a b.txt",
+        "a+b.txt",
+        "a?b=c.txt",
+        "a%20b.txt",
+        "数据/报表.csv",
+        "folder/a&b/",
+    ],
 )
 def test_make_s3_console_url_encodes_key(key):
     """
@@ -320,10 +375,16 @@ def test_make_s3_console_url_keeps_slash_readable():
 @pytest.mark.parametrize(
     "kwargs, message",
     [
-        pytest.param(dict(bucket="my-bucket"), "pass both bucket and prefix", id="bucket-only"),
-        pytest.param(dict(prefix="key"), "pass both bucket and prefix", id="prefix-only"),
+        pytest.param(
+            dict(bucket="my-bucket"), "pass both bucket and prefix", id="bucket-only"
+        ),
+        pytest.param(
+            dict(prefix="key"), "pass both bucket and prefix", id="prefix-only"
+        ),
         pytest.param(dict(), "pass both bucket and prefix", id="nothing"),
-        pytest.param(dict(bucket="b", prefix="k", s3_uri="s3://b/k"), "not both", id="both-forms"),
+        pytest.param(
+            dict(bucket="b", prefix="k", s3_uri="s3://b/k"), "not both", id="both-forms"
+        ),
     ],
 )
 def test_make_s3_console_url_invalid_args(kwargs, message):
@@ -490,7 +551,9 @@ def test_parse_data_size_invalid(text, message):
         utils.parse_data_size(text)
 
 
-@pytest.mark.parametrize("size", [0, 1, 1023, 1024, 3_600_000, 1024**3 + 12345, 7 * 1024**5])
+@pytest.mark.parametrize(
+    "size", [0, 1, 1023, 1024, 3_600_000, 1024**3 + 12345, 7 * 1024**5]
+)
 def test_parse_and_repr_data_size_round_trip(size):
     """
     Parsing the displayed size gives back the size within the rounding error
@@ -508,7 +571,9 @@ def test_parse_and_repr_data_size_round_trip(size):
 @pytest.mark.parametrize(
     "items, n, expected",
     [
-        pytest.param(range(10), 3, [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]], id="remainder"),
+        pytest.param(
+            range(10), 3, [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]], id="remainder"
+        ),
         pytest.param(range(9), 3, [[0, 1, 2], [3, 4, 5], [6, 7, 8]], id="exact"),
         pytest.param(range(2), 3, [[0, 1]], id="fewer-than-n"),
         pytest.param(range(3), 1, [[0], [1], [2]], id="n-1"),

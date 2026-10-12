@@ -75,7 +75,7 @@ class ListObjectVersionsMixin(BaseTest):
         )
 
     def relative(self, key: str) -> str:
-        return key[len(self.prefix):]
+        return key[len(self.prefix) :]
 
     def entries(self, **kwargs) -> list[tuple[str, str]]:
         """
@@ -226,7 +226,10 @@ class ListObjectVersionsMixin(BaseTest):
         """
         assert len(self.paginate().versions().all()) == N_VERSIONS
         delete_markers = self.paginate().delete_markers().all()
-        assert sorted(self.relative(d["Key"]) for d in delete_markers) == ["a.txt", "b.txt"]
+        assert sorted(self.relative(d["Key"]) for d in delete_markers) == [
+            "a.txt",
+            "b.txt",
+        ]
         common_prefixes = self.paginate(delimiter="/").common_prefixes().all()
         assert [self.relative(cp["Prefix"]) for cp in common_prefixes] == ["d1/", "d2/"]
 
@@ -300,7 +303,10 @@ class ListObjectVersionsMixin(BaseTest):
         )
         stubber.add_response(
             "list_object_versions",
-            {"Versions": [{"Key": "folder/d", "VersionId": "v3"}], "IsTruncated": False},
+            {
+                "Versions": [{"Key": "folder/d", "VersionId": "v3"}],
+                "IsTruncated": False,
+            },
             expected_params={**common, "MaxKeys": 1, "KeyMarker": "folder/c/"},
         )
         with stubber:
@@ -336,7 +342,9 @@ class ListObjectVersionsMixin(BaseTest):
         API call (S3 rejects a negative MaxKeys, moto silently accepts it).
         """
         with pytest.raises(ValueError, match=match):
-            paginate_list_object_versions(s3_client=None, bucket="b", prefix="p", **kwargs)
+            paginate_list_object_versions(
+                s3_client=None, bucket="b", prefix="p", **kwargs
+            )
 
     def test_missing_bucket(self):
         """
@@ -355,7 +363,9 @@ class ListObjectVersionsMixin(BaseTest):
         """
         The bucket ``aws`` belongs to another account: ``AccessDenied``.
         """
-        result = paginate_list_object_versions(s3_client=self.s3_client, bucket="aws", prefix="")
+        result = paginate_list_object_versions(
+            s3_client=self.s3_client, bucket="aws", prefix=""
+        )
         with pytest.raises(botocore.exceptions.ClientError) as exc_info:
             result.all()
         assert exc_info.value.response["Error"]["Code"] == "AccessDenied"

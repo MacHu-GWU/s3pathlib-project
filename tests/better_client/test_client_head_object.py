@@ -75,7 +75,9 @@ class HeadObjectMixin(BaseTest):
         key = self.s3dir_test.key + "folder"
         res = head_object(self.s3_client, self.bucket, key + "/")
         assert res["ContentLength"] == 0
-        assert head_object(self.s3_client, self.bucket, key, ignore_not_found=True) is None
+        assert (
+            head_object(self.s3_client, self.bucket, key, ignore_not_found=True) is None
+        )
 
     def test_arguments_passed_to_boto3(self):
         """
@@ -146,7 +148,9 @@ class HeadObjectMixin(BaseTest):
             f"S3 object 's3://{self.bucket}/{key}' does not exist!"
         )
         assert isinstance(exc_info.value.__cause__, botocore.exceptions.ClientError)
-        assert head_object(self.s3_client, self.bucket, key, ignore_not_found=True) is None
+        assert (
+            head_object(self.s3_client, self.bucket, key, ignore_not_found=True) is None
+        )
 
     def test_missing_bucket(self):
         """
@@ -157,7 +161,10 @@ class HeadObjectMixin(BaseTest):
         bucket = f"s3pathlib-test-tmp-{uuid.uuid4().hex}"
         with pytest.raises(S3FileNotExist, match=f"s3://{bucket}/file.txt"):
             head_object(self.s3_client, bucket, "file.txt")
-        assert head_object(self.s3_client, bucket, "file.txt", ignore_not_found=True) is None
+        assert (
+            head_object(self.s3_client, bucket, "file.txt", ignore_not_found=True)
+            is None
+        )
 
     def test_versions_and_delete_markers(self):
         """
@@ -172,7 +179,10 @@ class HeadObjectMixin(BaseTest):
         res = self.s3_client.delete_object(Bucket=s3dir.bucket, Key=key)
         v_marker = res["VersionId"]
 
-        assert head_object(self.s3_client, s3dir.bucket, key, ignore_not_found=True) is None
+        assert (
+            head_object(self.s3_client, s3dir.bucket, key, ignore_not_found=True)
+            is None
+        )
         res = head_object(self.s3_client, s3dir.bucket, key, version_id=v1)
         assert res["VersionId"] == v1
         assert res["ContentLength"] == 2
@@ -282,9 +292,13 @@ class HeadObjectMixin(BaseTest):
         s3dir = self.s3dir_test_with_versioning
         key = s3dir.key + "file.txt"
         v1 = self.put("file.txt", versioning=True)["VersionId"]
-        v_marker = self.s3_client.delete_object(Bucket=s3dir.bucket, Key=key)["VersionId"]
+        v_marker = self.s3_client.delete_object(Bucket=s3dir.bucket, Key=key)[
+            "VersionId"
+        ]
         assert is_object_exists(self.s3_client, s3dir.bucket, key) is False
-        assert is_object_exists(self.s3_client, s3dir.bucket, key, version_id=v1) is True
+        assert (
+            is_object_exists(self.s3_client, s3dir.bucket, key, version_id=v1) is True
+        )
         assert (
             is_object_exists(self.s3_client, s3dir.bucket, key, version_id=v_marker)
             is False

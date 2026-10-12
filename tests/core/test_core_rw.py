@@ -223,7 +223,9 @@ class ReadAndWriteMixin(BaseTest):
         p = self.s3dir_test / "file.txt"
         self.put(p)
         with record_api_calls(self.s3_client) as calls:
-            with pytest.raises(botocore.exceptions.ParamValidationError, match="VersionId"):
+            with pytest.raises(
+                botocore.exceptions.ParamValidationError, match="VersionId"
+            ):
                 p.read_bytes(version_id=None)
         assert calls == []
 
@@ -322,7 +324,9 @@ class ReadAndWriteMixin(BaseTest):
         else:
             data = "hello"
         with self.stub() as stubber:
-            stubber.add_response("put_object", {"ETag": '"e"'}, expected_params=expected)
+            stubber.add_response(
+                "put_object", {"ETag": '"e"'}, expected_params=expected
+            )
             getattr(S3Path("bucket", "file.txt"), method)(data, **kwargs)
 
     @pytest.mark.parametrize("method", ["write_bytes", "write_text", "touch"])
@@ -382,7 +386,9 @@ class ReadAndWriteMixin(BaseTest):
             assert p.touch(metadata={"k": "v"}) is None
         assert calls == ["PutObject"]
         assert self.get(p) == b""
-        assert self.s3_client.head_object(Bucket=p.bucket, Key=p.key)["Metadata"] == {"k": "v"}
+        assert self.s3_client.head_object(Bucket=p.bucket, Key=p.key)["Metadata"] == {
+            "k": "v"
+        }
 
     def test_touch_arguments_passed_to_boto3(self):
         """
@@ -395,12 +401,19 @@ class ReadAndWriteMixin(BaseTest):
             if name not in ("if_match", "if_none_match")
         }
         kwargs = {name: value for name, (_, value) in arguments.items()}
-        expected = {"Bucket": "bucket", "Key": "file.txt", "Body": b"", "IfNoneMatch": "*"}
+        expected = {
+            "Bucket": "bucket",
+            "Key": "file.txt",
+            "Body": b"",
+            "IfNoneMatch": "*",
+        }
         for param, value in arguments.values():
             expected[param] = value
         expected["Tagging"] = "t=a%20b"
         with self.stub() as stubber:
-            stubber.add_response("put_object", {"ETag": '"e"'}, expected_params=expected)
+            stubber.add_response(
+                "put_object", {"ETag": '"e"'}, expected_params=expected
+            )
             S3Path("bucket", "file.txt").touch(**kwargs)
 
     def test_touch_existing(self):
@@ -529,7 +542,9 @@ class ReadAndWriteMixin(BaseTest):
         "p, match",
         [
             pytest.param(S3Path(), "is a relative path", id="void"),
-            pytest.param(S3Path.make_relpath("a.txt"), "is a relative path", id="relpath"),
+            pytest.param(
+                S3Path.make_relpath("a.txt"), "is a relative path", id="relpath"
+            ),
             pytest.param(S3Path("bucket"), "is a bucket", id="bucket"),
         ],
     )
@@ -546,7 +561,13 @@ class ReadAndWriteMixin(BaseTest):
     @pytest.mark.parametrize(
         "method, p, error, match",
         [
-            pytest.param("touch", S3Path(), S3PathTypeError, "is a relative path", id="touch-void"),
+            pytest.param(
+                "touch",
+                S3Path(),
+                S3PathTypeError,
+                "is a relative path",
+                id="touch-void",
+            ),
             pytest.param(
                 "touch",
                 S3Path.make_relpath("a.txt"),
@@ -554,9 +575,27 @@ class ReadAndWriteMixin(BaseTest):
                 "is a relative path",
                 id="touch-relpath",
             ),
-            pytest.param("touch", S3Path("b", "a/"), S3PathIsNotFileError, "is not a file", id="touch-dir"),
-            pytest.param("touch", S3Path("b"), S3PathIsNotFileError, "is not a file", id="touch-bucket"),
-            pytest.param("mkdir", S3Path(), S3PathTypeError, "is a relative path", id="mkdir-void"),
+            pytest.param(
+                "touch",
+                S3Path("b", "a/"),
+                S3PathIsNotFileError,
+                "is not a file",
+                id="touch-dir",
+            ),
+            pytest.param(
+                "touch",
+                S3Path("b"),
+                S3PathIsNotFileError,
+                "is not a file",
+                id="touch-bucket",
+            ),
+            pytest.param(
+                "mkdir",
+                S3Path(),
+                S3PathTypeError,
+                "is a relative path",
+                id="mkdir-void",
+            ),
             pytest.param(
                 "mkdir",
                 S3Path.make_relpath("a/"),
@@ -564,8 +603,20 @@ class ReadAndWriteMixin(BaseTest):
                 "is a relative path",
                 id="mkdir-relpath",
             ),
-            pytest.param("mkdir", S3Path("b", "a.txt"), S3PathIsNotFolderError, "is not a dir", id="mkdir-file"),
-            pytest.param("mkdir", S3Path("b"), S3PathTypeError, "use create_bucket", id="mkdir-bucket"),
+            pytest.param(
+                "mkdir",
+                S3Path("b", "a.txt"),
+                S3PathIsNotFolderError,
+                "is not a dir",
+                id="mkdir-file",
+            ),
+            pytest.param(
+                "mkdir",
+                S3Path("b"),
+                S3PathTypeError,
+                "use create_bucket",
+                id="mkdir-bucket",
+            ),
         ],
     )
     def test_touch_mkdir_wrong_path(self, method, p, error, match):

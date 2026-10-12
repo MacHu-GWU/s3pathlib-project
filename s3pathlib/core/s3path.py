@@ -4,8 +4,6 @@
 The ``S3Path`` public API class.
 """
 
-# The import order is very important. The later one depends on the earlier one.
-
 from __future__ import annotations
 
 from .base import BaseS3Path
@@ -31,6 +29,9 @@ from .serde import SerdeAPIMixin
 from .opener import OpenerAPIMixin
 
 
+# The order of the bases is the MRO. The mixins do not define the same name,
+# so the order does not change any behavior (tests/core/test_core_s3path.py
+# checks it); BaseS3Path has to come first, it holds the state.
 class S3Path(
     BaseS3Path,
     IsTestAPIMixin,

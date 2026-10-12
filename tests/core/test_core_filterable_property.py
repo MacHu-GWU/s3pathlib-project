@@ -90,13 +90,15 @@ class FilterablePropertyMixin(BaseTest):
 
     def test_set_and_delete_raise(self):
         """
-        It is read-only; the message names the actual class (before 3.0 it
-        always said ``S3Path``, and ``del`` only said ``__delete__``).
+        It is read-only; the message names the actual class and the
+        operation (set or delete).
         """
         user = User("alice")
         with pytest.raises(AttributeError, match="can't set attribute User.username"):
             user.username = "bob"
-        with pytest.raises(AttributeError, match="can't delete attribute User.username"):
+        with pytest.raises(
+            AttributeError, match="can't delete attribute User.username"
+        ):
             del user.username
         p = S3Path("bucket", "a.txt")
         with pytest.raises(AttributeError, match="can't set attribute S3Path.key"):
@@ -123,11 +125,21 @@ class FilterablePropertyMixin(BaseTest):
             pytest.param(lambda: User.user_age < 25, BOB, ALICE, id="lt"),
             pytest.param(lambda: User.user_age >= 30, ALICE, BOB, id="ge"),
             pytest.param(lambda: User.user_age <= 20, BOB, ALICE, id="le"),
-            pytest.param(lambda: User.user_age.between(25, 35), ALICE, BOB, id="between"),
-            pytest.param(lambda: User.username.startswith("al"), ALICE, BOB, id="startswith"),
-            pytest.param(lambda: User.username.endswith("ob"), BOB, ALICE, id="endswith"),
-            pytest.param(lambda: User.username.contains("lic"), ALICE, BOB, id="contains-str"),
-            pytest.param(lambda: User.user_tags.contains("admin"), ALICE, BOB, id="contains-list"),
+            pytest.param(
+                lambda: User.user_age.between(25, 35), ALICE, BOB, id="between"
+            ),
+            pytest.param(
+                lambda: User.username.startswith("al"), ALICE, BOB, id="startswith"
+            ),
+            pytest.param(
+                lambda: User.username.endswith("ob"), BOB, ALICE, id="endswith"
+            ),
+            pytest.param(
+                lambda: User.username.contains("lic"), ALICE, BOB, id="contains-str"
+            ),
+            pytest.param(
+                lambda: User.user_tags.contains("admin"), ALICE, BOB, id="contains-list"
+            ),
         ],
     )
     def test_filter_function(self, make, passes, fails):
@@ -153,8 +165,8 @@ class FilterablePropertyMixin(BaseTest):
     def test_named_method_is_operator(self, method, op, value):
         """
         Each named method gives the same result as its operator, around the
-        boundaries; before 3.0 ``greater_equal`` and ``less_equal`` did
-        ``==``.
+        boundaries (``greater_equal`` and ``less_equal`` include the
+        boundary).
         """
         by_method = getattr(User.user_age, method)(value)
         by_operator = op(User.user_age, value)
@@ -183,10 +195,16 @@ class FilterablePropertyMixin(BaseTest):
     @pytest.mark.parametrize(
         "filters, expected",
         [
-            pytest.param((S3Path.ext == ".csv",), ["data/b.csv", "data/subfolder/c.csv"], id="ext"),
+            pytest.param(
+                (S3Path.ext == ".csv",),
+                ["data/b.csv", "data/subfolder/c.csv"],
+                id="ext",
+            ),
             pytest.param((S3Path.bucket != "bucket",), ["d.json"], id="bucket"),
             pytest.param(
-                (S3Path.basename.startswith("b"),), ["data/b.csv"], id="basename-startswith"
+                (S3Path.basename.startswith("b"),),
+                ["data/b.csv"],
+                id="basename-startswith",
             ),
             pytest.param(
                 (S3Path.abspath.contains("subfolder"),),

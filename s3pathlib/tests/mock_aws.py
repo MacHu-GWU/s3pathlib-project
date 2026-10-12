@@ -132,9 +132,7 @@ def is_real_aws_enabled() -> bool:
     elif value == "false":
         return False
     else:
-        raise ValueError(
-            f"{ENV_REAL_AWS} must be 'true' or 'false', got {value!r}"
-        )
+        raise ValueError(f"{ENV_REAL_AWS} must be 'true' or 'false', got {value!r}")
 
 
 def new_mock_boto_session() -> boto3.session.Session:
@@ -338,8 +336,7 @@ class BaseTest:
                 )
         else:
             raise TypeError(
-                f"{cls.__name__}.use_mock must be True or False, "
-                f"got {cls.use_mock!r}"
+                f"{cls.__name__}.use_mock must be True or False, got {cls.use_mock!r}"
             )
 
         if cls.use_mock:

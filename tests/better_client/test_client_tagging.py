@@ -103,11 +103,15 @@ class TaggingMixin(BaseTest):
         and overwrites keys and keeps the others. The return value is all the
         tags, as stored by S3.
         """
-        tags = update_bucket_tagging(self.s3_client, tmp_bucket, {"k1": "v1", "k2": "v2"})
+        tags = update_bucket_tagging(
+            self.s3_client, tmp_bucket, {"k1": "v1", "k2": "v2"}
+        )
         assert tags == {"k1": "v1", "k2": "v2"}
         assert self.get_bucket_tags(tmp_bucket) == tags
 
-        tags = update_bucket_tagging(self.s3_client, tmp_bucket, {"k2": "v22", "k3": "v3"})
+        tags = update_bucket_tagging(
+            self.s3_client, tmp_bucket, {"k2": "v22", "k3": "v3"}
+        )
         assert tags == {"k1": "v1", "k2": "v22", "k3": "v3"}
         assert self.get_bucket_tags(tmp_bucket) == tags
 
@@ -126,7 +130,10 @@ class TaggingMixin(BaseTest):
         stubber.add_response(
             "get_bucket_tagging",
             {"TagSet": [{"Key": "old", "Value": "1"}]},
-            expected_params={"Bucket": "my-bucket", "ExpectedBucketOwner": "111122223333"},
+            expected_params={
+                "Bucket": "my-bucket",
+                "ExpectedBucketOwner": "111122223333",
+            },
         )
         stubber.add_response(
             "put_bucket_tagging",
@@ -160,10 +167,14 @@ class TaggingMixin(BaseTest):
         the message.
         """
         s3_client, stubber = self.stub()
-        stubber.add_client_error("get_bucket_tagging", "NoSuchTagSet", http_status_code=404)
+        stubber.add_client_error(
+            "get_bucket_tagging", "NoSuchTagSet", http_status_code=404
+        )
         stubber.add_response("put_bucket_tagging", {})
         with stubber:
-            assert update_bucket_tagging(s3_client, "my-bucket", {"k": "v"}) == {"k": "v"}
+            assert update_bucket_tagging(s3_client, "my-bucket", {"k": "v"}) == {
+                "k": "v"
+            }
 
     def test_bucket_missing(self):
         """
@@ -179,10 +190,14 @@ class TaggingMixin(BaseTest):
         """
         s3_client, stubber = self.stub()
         if failing_call == "get":
-            stubber.add_client_error("get_bucket_tagging", "AccessDenied", http_status_code=403)
+            stubber.add_client_error(
+                "get_bucket_tagging", "AccessDenied", http_status_code=403
+            )
         else:
             stubber.add_response("get_bucket_tagging", {"TagSet": []})
-            stubber.add_client_error("put_bucket_tagging", "AccessDenied", http_status_code=403)
+            stubber.add_client_error(
+                "put_bucket_tagging", "AccessDenied", http_status_code=403
+            )
         with stubber:
             with pytest.raises(botocore.exceptions.ClientError) as exc_info:
                 update_bucket_tagging(s3_client, "my-bucket", {"k": "v"})
@@ -206,12 +221,16 @@ class TaggingMixin(BaseTest):
         returned version is ``None``.
         """
         bucket, key, _ = self.put("file.txt")
-        version_id, tags = update_object_tagging(self.s3_client, bucket, key, {"k1": "v1", "k2": "v2"})
+        version_id, tags = update_object_tagging(
+            self.s3_client, bucket, key, {"k1": "v1", "k2": "v2"}
+        )
         assert version_id is None
         assert tags == {"k1": "v1", "k2": "v2"}
         assert self.get_object_tags(bucket, key) == tags
 
-        _, tags = update_object_tagging(self.s3_client, bucket, key, {"k2": "v22", "k3": "v3"})
+        _, tags = update_object_tagging(
+            self.s3_client, bucket, key, {"k2": "v22", "k3": "v3"}
+        )
         assert tags == {"k1": "v1", "k2": "v22", "k3": "v3"}
         assert self.get_object_tags(bucket, key) == tags
 
@@ -233,7 +252,9 @@ class TaggingMixin(BaseTest):
         _, _, res = self.put("file.txt", versioning=True)
         v2 = res["VersionId"]
 
-        version_id, tags = update_object_tagging(self.s3_client, bucket, key, {"latest": "1"})
+        version_id, tags = update_object_tagging(
+            self.s3_client, bucket, key, {"latest": "1"}
+        )
         assert version_id == v2
         assert tags == {"latest": "1"}
         assert self.get_object_tags(bucket, key, v1) == {}
@@ -305,7 +326,9 @@ class TaggingMixin(BaseTest):
         with pytest.raises(self.s3_client.exceptions.NoSuchKey):
             update_object_tagging(self.s3_client, self.bucket, key, {"k": "v"})
         with pytest.raises(self.s3_client.exceptions.NoSuchBucket):
-            update_object_tagging(self.s3_client, random_bucket_name(), "file.txt", {"k": "v"})
+            update_object_tagging(
+                self.s3_client, random_bucket_name(), "file.txt", {"k": "v"}
+            )
 
     def test_object_delete_marker(self):
         """
@@ -327,7 +350,9 @@ class TaggingMixin(BaseTest):
             update_object_tagging(self.s3_client, bucket, key, {"k": "v"})
         assert error_code(exc_info) == expected_latest
         with pytest.raises(botocore.exceptions.ClientError) as exc_info:
-            update_object_tagging(self.s3_client, bucket, key, {"k": "v"}, version_id=v_marker)
+            update_object_tagging(
+                self.s3_client, bucket, key, {"k": "v"}, version_id=v_marker
+            )
         assert error_code(exc_info) == expected_version
 
     @pytest.mark.parametrize("failing_call", ["get", "put"])
@@ -337,10 +362,14 @@ class TaggingMixin(BaseTest):
         """
         s3_client, stubber = self.stub()
         if failing_call == "get":
-            stubber.add_client_error("get_object_tagging", "AccessDenied", http_status_code=403)
+            stubber.add_client_error(
+                "get_object_tagging", "AccessDenied", http_status_code=403
+            )
         else:
             stubber.add_response("get_object_tagging", {"TagSet": []})
-            stubber.add_client_error("put_object_tagging", "AccessDenied", http_status_code=403)
+            stubber.add_client_error(
+                "put_object_tagging", "AccessDenied", http_status_code=403
+            )
         with stubber:
             with pytest.raises(botocore.exceptions.ClientError) as exc_info:
                 update_object_tagging(s3_client, "my-bucket", "file.txt", {"k": "v"})

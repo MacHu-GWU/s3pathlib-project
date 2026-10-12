@@ -460,9 +460,9 @@ class BucketMixin(BaseTest):
         s3bucket = {p.bucket: p for p in s3bucket_list}[tmp_bucket]
 
         res = self.s3_client.list_buckets()
-        creation_date = {
-            dct["Name"]: dct["CreationDate"] for dct in res["Buckets"]
-        }[tmp_bucket]
+        creation_date = {dct["Name"]: dct["CreationDate"] for dct in res["Buckets"]}[
+            tmp_bucket
+        ]
         assert s3bucket.last_modified_at == creation_date
         if self.use_mock:
             assert "BucketRegion" not in s3bucket.response

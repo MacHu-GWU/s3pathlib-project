@@ -352,8 +352,8 @@ class MockAwsMixin(BaseTest):
     @mock_only("drives inner test classes by hand against moto")
     def test_teardown_runs_before_moto_stops(self):
         """
-        ``custom_teardown_class`` still talks to moto; in 2.x it ran after moto
-        stopped, so its calls went to real AWS.
+        ``custom_teardown_class`` still talks to moto: if it ran after moto
+        stopped, its calls would go to real AWS.
         """
         n_mock_before = MockAWS._nested_count
         seen = dict()
@@ -453,7 +453,7 @@ class TestRealAws(MockAwsMixin):
 # ------------------------------------------------------------------------------
 # 4. Which tests run, for each value of S3PATHLIB_TEST_REAL_AWS
 # ------------------------------------------------------------------------------
-GENERATED_TEST_FILE = '''
+GENERATED_TEST_FILE = """
 from s3pathlib.tests.mock_aws import BaseTest
 from s3pathlib.tests.mock_aws import mock_only
 from s3pathlib.tests.mock_aws import real_aws_only
@@ -480,7 +480,7 @@ class TestMock(Mixin):
 
 class TestRealAws(Mixin):
     use_mock = False
-'''
+"""
 
 
 def run_generated_tests(tmp_path, env_value: str | None) -> dict[str, str]:

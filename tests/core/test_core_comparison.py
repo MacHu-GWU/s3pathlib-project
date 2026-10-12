@@ -54,7 +54,9 @@ class ComparisonAPIMixin(BaseTest):
         [
             pytest.param(FILE, S3Path("bucket/file.txt"), id="file-string"),
             pytest.param(FILE, S3Path.from_s3_uri("s3://bucket/file.txt"), id="uri"),
-            pytest.param(FILE, S3Path.from_s3_arn("arn:aws:s3:::bucket/file.txt"), id="arn"),
+            pytest.param(
+                FILE, S3Path.from_s3_arn("arn:aws:s3:::bucket/file.txt"), id="arn"
+            ),
             pytest.param(DIRECTORY, S3Path("s3://bucket/folder/"), id="dir-uri"),
             pytest.param(BUCKET, S3Path("bucket", ""), id="bucket"),
             pytest.param(RELPATH_FILE, FILE.relative_to(BUCKET), id="relpath-file"),

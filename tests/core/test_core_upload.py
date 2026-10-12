@@ -39,7 +39,7 @@ class UploadMixin(BaseTest):
 
     def keys(self, s3dir: S3Path) -> list[str]:
         res = self.s3_client.list_objects_v2(Bucket=s3dir.bucket, Prefix=s3dir.key)
-        return sorted(dct["Key"][len(s3dir.key):] for dct in res.get("Contents", []))
+        return sorted(dct["Key"][len(s3dir.key) :] for dct in res.get("Contents", []))
 
     @pytest.fixture
     def local_file(self, tmp_path) -> pathlib.Path:
@@ -190,7 +190,9 @@ class UploadMixin(BaseTest):
         (tmp_path / "a.txt").write_text("a")
         (tmp_path / "b.txt").write_text("b")
         s3dir = self.s3dir_test / "folder/"
-        self.s3_client.put_object(Bucket=s3dir.bucket, Key=s3dir.key + "b.txt", Body=b"old")
+        self.s3_client.put_object(
+            Bucket=s3dir.bucket, Key=s3dir.key + "b.txt", Body=b"old"
+        )
         with pytest.raises(S3FileAlreadyExist):
             s3dir.upload_dir(tmp_path)
         assert self.keys(s3dir) == ["b.txt"]
@@ -209,8 +211,12 @@ class UploadMixin(BaseTest):
                 "is a relative path",
                 id="relpath",
             ),
-            pytest.param(S3Path("bucket", "a/"), S3PathIsNotFileError, "is not a file", id="dir"),
-            pytest.param(S3Path("bucket"), S3PathIsNotFileError, "is not a file", id="bucket"),
+            pytest.param(
+                S3Path("bucket", "a/"), S3PathIsNotFileError, "is not a file", id="dir"
+            ),
+            pytest.param(
+                S3Path("bucket"), S3PathIsNotFileError, "is not a file", id="bucket"
+            ),
         ],
     )
     def test_upload_file_not_a_file(self, p, error, match, local_file):
@@ -233,7 +239,12 @@ class UploadMixin(BaseTest):
                 "is a relative path",
                 id="relpath",
             ),
-            pytest.param(S3Path("bucket", "a.txt"), S3PathIsNotFolderError, "is not a dir", id="file"),
+            pytest.param(
+                S3Path("bucket", "a.txt"),
+                S3PathIsNotFolderError,
+                "is not a dir",
+                id="file",
+            ),
         ],
     )
     def test_upload_dir_not_a_folder(self, p, error, match, tmp_path):

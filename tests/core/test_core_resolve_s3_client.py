@@ -77,7 +77,9 @@ class ResolveS3ClientMixin(BaseTest):
             value = self.boto_ses.client("sts")
         else:
             value = "s3"
-        with pytest.raises(TypeError, match="s3_client must be a boto3 S3 client.*bsm.s3_client"):
+        with pytest.raises(
+            TypeError, match="s3_client must be a boto3 S3 client.*bsm.s3_client"
+        ):
             resolve_s3_client(s3_context, value)
 
     # --------------------------------------------------------------------------
@@ -171,7 +173,9 @@ class ResolveS3ClientMixin(BaseTest):
         local_file = tmp_path / "file.txt"
         local_file.write_bytes(b"hello")
         s3_client = self.boto_ses.client("s3")
-        new = (self.s3dir_test / "file.txt").upload_file(local_file, s3_client=s3_client)
+        new = (self.s3dir_test / "file.txt").upload_file(
+            local_file, s3_client=s3_client
+        )
         with record_api_calls(s3_context.s3_client) as default_calls:
             with record_api_calls(s3_client) as explicit_calls:
                 assert new.size == 5

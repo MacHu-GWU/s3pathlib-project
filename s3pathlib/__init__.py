@@ -14,7 +14,7 @@ from ._version import __author_email__
 from ._version import __maintainer__
 from ._version import __maintainer_email__
 
-# The names that ``from s3pathlib import ...`` gave in 2.x. They moved to
+# The names that used to be importable from the top level. They moved to
 # ``s3pathlib.api`` in 3.0.0; asking for one raises an ImportError that says
 # where it is. Remove this in 4.0.0.
 _MOVED_TO_API = (

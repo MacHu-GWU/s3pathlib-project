@@ -40,7 +40,9 @@ KEY_1025_BYTES = "中" * 341 + "ab"
         pytest.param("999.1.1.1", id="ip-like-out-of-range"),
         pytest.param("1.2.3.4.5", id="ip-like-5-parts"),
         pytest.param("www.example.com.data", id="four-labels-not-numeric"),
-        pytest.param("my-bucket-111122223333-us-west-2-an", id="account-regional-namespace"),
+        pytest.param(
+            "my-bucket-111122223333-us-west-2-an", id="account-regional-namespace"
+        ),
     ],
 )
 def test_validate_s3_bucket_valid(bucket):
@@ -67,12 +69,28 @@ def test_validate_s3_bucket_valid(bucket):
         pytest.param("192.168.5.4", "IP address", id="ip-address"),
         pytest.param("xn--my-bucket", "prefix 'xn--'", id="prefix-xn"),
         pytest.param("sthree-my-bucket", "prefix 'sthree-'", id="prefix-sthree"),
-        pytest.param("amzn-s3-demo-bucket", "prefix 'amzn-s3-demo-'", id="prefix-amzn-s3-demo"),
-        pytest.param("my-ap-hrzrlukc5m36ft7okagglf3gmwlu-s3alias", "suffix '-s3alias'", id="suffix-access-point-alias"),
-        pytest.param("my-olap-abcdefgh--ol-s3", "suffix '--ol-s3'", id="suffix-object-lambda"),
-        pytest.param("mfzwi23gnjvgw.mrap", "suffix '.mrap'", id="suffix-multi-region-access-point"),
-        pytest.param("mybucket--usw2-az1--x-s3", "suffix '--x-s3'", id="suffix-directory-bucket"),
-        pytest.param("my-table-bucket--table-s3", "suffix '--table-s3'", id="suffix-table-bucket"),
+        pytest.param(
+            "amzn-s3-demo-bucket", "prefix 'amzn-s3-demo-'", id="prefix-amzn-s3-demo"
+        ),
+        pytest.param(
+            "my-ap-hrzrlukc5m36ft7okagglf3gmwlu-s3alias",
+            "suffix '-s3alias'",
+            id="suffix-access-point-alias",
+        ),
+        pytest.param(
+            "my-olap-abcdefgh--ol-s3", "suffix '--ol-s3'", id="suffix-object-lambda"
+        ),
+        pytest.param(
+            "mfzwi23gnjvgw.mrap",
+            "suffix '.mrap'",
+            id="suffix-multi-region-access-point",
+        ),
+        pytest.param(
+            "mybucket--usw2-az1--x-s3", "suffix '--x-s3'", id="suffix-directory-bucket"
+        ),
+        pytest.param(
+            "my-table-bucket--table-s3", "suffix '--table-s3'", id="suffix-table-bucket"
+        ),
     ],
 )
 def test_validate_s3_bucket_invalid(bucket, message):
@@ -139,7 +157,7 @@ def test_validate_s3_bucket_ip_check_without_assert():
         pytest.param("folder/file.txt", id="file"),
         pytest.param("folder/", id="folder"),
         pytest.param("数据/报表.csv", id="non-ascii"),
-        pytest.param("a~b%c#d{e}f^g[h]i`j|k\\l<m>n\"o", id="avoid-but-legal-chars"),
+        pytest.param('a~b%c#d{e}f^g[h]i`j|k\\l<m>n"o', id="avoid-but-legal-chars"),
         pytest.param("a" * 1024, id="max-1024-ascii-bytes"),
         pytest.param(KEY_1024_BYTES, id="max-1024-utf8-bytes"),
     ],
@@ -205,10 +223,14 @@ def test_validate_s3_uri_valid(uri):
     [
         pytest.param("my-bucket/key", "must start with 's3://'", id="no-scheme"),
         pytest.param("s3:/my-bucket/key", "must start with 's3://'", id="bad-scheme"),
-        pytest.param("https://my-bucket/key", "must start with 's3://'", id="other-scheme"),
+        pytest.param(
+            "https://my-bucket/key", "must start with 's3://'", id="other-scheme"
+        ),
         pytest.param("s3://", "bucket is empty", id="empty-bucket"),
         pytest.param("s3://My_Bucket/key", "invalid char found", id="bad-bucket"),
-        pytest.param("s3://my-bucket/" + "a" * 1025, "at most 1024 bytes", id="bad-key"),
+        pytest.param(
+            "s3://my-bucket/" + "a" * 1025, "at most 1024 bytes", id="bad-key"
+        ),
     ],
 )
 def test_validate_s3_uri_invalid(uri, message):
@@ -233,8 +255,12 @@ def test_validate_s3_uri_invalid(uri, message):
         pytest.param("arn:aws:s3:::my-bucket/folder/file.txt", id="file"),
         pytest.param("arn:aws:s3:::my-bucket/数据.csv", id="non-ascii-key"),
         pytest.param("arn:aws-cn:s3:::my-bucket/folder/file.txt", id="china-partition"),
-        pytest.param("arn:aws-us-gov:s3:::my-bucket/folder/file.txt", id="us-gov-partition"),
-        pytest.param("arn:aws-eusc:s3:::my-bucket/folder/file.txt", id="eusc-partition"),
+        pytest.param(
+            "arn:aws-us-gov:s3:::my-bucket/folder/file.txt", id="us-gov-partition"
+        ),
+        pytest.param(
+            "arn:aws-eusc:s3:::my-bucket/folder/file.txt", id="eusc-partition"
+        ),
     ],
 )
 def test_validate_s3_arn_valid(arn):
@@ -250,11 +276,19 @@ def test_validate_s3_arn_valid(arn):
     [
         pytest.param("my-bucket/key", "partition is one of", id="no-prefix"),
         pytest.param("s3://my-bucket", "partition is one of", id="uri-not-arn"),
-        pytest.param("arn:aws-iso:s3:::my-bucket", "partition is one of", id="unsupported-partition"),
-        pytest.param("arn:aws:iam::my-bucket", "partition is one of", id="not-s3-service"),
+        pytest.param(
+            "arn:aws-iso:s3:::my-bucket",
+            "partition is one of",
+            id="unsupported-partition",
+        ),
+        pytest.param(
+            "arn:aws:iam::my-bucket", "partition is one of", id="not-s3-service"
+        ),
         pytest.param("arn:aws:s3:::", "bucket is empty", id="empty-bucket"),
         pytest.param("arn:aws:s3:::b", "between 3 and 63", id="bad-bucket"),
-        pytest.param("arn:aws:s3:::my-bucket/" + "a" * 1025, "at most 1024 bytes", id="bad-key"),
+        pytest.param(
+            "arn:aws:s3:::my-bucket/" + "a" * 1025, "at most 1024 bytes", id="bad-key"
+        ),
     ],
 )
 def test_validate_s3_arn_invalid(arn, message):
