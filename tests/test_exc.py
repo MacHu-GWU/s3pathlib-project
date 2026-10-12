@@ -72,10 +72,10 @@ def test_exception_hierarchy(exc_class, parents):
         (S3BucketNotExist, "S3 bucket 's3://b/k' does not exist!"),
         (S3FolderNotExist, "S3 folder 's3://b/k' does not exist!"),
         (S3FileNotExist, "S3 object 's3://b/k' does not exist!"),
-        (S3AlreadyExist, "'s3://b/k' already exist!"),
-        (S3BucketAlreadyExist, "S3 bucket 's3://b/k' already exist!"),
-        (S3FolderAlreadyExist, "S3 folder 's3://b/k' already exist!"),
-        (S3FileAlreadyExist, "S3 object 's3://b/k' already exist!"),
+        (S3AlreadyExist, "'s3://b/k' already exists!"),
+        (S3BucketAlreadyExist, "S3 bucket 's3://b/k' already exists!"),
+        (S3FolderAlreadyExist, "S3 folder 's3://b/k' already exists!"),
+        (S3FileAlreadyExist, "S3 object 's3://b/k' already exists!"),
     ],
 )
 def test_uri_error_make(exc_class, message):

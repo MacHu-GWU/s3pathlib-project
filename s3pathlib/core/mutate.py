@@ -54,8 +54,8 @@ class MutateAPIMixin:
         as an example:
 
         - bucket: ``bucket``
-        - abspath (the whole key): ``folder/subfolder/file.txt``
-        - dirpath (the key of the parent dir): ``folder/subfolder/``
+        - abspath (the whole key): ``/folder/subfolder/file.txt``
+        - dirpath (the parent dir): ``/folder/subfolder/``
         - dirname (the name of the parent dir): ``subfolder``
         - basename (the last part): ``file.txt``
         - fname (basename without extension): ``file``
@@ -87,9 +87,11 @@ class MutateAPIMixin:
 
         :param new_bucket: the new bucket name.
         :param new_abspath: the new key, e.g. ``"folder/file.txt"``; a trailing
-            ``/`` makes it a dir.
-        :param new_dirpath: the new key of the parent dir, e.g.
-            ``"folder/subfolder/"``; ``""`` moves it to the bucket root.
+            ``/`` makes it a dir. A leading ``/`` is optional, so the
+            :attr:`abspath` of another path works as it is.
+        :param new_dirpath: the new parent dir, e.g. ``"folder/subfolder/"``;
+            ``""`` (or ``"/"``) moves it to the bucket root. A leading ``/`` is
+            optional, so the :attr:`dirpath` of another path works as it is.
         :param new_dirname: the new name of the parent dir.
         :param new_basename: the new last part, e.g. ``"data.json"``, or
             ``"data/"`` for a dir. It can not be empty.
@@ -138,7 +140,7 @@ class MutateAPIMixin:
         elif new_dirname is not None:
             if len(self._parts) < 2:
                 raise ValueError(
-                    f"{self!r} has no parent dir to rename, "
+                    f"{self._error_label()} has no parent dir to rename, "
                     "use new_dirpath to put it in a dir"
                 )
             dir_parts = list(self._parts[:-2]) + [new_dirname]
@@ -155,7 +157,7 @@ class MutateAPIMixin:
         elif (new_fname is not None) or (new_ext is not None):
             if self.is_file() is False:
                 raise ValueError(
-                    f"new_fname and new_ext only work on a file, {self!r} is not a file"
+                    f"new_fname and new_ext only work on a file, {self._error_label()} is not a file"
                 )
             if new_fname is None:
                 new_fname = self.fname
@@ -205,7 +207,7 @@ class MutateAPIMixin:
             )
         else:
             raise ValueError(
-                f"{self!r} is neither a file nor a dir, "
+                f"{self._error_label()} is neither a file nor a dir, "
                 "it can not be converted to a dir"
             )
 
@@ -227,7 +229,7 @@ class MutateAPIMixin:
             return self.copy()
         elif self.is_bucket():
             raise exc.S3PathIsNotFileError(
-                f"{self.uri!r} is a bucket root, it can not be converted to a file!"
+                f"{self._error_label()} is a bucket root, it can not be converted to a file!"
             )
         elif self.is_dir():
             return self._from_parsed_parts(
@@ -237,6 +239,6 @@ class MutateAPIMixin:
             )
         else:
             raise ValueError(
-                f"{self!r} is neither a file nor a dir, "
+                f"{self._error_label()} is neither a file nor a dir, "
                 "it can not be converted to a file"
             )

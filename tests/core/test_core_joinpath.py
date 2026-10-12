@@ -189,6 +189,15 @@ class JoinPathAPIMixin(BaseTest):
         with pytest.warns(DeprecationWarning, match=FILE_WARNING):
             assert make().uri == uri
 
+    def test_join_onto_file_warning_shows_uri(self):
+        """
+        The warning shows the file as its URI, like the errors of s3pathlib.
+        """
+        with pytest.warns(
+            DeprecationWarning, match="^'s3://bucket/folder/file.txt' is a file"
+        ):
+            FILE / "x"
+
     @pytest.mark.parametrize(
         "make",
         [

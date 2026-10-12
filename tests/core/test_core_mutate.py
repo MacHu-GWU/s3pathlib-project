@@ -80,6 +80,14 @@ class MutateAPIMixin(BaseTest):
                 dict(new_dirpath="x/y"), "s3://bkt/x/y/c.jpg", id="dirpath-no-slash"
             ),
             pytest.param(dict(new_dirpath=""), "s3://bkt/c.jpg", id="dirpath-root"),
+            pytest.param(
+                dict(new_dirpath="/"), "s3://bkt/c.jpg", id="dirpath-root-slash"
+            ),
+            pytest.param(
+                dict(new_dirpath="/x/y/"),
+                "s3://bkt/x/y/c.jpg",
+                id="dirpath-leading-slash",
+            ),
             pytest.param(dict(new_dirname="d"), "s3://bkt/a/d/c.jpg", id="dirname"),
             pytest.param(
                 dict(new_dirname="d/"), "s3://bkt/a/d/c.jpg", id="dirname-slash"
@@ -101,6 +109,11 @@ class MutateAPIMixin(BaseTest):
                 dict(new_bucket="x", new_abspath="y.txt"),
                 "s3://x/y.txt",
                 id="bucket-abspath",
+            ),
+            pytest.param(
+                dict(new_bucket="x", new_abspath="/y.txt"),
+                "s3://x/y.txt",
+                id="bucket-abspath-leading-slash",
             ),
             pytest.param(
                 dict(new_dirname="d", new_ext=".png"),
@@ -452,6 +465,50 @@ class MutateAPIMixin(BaseTest):
             BUCKET.to_file()
         with pytest.raises(TypeError):  # S3PathIsNotFileError is a TypeError
             BUCKET.to_file()
+
+    def test_change_takes_abspath_and_dirpath_of_another_path(self):
+        """
+        ``abspath`` / ``dirpath`` start with ``/``; ``change`` takes them as
+        they are, as its docstring says.
+        """
+        other = S3Path("x", "p", "q", "r.txt")
+        assert FILE.change(new_dirpath=other.dirpath) == S3Path(
+            "bkt", "p", "q", "c.jpg"
+        )
+        assert FILE.change(new_bucket="x", new_abspath=other.abspath) == other
+
+    @pytest.mark.parametrize(
+        "call, message",
+        [
+            pytest.param(
+                lambda: DIRECTORY.change(new_fname="x"),
+                "only work on a file, 's3://bkt/a/b/' is not a file",
+                id="absolute",
+            ),
+            pytest.param(
+                lambda: RELPATH_DIR.change(new_fname="x"),
+                r"only work on a file, S3RelPath\('a/b/'\) is not a file",
+                id="relpath",
+            ),
+            pytest.param(
+                lambda: BUCKET.to_file(),
+                "^'s3://bkt/' is a bucket root",
+                id="bucket",
+            ),
+            pytest.param(
+                lambda: VOID.to_dir(),
+                r"^S3VoidPath\(\) is neither a file nor a dir",
+                id="void",
+            ),
+        ],
+    )
+    def test_error_shows_path_label(self, call, message):
+        """
+        Errors show an absolute path as its URI and a relative path as its
+        repr, like every other error of s3pathlib.
+        """
+        with pytest.raises((ValueError, TypeError), match=message):
+            call()
 
 
 class TestMock(MutateAPIMixin):

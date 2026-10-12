@@ -15,6 +15,8 @@ python = "3.12"
 uv = "latest"
 claude = "latest"
 pandoc = "3.9" # Use pandoc 3.9 - latest stable major version as of 2026-04
+# cloc is not in the mise registry: take the Perl script of the GitHub release (macOS / Linux ship perl)
+"github:AlDanial/cloc" = { version = "2.10", asset_pattern = "cloc-*.pl", bin = "cloc" }
 
 # === Tasks ===
 # Python Environment Management
@@ -75,10 +77,20 @@ rm -rf docs/build
 description = "👀📚 Open built Sphinx documentation in browser (requires 'build-doc' task to run first)"
 run = "open docs/build/html/index.html"
 
+[tasks.docs-run]
+description = "📓☁️ Execute the doc notebooks against real AWS and hide the account id (pass -- <notebook> to run only some)"
+run = ".venv/bin/python .mise/tasks/docs-run.py"
+depends = ["inst"]
+
 [tasks.notebook-to-markdown]
 description = "📓 Convert Jupyter notebooks to Markdown for AI knowledge base (processes .ipynb files)"
 run = ".venv/bin/python .mise/tasks/notebook-to-markdown.py"
 depends = ["inst"]
+
+# Code Statistics
+[tasks.count-code]
+description = "🔢 Count lines of source and test code using cloc"
+run = ".venv/bin/python .mise/tasks/count-code.py"
 
 # Building & Publishing & Release
 [tasks.build]

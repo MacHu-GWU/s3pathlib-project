@@ -89,16 +89,18 @@ class RelativePathAPIMixin:
         if self._bucket != other._bucket:
             if (self._bucket is None) or (other._bucket is None):
                 raise ValueError(
-                    f"{self!r} and {other!r}: both have to be absolute paths, "
+                    f"{self._error_label()} and {other._error_label()}: both have to be absolute paths, "
                     "or both relative paths"
                 )
             raise ValueError(
-                f"{self!r} is not under {other!r}: they are in different buckets"
+                f"{self._error_label()} is not under {other._error_label()}: they are in different buckets"
             )
 
         n = len(other._parts)
         if self._parts[:n] != other._parts:
-            raise ValueError(f"{self!r} is not under {other!r}")
+            raise ValueError(
+                f"{self._error_label()} is not under {other._error_label()}"
+            )
 
         rel_parts = self._parts[n:]
         if len(rel_parts) == 0:
@@ -106,7 +108,7 @@ class RelativePathAPIMixin:
             # because ``other / void`` is ``other`` itself
             if self._is_dir != other._is_dir:
                 raise ValueError(
-                    f"{self!r} is not under {other!r}: they have the same parts, "
+                    f"{self._error_label()} is not under {other._error_label()}: they have the same parts, "
                     "but one is a file and the other is a dir, no relative path "
                     "leads from one to the other"
                 )
@@ -116,7 +118,7 @@ class RelativePathAPIMixin:
 
         if other.is_file():
             warnings.warn(
-                f"{other!r} is a file. Using a file as the base of relative_to "
+                f"{other._error_label()} is a file. Using a file as the base of relative_to "
                 "is deprecated since 3.0.0, and will raise "
                 "S3PathIsNotFolderError in 4.0.0. Use a dir instead, "
                 "e.g. end it with '/' or call .to_dir().",
@@ -162,5 +164,5 @@ class RelativePathAPIMixin:
         """
         if self.is_relpath() is True:
             raise S3PathTypeError(
-                f"{self!r} is a relative path, an absolute path is required!"
+                f"{self._error_label()} is a relative path, an absolute path is required!"
             )

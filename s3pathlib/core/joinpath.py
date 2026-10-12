@@ -70,7 +70,7 @@ class JoinPathAPIMixin:
         # joining nothing (e.g. "" or void) onto a file is fine, it is the file
         if self.is_file() and (result != self):
             warnings.warn(
-                f"{self!r} is a file. Joining onto a file is deprecated since "
+                f"{self._error_label()} is a file. Joining onto a file is deprecated since "
                 "3.0.0, and will raise S3PathIsNotFolderError in 4.0.0. Join "
                 "onto a dir instead: end the folder with '/' "
                 '(e.g. ... / "folder/" / "file.txt"), call .to_dir() first, '

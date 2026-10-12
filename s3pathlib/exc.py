@@ -81,19 +81,19 @@ class S3FileNotExist(S3NotExist):
 
 
 class S3AlreadyExist(S3PathlibError, FileExistsError, _UriRelatedError):
-    _tpl = "{uri!r} already exist!"
+    _tpl = "{uri!r} already exists!"
 
 
 class S3BucketAlreadyExist(S3AlreadyExist):
-    _tpl = "S3 bucket {uri!r} already exist!"
+    _tpl = "S3 bucket {uri!r} already exists!"
 
 
 class S3FolderAlreadyExist(S3AlreadyExist):
-    _tpl = "S3 folder {uri!r} already exist!"
+    _tpl = "S3 folder {uri!r} already exists!"
 
 
 class S3FileAlreadyExist(S3AlreadyExist):
-    _tpl = "S3 object {uri!r} already exist!"
+    _tpl = "S3 object {uri!r} already exists!"
 
 
 class S3PermissionDenied(S3PathlibError, PermissionError):

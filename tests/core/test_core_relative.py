@@ -295,6 +295,41 @@ class RelativePathAPIMixin(BaseTest):
         with pytest.raises(error, match=message):
             target.relative_to(base)
 
+    @pytest.mark.parametrize(
+        "call, message",
+        [
+            pytest.param(
+                lambda: S3Path("bucket", "a").relative_to(S3Path("bucket", "b/")),
+                "^'s3://bucket/a' is not under 's3://bucket/b/'$",
+                id="absolute",
+            ),
+            pytest.param(
+                lambda: S3Path("bucket", "a").relative_to(R("a/")),
+                r"^'s3://bucket/a' and S3RelPath\('a/'\): both have to be",
+                id="mixed",
+            ),
+            pytest.param(
+                lambda: R("x").ensure_not_relpath(),
+                r"^S3RelPath\('x'\) is a relative path",
+                id="ensure-not-relpath",
+            ),
+        ],
+    )
+    def test_error_shows_path_label(self, call, message):
+        """
+        Errors show an absolute path as its URI and a relative path as its
+        repr, like every other error of s3pathlib.
+        """
+        with pytest.raises((ValueError, TypeError), match=message):
+            call()
+
+    def test_file_base_warning_shows_uri(self):
+        """
+        The deprecation warning of a file base shows its URI.
+        """
+        with pytest.warns(DeprecationWarning, match="^'s3://bucket/a' is a file"):
+            S3Path("bucket", "a", "b").relative_to(S3Path("bucket", "a"))
+
     # --------------------------------------------------------------------------
     # 3. -
     # --------------------------------------------------------------------------

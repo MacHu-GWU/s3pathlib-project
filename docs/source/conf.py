@@ -209,6 +209,10 @@ intersphinx_mapping = {
 
 autodoc_member_order = "bysource"
 
+# The notebooks run against real AWS (mise run docs-run) and their outputs are
+# committed; Read the Docs has no credentials, so never execute them here.
+nbsphinx_execute = "never"
+
 # Enable custom css
 custom_style_file_path = os.path.join(
     os.path.dirname(__file__), "_static", ".custom-style.rst"
@@ -243,6 +247,7 @@ docfly.ApiDocGenerator(
         f"{package_name}.vendor",
         # Module
         f"{package_name}._version",
+        f"{package_name}._arg",
         f"{package_name}.paths",
     ],
 ).fly()
