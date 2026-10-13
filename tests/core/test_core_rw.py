@@ -545,7 +545,7 @@ class ReadAndWriteMixin(BaseTest):
             pytest.param(
                 S3Path.make_relpath("a.txt"), "is a relative path", id="relpath"
             ),
-            pytest.param(S3Path("bucket"), "is a bucket", id="bucket"),
+            pytest.param(S3Path("bucket"), "is a bucket, not an object", id="bucket"),
         ],
     )
     def test_read_write_not_an_object(self, method, args, p, match):

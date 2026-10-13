@@ -159,7 +159,7 @@ class UriAPIMixin:
     @FilterableProperty
     def arn(self: S3Path) -> str | None:
         """
-        Return the `ARN <https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html>`_
+        Return the `ARN <https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html>`_
         in the ``aws`` partition; use :meth:`get_arn` for the other partitions.
 
         Example::

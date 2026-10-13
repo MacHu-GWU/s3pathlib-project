@@ -164,8 +164,12 @@ class MetadataMixin(BaseTest):
         self.put(self.s3dir_test / "file.txt", b"abc")
         p = self.s3dir_test.iter_objects().one()
         self.put(p, b"hello")
-        with pytest.raises(S3ObjectChangedError, match="changed since its metadata"):
+        with pytest.raises(
+            S3ObjectChangedError, match="changed since its metadata"
+        ) as e:
             _ = p.metadata
+        # the ETag as the etag property shows it, without quotes
+        assert f"(ETag {hashlib.md5(b'abc').hexdigest()})" in str(e.value)
         assert p.size == 3
 
     def test_version_snapshot_stays_on_its_version(self):

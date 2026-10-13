@@ -21,7 +21,7 @@ a ``range`` or ``part_number`` argument would never have an effect. To read
 part of an object use ``read_bytes(range=...)`` or
 ``read_bytes(part_number=...)``, or ``f.seek(offset)`` then ``f.read(n)``.
 
-.. _smart_open: https://github.com/RaRe-Technologies/smart_open
+.. _smart_open: https://github.com/piskvorky/smart_open
 .. _get_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object.html
 .. _put_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html
 .. _create_multipart_upload: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/create_multipart_upload.html

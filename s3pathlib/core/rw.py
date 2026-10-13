@@ -30,8 +30,8 @@ no extra call, and this ``S3Path`` keeps describing what it described.
 
 .. _get_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object.html
 .. _put_object: https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html
-.. _decode: https://docs.python.org/3/library/stdtypes.html#bytes.decode
-.. _encode: https://docs.python.org/3/library/stdtypes.html#str.encode
+.. _decode: https://docs.python.org/3/builtins/stdtypes.html#bytes.decode
+.. _encode: https://docs.python.org/3/builtins/stdtypes.html#str.encode
 """
 
 from __future__ import annotations

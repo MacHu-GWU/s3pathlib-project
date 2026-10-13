@@ -166,7 +166,7 @@ class MetadataAPIMixin:
         self.ensure_not_relpath()
         if self.is_bucket():
             raise exc.S3PathTypeError(
-                f"{self._error_label()} is a bucket, it has no object metadata!"
+                f"{self._error_label()} is a bucket, not an object!"
             )
 
     def head_object(
@@ -250,10 +250,12 @@ class MetadataAPIMixin:
                 )
             except botocore.exceptions.ClientError as e:
                 if e.response["Error"]["Code"] == "412":
+                    # the ETag without quotes, as the etag property shows it
+                    etag = self._meta["ETag"][1:-1]
                     raise exc.S3ObjectChangedError(
                         f"S3 object {self.uri!r} changed since its metadata "
-                        f"was loaded (ETag {self._meta['ETag']}), get a new "
-                        f"S3Path to read the new object"
+                        f"was loaded (ETag {etag}), get a new S3Path to read "
+                        f"the new object"
                     ) from e
                 else:
                     raise
