@@ -105,6 +105,11 @@ Talk to S3. ``s3pathlib`` uses the default boto3 client unless you attach your o
         json.dump({"name": "alice"}, f)
 
 
+Using s3pathlib with an AI Coding Agent
+------------------------------------------------------------------------------
+The `pypi-s3pathlib <https://github.com/MacHu-GWU/s3pathlib-project/tree/main/.claude/skills/pypi-s3pathlib>`_ folder is a self-contained `Claude Code skill <https://code.claude.com/docs/en/skills>`_ that teaches an AI agent the public API of s3pathlib 3.x. Copy it into the ``.claude/skills/`` folder of your project, and the agent loads it whenever it works with s3pathlib, so it writes code with the current API instead of guessing from older versions.
+
+
 Upgrading from 2.x
 ------------------------------------------------------------------------------
 3.0.0 is a breaking release; import everything from ``s3pathlib.api``. See the `release history <https://github.com/MacHu-GWU/s3pathlib-project/blob/main/release-history.rst>`_ and the "Upgrade from 2.x" chapter of the `guide <https://s3pathlib.readthedocs.io/en/latest/#comprehensive-guide>`_.
