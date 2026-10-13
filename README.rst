@@ -9,16 +9,16 @@
     :target: https://codecov.io/gh/MacHu-GWU/s3pathlib-project
 
 .. image:: https://img.shields.io/pypi/v/s3pathlib.svg
-    :target: https://pypi.python.org/pypi/s3pathlib
+    :target: https://pypi.org/project/s3pathlib/
 
 .. image:: https://img.shields.io/pypi/l/s3pathlib.svg
-    :target: https://pypi.python.org/pypi/s3pathlib
+    :target: https://pypi.org/project/s3pathlib/
 
 .. image:: https://img.shields.io/pypi/pyversions/s3pathlib.svg
-    :target: https://pypi.python.org/pypi/s3pathlib
+    :target: https://pypi.org/project/s3pathlib/
 
 .. image:: https://img.shields.io/pypi/dm/s3pathlib.svg
-    :target: https://pypi.python.org/pypi/s3pathlib
+    :target: https://pypi.org/project/s3pathlib/
 
 .. image:: https://img.shields.io/badge/✍️_Release_History!--None.svg?style=social&logo=github
     :target: https://github.com/MacHu-GWU/s3pathlib-project/blob/main/release-history.rst
@@ -41,12 +41,12 @@
     :target: https://github.com/MacHu-GWU/s3pathlib-project/issues
 
 .. image:: https://img.shields.io/badge/Link-Download-blue.svg
-    :target: https://pypi.org/pypi/s3pathlib#files
+    :target: https://pypi.org/project/s3pathlib/
 
 
 Welcome to ``s3pathlib`` Documentation
 ==============================================================================
-`s3pathlib <https://s3pathlib.readthedocs.io/en/latest/>`_ is a Python SDK on top of `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ that works with Amazon S3 the way the standard library `pathlib <https://docs.python.org/3/library/pathlib.html>`_ works with local files: build paths, read and write objects, list and filter folders, copy, move and delete them, with or without versioning.
+`s3pathlib <https://s3pathlib.readthedocs.io/en/latest/>`_ is a Python SDK on top of `boto3 <https://docs.aws.amazon.com/boto3/latest/>`_ that works with Amazon S3 the way the standard library `pathlib <https://docs.python.org/3/library/pathlib.html>`_ works with local files: build paths, read and write objects, list and filter folders, copy, move and delete them, with or without versioning.
 
 The full guide and the API reference are on `Read the Docs <https://s3pathlib.readthedocs.io/en/latest/>`_.
 
