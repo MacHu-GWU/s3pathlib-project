@@ -109,6 +109,8 @@ Upgrading from 2.x
 ------------------------------------------------------------------------------
 3.0.0 is a breaking release; import everything from ``s3pathlib.api``. See the `release history <https://github.com/MacHu-GWU/s3pathlib-project/blob/main/release-history.rst>`_ and the "Upgrade from 2.x" chapter of the `guide <https://s3pathlib.readthedocs.io/en/latest/#comprehensive-guide>`_.
 
+If you use `Claude Code <https://code.claude.com/>`_, copy the `s3pathlib-upgrade-to-3 <https://github.com/MacHu-GWU/s3pathlib-project/tree/main/.claude/skills/s3pathlib-upgrade-to-3>`_ folder into the ``.claude/skills/`` folder of your project and run ``/s3pathlib-upgrade-to-3``: it scans your code and notebooks for 2.x usage, rewrites the renames, and walks you through the behavior changes.
+
 
 Getting Help
 ------------------------------------------------------------------------------
