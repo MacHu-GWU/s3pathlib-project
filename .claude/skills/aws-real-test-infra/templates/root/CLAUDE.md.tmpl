@@ -1,0 +1,27 @@
+<!-- Merge these sections into the project's CLAUDE.md. -->
+
+## Tests
+
+- Tests that call AWS use `BaseTest` from `<package_name>/tests/mock_aws.py` (its module docstring has the full rules). Test logic goes in a mixin; each mode is a one-line subclass: `class TestMock(Mixin): use_mock = True` and `class TestRealAws(Mixin): use_mock = False`. Helpers for recording API calls and building clients are in `<package_name>/tests/aws_helpers.py`.
+- Every test module that uses `BaseTest` has both classes, and both are committed. Mark a test that cannot run in one mode with `@mock_only("reason")` or `@real_aws_only("reason")`; leave out `TestRealAws` only if the whole module cannot run on AWS, with a comment saying why.
+- When tests run:
+  - `TestMock` always runs, against moto.
+  - `TestRealAws` runs only when BOTH (1) the test can run on AWS: the class exists and the test is not `@mock_only`; and (2) the run allows AWS: `<PACKAGE_NAME>_TEST_REAL_AWS=true`. Neither overrides the other. Otherwise the class is skipped with the reason.
+  - `<PACKAGE_NAME>_TEST_REAL_AWS` must be unset, `true` or `false`; any other value is an error. With `true`, missing credentials are an error, not a skip.
+  - `mise run cov` runs moto only; `mise run cov-aws` also runs real AWS (profile `<PACKAGE_NAME>_TEST_AWS_PROFILE` from `mise.toml`, created by `mise run setup-aws-ci`).
+- Each test writes under its own folder `self.prefix_test`; never depend on test order. On real AWS, the class folder is emptied when the class starts. Verify AWS state with native boto3 calls (`self.s3_client`), not with <package_name> itself.
+- Resources a test creates and deletes are named `<package-name>-test-tmp-{uuid}`: the IAM policy of the test user only allows that name.
+- Differences between moto and real AWS that were measured go in a comment next to the test that depends on them.
+
+## Documentation
+
+- The notebooks run against real AWS, in the CI resources, and their outputs are committed: Read the Docs has no credentials, so nbsphinx never executes them (`nbsphinx_execute = "never"`).
+- Credentials only through environment variables (`os.environ["<PACKAGE_NAME>_TEST_AWS_PROFILE"]`); never write a profile name, an account id or a secret in a cell. Resource names contain the account id, so `mise run docs-run` (`.mise/tasks/docs-run.py`) runs the notebooks, replaces the account id with `123456789012` before saving, and fails if the real one is still in any notebook.
+- Every demo writes under its own prefix, `projects/<package_name>/docs/<notebook>/<demo>/`, and a notebook empties its prefixes in its first cells, so a rerun gives the same result.
+- Run with `mise run docs-run` (all notebooks) or `mise run docs-run -- <path/to/index.ipynb>` (only some); do not edit outputs by hand. A failed cell is saved with its error, and the task fails.
+
+## CI
+
+- `.github/workflows/main.yml` runs on every push to `main` / `dev` and by hand. Every job runs the whole suite against moto AND real AWS (`<PACKAGE_NAME>_TEST_REAL_AWS=true`), the CI equivalent of `mise run cov-aws`. It uses uv, not mise, because the `[env]` of `mise.toml` reads local secrets.
+- `.coveragerc` omits `tests/` and the other non-library modules, with patterns that start with `*/` (the tests start subprocesses in other directories).
+- Cost: count the requests one job sends, by price class (PUT / LIST / GET / free), and write the cost per job and per push here. Running real AWS in every job is usually cents; the real risk is a test that loops, so keep the IAM policy of the test user narrow and keep an AWS Budgets alert.

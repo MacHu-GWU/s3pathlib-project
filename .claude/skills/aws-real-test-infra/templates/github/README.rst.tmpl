@@ -1,0 +1,39 @@
+How to test this in CI
+==============================================================================
+The unit tests can run against real AWS (test classes with ``use_mock = False``). They need two S3 buckets, an IAM user that can use them, and the access key of that user in the GitHub Actions secrets. Two idempotent mise tasks manage all of this (code in ``.mise/tasks/aws_ci.py``):
+
+.. code-block:: bash
+
+    # create the buckets and the IAM user, set the GitHub secrets,
+    # and print the local profile to paste into ~/.aws
+    mise run setup-aws-ci
+
+    # the IAM user exists but the GitHub secrets were not set:
+    # delete the user and the secrets, then create them again
+    mise run setup-aws-ci -- --force
+
+    # delete the IAM user and the GitHub secrets (keeps the buckets)
+    mise run teardown-aws-ci
+
+The AWS profiles are defined in the ``[env]`` section of ``mise.toml``:
+
+- ``<PACKAGE_NAME>_DEV_AWS_PROFILE`` (``project_<package_name>_dev``): a powerful profile that can create S3 buckets and IAM users. The tasks run with it. Create it yourself; the tasks print what to paste into ``~/.aws`` when it is missing.
+- ``<PACKAGE_NAME>_TEST_AWS_PROFILE`` (``project_<package_name>_test``): the profile of the test IAM user. ``<package_name>/tests/mock_aws.py`` uses it to run the tests locally against real AWS. ``mise run setup-aws-ci`` prints it after creating the user.
+
+Resources (``${aws_account_id}`` is the account of the dev profile):
+
+- Buckets ``${aws_account_id}-us-east-1-<package-name>-test`` (versioning off) and ``${aws_account_id}-us-east-1-<package-name>-test-versioning-on`` (versioning on).
+- IAM user ``project-<package-name>-test`` with the inline policy ``<package-name>-unit-test``: full access to the two buckets, full access to the temporary buckets ``<package-name>-test-tmp-*`` that tests create, create / delete / inspect any bucket, and ``sts:GetCallerIdentity``.
+- GitHub Actions secrets ``AWS_ACCESS_KEY_ID_FOR_GITHUB_CI`` and ``AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI``, read by ``main.yml``.
+- Bucket lifecycle rule: everything under ``projects/<package_name>/unittest/`` expires after one day.
+
+
+The CI workflow (``main.yml``)
+------------------------------------------------------------------------------
+- Runs on every push to ``main`` and ``dev``, and by hand (``workflow_dispatch``).
+- Matrix: Ubuntu and Windows, each with Python 3.11, 3.12, 3.13 and 3.14 (8 jobs).
+- Every job runs the whole test suite against moto **and** real AWS (``<PACKAGE_NAME>_TEST_REAL_AWS=true``, with the secrets above). Without the secrets the real AWS tests fail; they are never skipped silently.
+- Each workflow run writes to its own S3 folder, ``projects/<package_name>/unittest/ci/${GITHUB_RUN_ID}/...`` (see ``get_root_prefix`` in ``<package_name>/tests/mock_aws.py``), so runs of different pushes can run at the same time; the lifecycle rule deletes the folders.
+- It uses uv only, not mise: the ``[env]`` section of ``mise.toml`` reads local secrets that do not exist on the runners.
+- Tests that run the ``aws`` command use the AWS CLI preinstalled on the GitHub-hosted runners.
+- The Ubuntu jobs upload the coverage to Codecov (secret ``CODECOV_TOKEN``, set by ``mise run setup-codecov``).

@@ -1,0 +1,40 @@
+# The first cells of every documentation notebook
+
+Each notebook `docs/source/NN-Title/index.ipynb` starts with these two cells,
+then the demos. They run against real AWS with the test profile, in the CI
+resources made by `mise run setup-aws-ci`, so a notebook never needs other
+resources or credentials.
+
+## Markdown cell
+
+```markdown
+## Setup
+
+This cell only prepares the notebook: it connects to the S3 bucket that the <package_name> CI uses and empties the folder of this chapter, so every run starts from the same state. In your own code you only need the two lines marked below, with your own AWS profile and bucket.
+```
+
+## Code cell (example: S3; use the library's own client setup)
+
+```python
+import os
+
+import boto3
+
+boto_ses = boto3.Session(profile_name=os.environ["<PACKAGE_NAME>_TEST_AWS_PROFILE"])
+s3_client = boto_ses.client("s3")  # <-- in your code
+aws_account_id = boto_ses.client("sts").get_caller_identity()["Account"]
+bucket = f"{aws_account_id}-{boto_ses.region_name}-<package-name>-test"  # <-- your bucket
+
+# every demo of this chapter writes under this folder; start from empty
+prefix_chapter = "projects/<package_name>/docs/NN-Title/"
+# ... delete everything under prefix_chapter (with the library itself, if it can) ...
+print(f"s3://{bucket}/{prefix_chapter}")
+```
+
+Rules:
+
+- The profile name only comes from the environment variable; never write a
+  profile name, an account id or a secret in a cell.
+- The bucket name contains the account id; `mise run docs-run` replaces it with
+  `123456789012` before saving, and fails if the real one is still there.
+- Each demo writes under `projects/<package_name>/docs/<notebook>/<demo>/`.

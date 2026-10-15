@@ -1,0 +1,572 @@
+# -*- coding: utf-8 -*-
+
+"""
+Test ``<package_name>.tests.mock_aws``, the base class of the tests that call AWS.
+
+Test order:
+
+1. the helper functions: ``is_real_aws_enabled``, ``get_test_dir_name``,
+   ``mock_only`` / ``real_aws_only`` arguments, ``new_real_boto_session``
+   errors, ``delete_s3_prefix``;
+2. what ``BaseTest`` gives a test: attributes, buckets, ``prefix_test``
+   (``TestMock`` and ``TestRealAws``);
+3. the class life cycle, with inner test classes driven by hand (moto only):
+   teardown order, cleanup when setup fails, the real AWS path (with moto
+   standing in for AWS) deletes the leftovers of the class;
+4. which tests run for each value of ``<PACKAGE_NAME>_TEST_REAL_AWS``, by running
+   pytest in a subprocess on a generated test file.
+"""
+
+import os
+import subprocess
+import sys
+import textwrap
+import xml.etree.ElementTree as ET
+
+import pytest
+from moto.core.models import MockAWS
+
+from <package_name>.tests import mock_aws
+from <package_name>.tests import run_cov_test
+from <package_name>.tests.mock_aws import BaseTest
+from <package_name>.tests.mock_aws import delete_s3_prefix
+from <package_name>.tests.mock_aws import get_test_dir_name
+from <package_name>.tests.mock_aws import is_real_aws_enabled
+from <package_name>.tests.mock_aws import mock_only
+from <package_name>.tests.mock_aws import new_real_boto_session
+from <package_name>.tests.mock_aws import real_aws_only
+
+ENV_REAL_AWS = "<PACKAGE_NAME>_TEST_REAL_AWS"
+
+
+# ------------------------------------------------------------------------------
+# 1. Helper functions
+# ------------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        pytest.param(None, False, id="unset"),
+        pytest.param("false", False, id="false"),
+        pytest.param("true", True, id="true"),
+    ],
+)
+def test_is_real_aws_enabled(monkeypatch, value, expected):
+    """
+    Only ``true`` allows real AWS; unset and ``false`` do not.
+    """
+    if value is None:
+        monkeypatch.delenv(ENV_REAL_AWS, raising=False)
+    else:
+        monkeypatch.setenv(ENV_REAL_AWS, value)
+    assert is_real_aws_enabled() is expected
+
+
+@pytest.mark.parametrize("value", ["ture", "1", "yes", "TRUE", ""])
+def test_is_real_aws_enabled_invalid(monkeypatch, value):
+    """
+    Any other value is an error, so a typo cannot silently skip real AWS.
+    """
+    monkeypatch.setenv(ENV_REAL_AWS, value)
+    with pytest.raises(ValueError, match="must be 'true' or 'false'"):
+        is_real_aws_enabled()
+
+
+@pytest.mark.parametrize(
+    "ci, run_id, runtime",
+    [
+        pytest.param(False, None, "local", id="local"),
+        pytest.param(False, "123", "local", id="local-ignores-run-id"),
+        pytest.param(True, None, "ci", id="ci-without-run-id"),
+        pytest.param(True, "123", "ci/123", id="github-actions-run"),
+    ],
+)
+def test_get_root_prefix(monkeypatch, ci, run_id, runtime):
+    """
+    Local runs and CI runs, each GitHub Actions workflow run, and each OS /
+    Python version write to different folders, so they never delete each
+    other's objects (e.g. pushes to two branches tested at the same time).
+    """
+    if ci:
+        monkeypatch.setenv("CI", "true")
+    else:
+        monkeypatch.delenv("CI", raising=False)
+    if run_id is None:
+        monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
+    else:
+        monkeypatch.setenv("GITHUB_RUN_ID", run_id)
+    major = sys.version_info.major
+    minor = sys.version_info.minor
+    assert mock_aws.get_root_prefix() == (
+        f"projects/<package_name>/unittest/{runtime}/{sys.platform}/py{major}{minor}"
+    )
+
+
+@pytest.mark.parametrize(
+    "test_name, dir_name",
+    [
+        pytest.param("test_put", "test_put", id="plain"),
+        pytest.param("test_put[a-b]", "test_put-a-b-", id="param-id"),
+        pytest.param("test_put[a/b c]", "test_put-a-b-c-", id="slash-space"),
+        pytest.param("test_put[x=1.5_y]", "test_put-x=1.5_y-", id="kept-chars"),
+    ],
+)
+def test_get_test_dir_name(test_name, dir_name):
+    """
+    A test name becomes one folder name: no ``/`` (it would add a level) and
+    no characters that need care in an S3 key.
+    """
+    assert get_test_dir_name(test_name) == dir_name
+
+
+@pytest.mark.parametrize("decorator", [mock_only, real_aws_only])
+def test_decorator_without_reason(decorator):
+    """
+    The reason is required: ``@mock_only`` without parentheses passes the
+    function as the reason, and an empty reason says nothing.
+    """
+
+    def func():
+        pass
+
+    with pytest.raises(TypeError, match="reason must be a str"):
+        decorator(func)
+    with pytest.raises(ValueError, match="reason must not be empty"):
+        decorator("  ")
+
+
+def test_new_real_boto_session_local_without_profile_env(monkeypatch):
+    """
+    Locally, the profile name must come from ``mise.toml``.
+    """
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("<PACKAGE_NAME>_TEST_AWS_PROFILE", raising=False)
+    with pytest.raises(RuntimeError, match="<PACKAGE_NAME>_TEST_AWS_PROFILE is not set"):
+        new_real_boto_session()
+
+
+def test_new_real_boto_session_unknown_profile(monkeypatch):
+    """
+    A profile that is not in ``~/.aws`` gives a hint to run setup-aws-ci.
+    """
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setenv("<PACKAGE_NAME>_TEST_AWS_PROFILE", "<package-name>-no-such-profile")
+    with pytest.raises(RuntimeError, match="cannot be loaded.*setup-aws-ci"):
+        new_real_boto_session()
+
+
+def test_new_real_boto_session_profile_without_credentials(monkeypatch, tmp_path):
+    """
+    A profile that exists but has no key is caught before the first API call.
+    """
+    path_config = tmp_path.joinpath("config")
+    path_config.write_text("[profile no-key]\nregion = us-east-1\n")
+    path_credentials = tmp_path.joinpath("credentials")
+    path_credentials.write_text("")
+    monkeypatch.delenv("CI", raising=False)
+    for name in ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"]:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(path_config))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(path_credentials))
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
+    monkeypatch.setenv("<PACKAGE_NAME>_TEST_AWS_PROFILE", "no-key")
+    with pytest.raises(RuntimeError, match="has no credentials"):
+        new_real_boto_session()
+
+
+@pytest.mark.parametrize(
+    "env",
+    [
+        pytest.param({}, id="no-keys"),
+        pytest.param(
+            {
+                "AWS_ACCESS_KEY_ID_FOR_GITHUB_CI": "key",
+                "AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI": "",
+            },
+            id="empty-secret",
+        ),
+    ],
+)
+def test_new_real_boto_session_ci_without_secrets(monkeypatch, env):
+    """
+    On CI, missing or empty secrets (e.g. a pull request from a fork) are an
+    error, not a silent skip.
+    """
+    monkeypatch.setenv("CI", "true")
+    for name in [
+        "AWS_ACCESS_KEY_ID_FOR_GITHUB_CI",
+        "AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI",
+    ]:
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    with pytest.raises(RuntimeError, match="only enable real AWS tests"):
+        new_real_boto_session()
+
+
+def test_new_real_boto_session_ci(monkeypatch):
+    """
+    On CI, the session uses the access key from the secrets.
+    """
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID_FOR_GITHUB_CI", "my-key")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY_FOR_GITHUB_CI", "my-secret")
+    boto_ses = new_real_boto_session()
+    assert boto_ses.get_credentials().access_key == "my-key"
+    assert boto_ses.region_name == "us-east-1"
+
+
+class FakeS3ClientWithDeleteErrors:
+    """
+    A client whose ``delete_objects`` reports a failed key.
+    """
+
+    def get_paginator(self, name):
+        class Paginator:
+            def paginate(self, **kwargs):
+                yield {"Versions": [{"Key": "a", "VersionId": "null"}]}
+
+        return Paginator()
+
+    def delete_objects(self, **kwargs):
+        return {"Errors": [{"Key": "a", "Code": "AccessDenied"}]}
+
+
+def test_delete_s3_prefix_errors():
+    """
+    A key that S3 failed to delete is an error, not silently left behind.
+    """
+    with pytest.raises(RuntimeError, match="failed to delete test objects"):
+        delete_s3_prefix(FakeS3ClientWithDeleteErrors(), "bucket", "prefix/")
+
+
+# ------------------------------------------------------------------------------
+# 2. & 3. BaseTest
+# ------------------------------------------------------------------------------
+def list_versions(s3_client, bucket: str, prefix: str) -> list[str]:
+    """
+    Every key under the prefix, once per version and delete marker.
+    """
+    res = s3_client.list_object_versions(Bucket=bucket, Prefix=prefix)
+    keys = list()
+    for key in ["Versions", "DeleteMarkers"]:
+        for version in res.get(key, []):
+            keys.append(version["Key"])
+    return sorted(keys)
+
+
+def make_inner_class(module: str, use_mock: bool, **methods) -> type:
+    """
+    A ``BaseTest`` subclass to drive by hand (setup_class / teardown_class).
+    """
+    attrs = {"module": module, "use_mock": use_mock}
+    for name, func in methods.items():
+        attrs[name] = classmethod(func)
+    return type("Inner", (BaseTest,), attrs)
+
+
+class MockAwsMixin(BaseTest):
+    module = "tests.mock_aws"
+
+    # --- 2. What a test gets --------------------------------------------------
+    def test_attributes(self):
+        """
+        The buckets follow the naming of ``mise run setup-aws-ci``, and the
+        class folder is named after ``module``.
+        """
+        assert self.aws_region == "us-east-1"
+        assert self.bucket == f"{self.aws_account_id}-us-east-1-<package-name>-test"
+        assert self.bucket_with_versioning == (
+            f"{self.aws_account_id}-us-east-1-<package-name>-test-versioning-on"
+        )
+        assert self.prefix_root.endswith("/tests/mock_aws/")
+
+    def test_buckets_ready(self):
+        """
+        Both buckets exist, and only the second has versioning enabled.
+        """
+        s3_client = self.s3_client
+        res = s3_client.get_bucket_versioning(Bucket=self.bucket)
+        assert res.get("Status") is None
+        res = s3_client.get_bucket_versioning(Bucket=self.bucket_with_versioning)
+        assert res["Status"] == "Enabled"
+
+    @pytest.mark.parametrize("x", ["a", "b"])
+    def test_prefix_test(self, x):
+        """
+        Each test, and each parametrized case, has its own folder under the
+        class folder, in both buckets.
+        """
+        dir_name = f"test_prefix_test-{x}-/"
+        assert self.prefix_test == self.prefix_root + dir_name
+
+    def test_delete_s3_prefix(self):
+        """
+        Every version and delete marker under the prefix is deleted, in both
+        kinds of bucket, and nothing outside the prefix.
+        """
+        s3_client = self.s3_client
+        for bucket in [self.bucket, self.bucket_with_versioning]:
+            prefix = self.prefix_test
+            s3_client.put_object(Bucket=bucket, Key=prefix + "a/1.txt", Body=b"1")
+            s3_client.put_object(Bucket=bucket, Key=prefix + "a/1.txt", Body=b"2")
+            s3_client.put_object(Bucket=bucket, Key=prefix + "2.txt", Body=b"1")
+            s3_client.delete_object(Bucket=bucket, Key=prefix + "2.txt")
+            s3_client.put_object(Bucket=bucket, Key=prefix + "b/keep.txt", Body=b"1")
+
+            n_versions = len(list_versions(s3_client, bucket, prefix + "a/"))
+            n_deleted = delete_s3_prefix(s3_client, bucket, prefix + "a/")
+            assert n_deleted == n_versions
+            assert list_versions(s3_client, bucket, prefix + "a/") == []
+            assert list_versions(s3_client, bucket, prefix + "b/") == [
+                prefix + "b/keep.txt"
+            ]
+            assert delete_s3_prefix(s3_client, bucket, prefix + "a/") == 0
+            delete_s3_prefix(s3_client, bucket, prefix)
+
+    @real_aws_only("checks the buckets made by 'mise run setup-aws-ci'")
+    def test_lifecycle_rule(self):
+        """
+        Both real buckets expire the unit test objects, so leftovers of failed
+        runs do not pile up.
+        """
+        for bucket in [self.bucket, self.bucket_with_versioning]:
+            res = self.s3_client.get_bucket_lifecycle_configuration(Bucket=bucket)
+            rule_ids = [rule["ID"] for rule in res["Rules"]]
+            assert "expire-unit-test-objects" in rule_ids
+
+    # --- 3. Class life cycle (moto only) --------------------------------------
+    @mock_only("drives inner test classes by hand against moto")
+    def test_teardown_runs_before_moto_stops(self):
+        """
+        ``custom_teardown_class`` still talks to moto: if it ran after moto
+        stopped, its calls would go to real AWS.
+        """
+        n_mock_before = MockAWS._nested_count
+        seen = dict()
+
+        def custom_teardown_class(cls):
+            seen["n_mock"] = MockAWS._nested_count
+            cls.s3_client.head_bucket(Bucket=cls.bucket)
+
+        Inner = make_inner_class(
+            "tests.mock_aws.inner",
+            True,
+            custom_teardown_class=custom_teardown_class,
+        )
+        Inner.setup_class()
+        try:
+            assert MockAWS._nested_count == n_mock_before + 1
+        finally:
+            Inner.teardown_class()
+        assert seen["n_mock"] == n_mock_before + 1
+        assert MockAWS._nested_count == n_mock_before
+
+    @mock_only("drives inner test classes by hand against moto")
+    def test_setup_failure_stops_moto(self):
+        """
+        pytest does not call ``teardown_class`` when ``setup_class`` fails, so
+        ``setup_class`` stops moto itself; otherwise the mock would leak into
+        the next test classes.
+        """
+        n_mock_before = MockAWS._nested_count
+
+        def custom_setup_class(cls):
+            raise KeyError("broken setup")
+
+        Inner = make_inner_class(
+            "tests.mock_aws.inner",
+            True,
+            custom_setup_class=custom_setup_class,
+        )
+        with pytest.raises(KeyError, match="broken setup"):
+            Inner.setup_class()
+        assert MockAWS._nested_count == n_mock_before
+
+    @mock_only("drives inner test classes by hand against moto")
+    def test_real_aws_setup_deletes_leftovers(self, monkeypatch):
+        """
+        On real AWS, the class starts by deleting what a previous run left in
+        its folder (both buckets, all versions), and nothing else. moto stands
+        in for AWS here.
+        """
+        monkeypatch.setenv(ENV_REAL_AWS, "true")
+        monkeypatch.setattr(
+            mock_aws, "new_real_boto_session", mock_aws.new_mock_boto_session
+        )
+        s3_client = self.s3_client
+        prefix = mock_aws.get_root_prefix() + "/tests/mock_aws/leftovers/"
+        sibling = mock_aws.get_root_prefix() + "/tests/mock_aws/leftovers_sibling/"
+        for bucket in [self.bucket, self.bucket_with_versioning]:
+            s3_client.put_object(Bucket=bucket, Key=prefix + "old.txt", Body=b"1")
+            s3_client.put_object(Bucket=bucket, Key=prefix + "old.txt", Body=b"2")
+            s3_client.put_object(Bucket=bucket, Key=sibling + "keep.txt", Body=b"1")
+
+        Inner = make_inner_class("tests.mock_aws.leftovers", False)
+        Inner.setup_class()
+        try:
+            assert Inner.prefix_root == prefix
+            for bucket in [self.bucket, self.bucket_with_versioning]:
+                assert list_versions(s3_client, bucket, prefix) == []
+                assert list_versions(s3_client, bucket, sibling) == [
+                    sibling + "keep.txt"
+                ]
+        finally:
+            Inner.teardown_class()
+
+    @mock_only("drives inner test classes by hand")
+    def test_invalid_use_mock(self):
+        """
+        ``use_mock`` must be set to a bool on the subclass.
+        """
+        Inner = make_inner_class("tests.mock_aws.inner", "yes")
+        with pytest.raises(TypeError, match="use_mock must be True or False"):
+            Inner.setup_class()
+
+
+class TestMock(MockAwsMixin):
+    use_mock = True
+
+
+class TestRealAws(MockAwsMixin):
+    use_mock = False
+
+
+# ------------------------------------------------------------------------------
+# 4. Which tests run, for each value of <PACKAGE_NAME>_TEST_REAL_AWS
+# ------------------------------------------------------------------------------
+GENERATED_TEST_FILE = """
+from <package_name>.tests.mock_aws import BaseTest
+from <package_name>.tests.mock_aws import mock_only
+from <package_name>.tests.mock_aws import real_aws_only
+
+
+class Mixin(BaseTest):
+    module = "tests.mock_aws.generated"
+
+    def test_any(self):
+        pass
+
+    @mock_only("needs moto")
+    def test_mock_only(self):
+        pass
+
+    @real_aws_only("needs AWS")
+    def test_real_aws_only(self):
+        pass
+
+
+class TestMock(Mixin):
+    use_mock = True
+
+
+class TestRealAws(Mixin):
+    use_mock = False
+"""
+
+
+def run_generated_tests(tmp_path, env_value: str | None) -> dict[str, str]:
+    """
+    Run the generated test file in a new pytest process.
+
+    :return: test id (``Class::test``) to outcome: ``passed``, ``skipped:
+        <reason>`` or ``error: <message>``.
+    """
+    path_test = tmp_path.joinpath("test_generated.py")
+    path_test.write_text(textwrap.dedent(GENERATED_TEST_FILE))
+    path_xml = tmp_path.joinpath("result.xml")
+    env = dict(os.environ)
+    env.pop(ENV_REAL_AWS, None)
+    if env_value is not None:
+        env[ENV_REAL_AWS] = env_value
+    # make "true" fail on credentials, never reach real AWS from this test
+    env.pop("CI", None)
+    env["<PACKAGE_NAME>_TEST_AWS_PROFILE"] = "<package-name>-no-such-profile"
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(path_test),
+            "-p",
+            "no:cacheprovider",
+            "--rootdir",
+            str(tmp_path),
+            f"--junitxml={path_xml}",
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    outcomes = dict()
+    for case in ET.parse(path_xml).getroot().iter("testcase"):
+        test_id = case.get("classname").split(".")[-1] + "::" + case.get("name")
+        outcome = "passed"
+        for child in case:
+            if child.tag == "skipped":
+                outcome = "skipped: " + child.get("message")
+            elif child.tag in ["error", "failure"]:
+                outcome = "error: " + child.get("message")
+        outcomes[test_id] = outcome
+    return outcomes
+
+
+MOCK_OUTCOMES = {
+    "TestMock::test_any": "passed",
+    "TestMock::test_mock_only": "passed",
+    "TestMock::test_real_aws_only": "skipped: real AWS only: needs AWS",
+}
+
+
+@pytest.mark.parametrize(
+    "env_value",
+    [pytest.param(None, id="unset"), pytest.param("false", id="false")],
+)
+def test_switch_real_aws_not_allowed(tmp_path, env_value):
+    """
+    Without permission, the real AWS class is skipped with the way to enable
+    it; the moto class runs, except ``@real_aws_only`` tests.
+    """
+    outcomes = run_generated_tests(tmp_path, env_value)
+    reason = (
+        "skipped: real AWS test; set <PACKAGE_NAME>_TEST_REAL_AWS=true to run it "
+        "(mise run cov-aws)"
+    )
+    expected = dict(MOCK_OUTCOMES)
+    for name in ["test_any", "test_mock_only", "test_real_aws_only"]:
+        expected[f"TestRealAws::{name}"] = reason
+    assert outcomes == expected
+
+
+@pytest.mark.parametrize(
+    "env_value, message",
+    [
+        pytest.param("ture", "must be 'true' or 'false'", id="typo"),
+        pytest.param("true", "cannot be loaded", id="true-no-credentials"),
+    ],
+)
+def test_switch_real_aws_errors(tmp_path, env_value, message):
+    """
+    A wrong value, or permission without credentials, fails the real AWS class
+    instead of skipping it, so a run that asked for AWS cannot look green. The
+    moto class is not affected.
+    """
+    outcomes = run_generated_tests(tmp_path, env_value)
+    for test_id, expected in MOCK_OUTCOMES.items():
+        assert outcomes.pop(test_id) == expected
+    assert sorted(outcomes) == [
+        "TestRealAws::test_any",
+        "TestRealAws::test_mock_only",
+        "TestRealAws::test_real_aws_only",
+    ]
+    for outcome in outcomes.values():
+        assert outcome.startswith("error: ")
+        assert message in outcome
+
+
+if __name__ == "__main__":
+    run_cov_test(
+        __file__,
+        module="<package_name>.tests.mock_aws",
+        preview=False,
+    )

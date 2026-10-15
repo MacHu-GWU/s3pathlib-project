@@ -1,0 +1,64 @@
+# -*- coding: utf-8 -*-
+
+"""
+Test ``<package_name>.<module>`` (an example of a test module that calls AWS).
+
+Test order:
+
+1. ...;
+2. ....
+
+Every test that creates or deletes a bucket uses its own temporary bucket
+``<package-name>-test-tmp-{uuid}``, never the shared test buckets.
+"""
+
+import uuid
+
+from <package_name>.tests import run_cov_test
+from <package_name>.tests.mock_aws import BaseTest
+from <package_name>.tests.mock_aws import mock_only
+from <package_name>.tests.mock_aws import real_aws_only
+
+
+def random_bucket_name() -> str:
+    # the IAM policy of the test user allows "<package-name>-test-tmp-*"
+    return f"<package-name>-test-tmp-{uuid.uuid4().hex}"
+
+
+class ExampleMixin(BaseTest):
+    module = "<module>"  # the folder of this class in the test buckets
+
+    def test_put_and_get(self):
+        """
+        Every test writes under its own folder, and checks AWS state with
+        native boto3 calls, not with the code under test.
+        """
+        key = self.prefix_test + "file.txt"
+        # ... call the code under test, then:
+        self.s3_client.put_object(Bucket=self.bucket, Key=key, Body=b"hello")
+        res = self.s3_client.get_object(Bucket=self.bucket, Key=key)
+        assert res["Body"].read() == b"hello"
+
+    @real_aws_only("moto has no global bucket namespace, any name can be created")
+    def test_bucket_name_taken(self):
+        ...
+
+    @mock_only("needs a state that cannot be created on real AWS any more")
+    def test_legacy_state(self):
+        ...
+
+
+class TestMock(ExampleMixin):
+    use_mock = True
+
+
+class TestRealAws(ExampleMixin):
+    use_mock = False
+
+
+if __name__ == "__main__":
+    run_cov_test(
+        __file__,
+        module="<package_name>.<module>",
+        preview=False,
+    )

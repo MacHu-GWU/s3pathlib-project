@@ -1,0 +1,40 @@
+# Merge into the project's mise.toml. Only the parts of the real AWS test
+# environment are shown.
+
+[env]
+# Needed by setup-aws-ci / teardown-aws-ci to write the GitHub Actions secrets.
+# Read it from wherever you keep local secrets; never commit the value.
+GITHUB_TOKEN = "{{ exec(command='uvx --from home-secret-toml hst get github.accounts.<account>.users.<user>.secrets.dev.value') }}"
+# AWS profiles for the unit tests that run against real AWS (see .mise/tasks/aws_ci.py)
+# - dev: powerful profile that creates the test resources and the test IAM user
+# - test: profile of the test IAM user, used by <package_name>/tests/mock_aws.py
+<PACKAGE_NAME>_DEV_AWS_PROFILE = "project_<package_name>_dev"
+<PACKAGE_NAME>_TEST_AWS_PROFILE = "project_<package_name>_test"
+
+# Testing
+[tasks.cov]
+description = "🧪📊 Run unit tests with code coverage using pytest (generates HTML report in htmlcov/)"
+run = ".venv/bin/pytest tests -s --tb=native --cov=<package_name> --cov-report term-missing --cov-report html:htmlcov"
+depends = ["inst"]
+
+[tasks.cov-aws]
+description = "🧪☁️ Run unit tests with code coverage against moto AND real AWS (sets <PACKAGE_NAME>_TEST_REAL_AWS=true; needs the test AWS profile)"
+run = "<PACKAGE_NAME>_TEST_REAL_AWS=true .venv/bin/pytest tests -s --tb=native --cov=<package_name> --cov-report term-missing --cov-report html:htmlcov"
+depends = ["inst"]
+
+# Documentation
+[tasks.docs-run]
+description = "📓☁️ Execute the doc notebooks against real AWS and hide the account id (pass -- <notebook> to run only some)"
+run = ".venv/bin/python .mise/tasks/docs-run.py"
+depends = ["inst"]
+
+# CI/CD Setup
+[tasks.setup-aws-ci]
+description = "☁️ Create the test AWS resources and IAM user, set its access key as GitHub Actions secrets (idempotent; pass -- --force to recreate the user)"
+run = ".venv/bin/python .mise/tasks/setup-aws-ci.py"
+depends = ["inst"]
+
+[tasks.teardown-aws-ci]
+description = "🗑️ Delete the test IAM user and its GitHub Actions secrets (idempotent; keeps the test resources)"
+run = ".venv/bin/python .mise/tasks/teardown-aws-ci.py"
+depends = ["inst"]

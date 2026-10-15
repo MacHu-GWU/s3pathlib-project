@@ -1,0 +1,28 @@
+# Merge into [project.optional-dependencies] of pyproject.toml.
+# Bump the bounds to the current versions when you set up a new project.
+
+test = [
+    "pytest>=8.2.2,<9.0.0", # Testing framework
+    "pytest-cov>=6.0.0,<7.0.0", # Coverage reporting
+    "moto>=5.1.22,<6.0.0", # mock AWS services
+    # only if tests start a moto server (a local endpoint for the aws CLI or
+    # another process): moto.server.ThreadedMotoServer needs these
+    # "flask>=3.0.0,<4.0.0",
+    # "flask-cors>=5.0.0,<7.0.0",
+]
+
+dev = [
+    "boto3-stubs[s3,sts]>=1.41.0,<2.0.0", # type stubs; list the services the library uses
+]
+
+doc = [
+    # ... the Sphinx packages of the project ...
+    "nbsphinx>=0.8.12,<1.0.0", # add jupyter notebook in sphinx doc
+    "ipykernel>=6.29.0,<7.0.0", # kernel to execute the notebooks (mise run docs-run)
+]
+
+# Mise task runner dependencies
+mise = [
+    "PyGithub>=2.8.0,<3.0.0", # GitHub API client (setup-aws-ci writes the secrets)
+    "tomli>=2.0.0,<3.0.0; python_version < '3.11'", # TOML parser for Python 3.10
+]
